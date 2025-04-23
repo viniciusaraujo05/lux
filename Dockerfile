@@ -10,6 +10,9 @@ WORKDIR /var/www/html
 # Copie o código do projeto
 COPY . .
 
+# (Re)instale o Composer manualmente para garantir disponibilidade no ambiente Render
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
 # Instale as dependências PHP
 RUN composer install --no-interaction --prefer-dist --optimize-autoloader
 
