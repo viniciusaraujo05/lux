@@ -1,0 +1,40 @@
+/* Animações simplificadas e seguras */
+@keyframes fadeInSimple {
+  from {
+    opacity: 0.7;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeInSimple 0.2s ease-out forwards;
+  opacity: 1;
+}
+
+.animate-fade-out {
+  opacity: 1;
+}
+
+/* Reset para animações de transformação (que podem causar problemas) */
+.no-transform {
+  transform: none !important;
+}
+
+/* Estilo para cards com hover seguro */
+.bible-card {
+  transition: box-shadow 0.2s ease;
+  opacity: 1;
+}
+
+.bible-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Classe para garantir visibilidade */
+.always-visible {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
