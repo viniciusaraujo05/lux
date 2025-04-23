@@ -2,7 +2,7 @@
 # Suitable for use with Laravel Sail and your docker-compose.yml
 
 # Dockerfile otimizado para Laravel 8.4+ usando Laravel Sail
-FROM laravelsail/php81-composer:latest
+FROM laravelsail/php84-composer:latest
 
 # Defina o diretório de trabalho
 WORKDIR /var/www/html
