@@ -7,7 +7,13 @@ import { motion } from 'framer-motion';
 // Definindo os estados de navegação possíveis
 type NavigationState = 'testamentos' | 'livros' | 'capitulos' | 'versiculos';
 
-export default function BibleBooksGrid() {
+interface BibleBooksGridProps {
+  initialTestament?: 'velho' | 'novo';
+  initialBook?: string;
+  initialChapter?: number;
+}
+
+export default function BibleBooksGrid({ initialTestament, initialBook, initialChapter }: BibleBooksGridProps) {
   // Estados para armazenar os dados da Bíblia
   const [livrosVelhoTestamento, setLivrosVelhoTestamento] = useState<string[]>([]);
   const [livrosNovoTestamento, setLivrosNovoTestamento] = useState<string[]>([]);
@@ -39,6 +45,31 @@ export default function BibleBooksGrid() {
         
         setLivrosVelhoTestamento(velhoTestamento);
         setLivrosNovoTestamento(novoTestamento);
+        
+        // Inicializar com os parâmetros da URL, se disponíveis
+        if (initialTestament && initialBook) {
+          setActiveTestament(initialTestament);
+          setSelectedBook(initialBook);
+          
+          // Carregar capítulos para o livro selecionado
+          const bookChapters = await bibleService.getCapitulos(initialBook, initialTestament);
+          setChapters(bookChapters);
+          
+          if (initialChapter) {
+            setSelectedChapter(initialChapter);
+            
+            // Carregar versículos para o capítulo selecionado
+            const chapterVerses = await bibleService.getVersiculos(initialBook, initialChapter, initialTestament);
+            setVerses(chapterVerses);
+            
+            // Definir o estado de navegação como 'versiculos'
+            setNavState('versiculos');
+          } else {
+            // Definir o estado de navegação como 'capitulos'
+            setNavState('capitulos');
+          }
+        }
+        
         setLoading(false);
       } catch (err) {
         console.error('Erro ao carregar livros:', err);
@@ -48,7 +79,7 @@ export default function BibleBooksGrid() {
     };
 
     loadBooks();
-  }, []);
+  }, [initialTestament, initialBook, initialChapter]);
 
   // Carrega os capítulos quando um livro é selecionado
   useEffect(() => {
@@ -56,7 +87,9 @@ export default function BibleBooksGrid() {
       if (selectedBook) {
         try {
           setLoading(true);
-          const chaptersData = await bibleService.getCapitulos(selectedBook, activeTestament);
+          // Garantir que o testamento seja do tipo correto
+          const testament = activeTestament as 'velho' | 'novo';
+          const chaptersData = await bibleService.getCapitulos(selectedBook, testament);
           setChapters(chaptersData);
           setLoading(false);
         } catch (err) {
@@ -106,53 +139,97 @@ export default function BibleBooksGrid() {
     }, 10); // Pequeno delay para garantir que a mudança de estado seja processada
   };
 
-  const navigateToChapters = (book: string) => {
+  // Função para navegar para os capítulos de um livro
+  const navigateToChapters = async (book: string) => {
+    setAnimationDirection('forward');
+    setLoading(true);
     setSelectedBook(book);
     setSelectedChapter(null);
     setVerses([]);
-    setTimeout(() => {
-      setNavState('capitulos');
-    }, 10);
+    setSelectedVerses([]);
+    setSelectionMode(false);
+    
+    try {
+      // Determinar o testamento com base no livro selecionado
+      const testament = livrosVelhoTestamento.includes(book) ? 'velho' as const : 'novo' as const;
+      setActiveTestament(testament);
+      
+      // Atualizar a URL do navegador
+      window.history.pushState(
+        { testament, book }, 
+        '', 
+        `/biblia/${testament}/${book}`
+      );
+      
+      const bookChapters = await bibleService.getCapitulos(book, testament);
+      setChapters(bookChapters);
+      setLoading(false);
+    } catch (err) {
+      console.error('Erro ao carregar capítulos:', err);
+      setError('Não foi possível carregar os capítulos. Por favor, tente novamente mais tarde.');
+      setLoading(false);
+    }
   };
 
-  const navigateToVerses = (chapter: number) => {
+  // Função para navegar para os versículos de um capítulo
+  const navigateToVerses = async (chapter: number) => {
+    setAnimationDirection('forward');
+    setLoading(true);
     setSelectedChapter(chapter);
     setSelectedVerses([]);
     setSelectionMode(false);
-    setTimeout(() => {
-      setNavState('versiculos');
-    }, 10);
-  };
-
-  const navigateBack = () => {
-    // Navegue de volta sem animação de saída
-    if (navState === 'versiculos') {
-      // Se estiver no modo de seleção, saia do modo primeiro
-      if (selectionMode) {
-        setSelectionMode(false);
-        setSelectedVerses([]);
-        return;
-      }
-      setSelectedChapter(null);
-      setTimeout(() => {
-        setNavState('capitulos');
-      }, 10);
-    } else if (navState === 'capitulos') {
-      setSelectedBook(null);
-      setTimeout(() => {
-        setNavState('livros');
-      }, 10);
+    
+    try {
+      if (!selectedBook) throw new Error('Nenhum livro selecionado');
+      
+      // Atualizar a URL do navegador
+      window.history.pushState(
+        { testament: activeTestament, book: selectedBook, chapter }, 
+        '', 
+        `/biblia/${activeTestament}/${selectedBook}/${chapter}`
+      );
+      
+      // Garantir que o testamento seja do tipo correto
+      const testament = activeTestament as 'velho' | 'novo';
+      const chapterVerses = await bibleService.getVersiculos(selectedBook, chapter, testament);
+      setVerses(chapterVerses);
+      setLoading(false);
+    } catch (err) {
+      console.error('Erro ao carregar versículos:', err);
+      setError('Não foi possível carregar os versículos. Por favor, tente novamente mais tarde.');
+      setLoading(false);
     }
-    // Removido o caso 'livros' para não voltar para testamentos
   };
 
-  const navigateHome = () => {
-    setNavState('livros');
-    setSelectedBook(null);
-    setSelectedChapter(null);
-    setVerses([]);
-    setSelectedVerses([]);
-    setSelectionMode(false);
+  // Função para voltar para a visualização anterior
+  const navigateBack = () => {
+    setAnimationDirection('backward');
+    
+    if (selectedChapter !== null) {
+      // Voltar para a seleção de capítulos
+      setSelectedChapter(null);
+      setVerses([]);
+      setSelectedVerses([]);
+      setSelectionMode(false);
+      
+      // Atualizar a URL do navegador
+      window.history.pushState(
+        { testament: activeTestament, book: selectedBook }, 
+        '', 
+        `/biblia/${activeTestament}/${selectedBook}`
+      );
+    } else if (selectedBook !== null) {
+      // Voltar para a seleção de livros
+      setSelectedBook(null);
+      setChapters([]);
+      
+      // Atualizar a URL do navegador
+      window.history.pushState(
+        {}, 
+        '', 
+        `/biblia`
+      );
+    }
   };
 
   // Atualiza o estado de navegação quando algo é selecionado
@@ -308,18 +385,16 @@ export default function BibleBooksGrid() {
           <div className="w-10">{/* Espaçador */}</div>
         )}
         
-        <div className="flex items-center font-medium">
-          {navIcon()}
-          <span>{navTitle()}</span>
-        </div>
-        
         <button 
-          onClick={navigateHome}
+          onClick={navigateBack}
           className="p-2 rounded-full hover:bg-muted transition-all"
-          aria-label="Início"
+          aria-label="Voltar"
         >
-          <Home size={20} />
+          <ChevronLeft size={20} />
         </button>
+      ) : (
+        <div className="w-10">{/* Espaçador */}</div>
+  
       </div>
     );
   };
@@ -398,7 +473,10 @@ export default function BibleBooksGrid() {
                 whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
-                onClick={() => window.location.href = `/explicacao/${activeTestament}/${selectedBook}/${selectedChapter}`}
+                onClick={() => {
+                  // Navegar para a página de explicação
+                  window.location.href = `/explicacao/${activeTestament}/${selectedBook}/${selectedChapter}`;
+                }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
@@ -437,6 +515,8 @@ export default function BibleBooksGrid() {
                     transition={{ type: 'spring', stiffness: 400 }}
                     onClick={() => {
                       const versiculosParam = selectedVerses.join(',');
+                      
+                      // Navegar para a página de explicação com os versículos selecionados
                       window.location.href = `/explicacao/${activeTestament}/${selectedBook}/${selectedChapter}?versiculos=${versiculosParam}`;
                     }}
                   >
@@ -495,9 +575,55 @@ export default function BibleBooksGrid() {
     setNavState('livros');
   }, []);
 
+
+
   return (
     <div className="flex flex-col space-y-4">
-      <NavigationHeader />
+      {/* Renderiza o cabeçalho de navegação */}
+      <div className="flex items-center justify-between bg-card shadow-sm rounded-md p-3 mb-4">
+        {navState !== 'livros' ? (
+          <button 
+            onClick={navigateBack}
+            className="p-2 rounded-full hover:bg-muted transition-all"
+            aria-label="Voltar"
+          >
+            <ChevronLeft size={20} />
+          </button>
+        ) : (
+          <div className="w-10">{/* Espaçador */}</div>
+        )}
+        
+        <div className="flex items-center font-medium">
+          {(() => {
+            switch (navState) {
+              case 'testamentos': return <Book className="mr-2" size={18} />;
+              case 'livros': return <Book className="mr-2" size={18} />;
+              case 'capitulos': return <Bookmark className="mr-2" size={18} />;
+              case 'versiculos': return <Bookmark className="mr-2" size={18} />;
+              default: return <Book className="mr-2" size={18} />;
+            }
+          })()}
+          <span>
+            {(() => {
+              switch (navState) {
+                case 'testamentos': return 'Bíblia Sagrada';
+                case 'livros': return 'Bíblia Sagrada';
+                case 'capitulos': return selectedBook || '';
+                case 'versiculos': return selectedBook && selectedChapter ? `${selectedBook} ${selectedChapter}` : '';
+                default: return 'Bíblia';
+              }
+            })()}
+          </span>
+        </div>
+        
+        <button 
+          onClick={() => window.location.href = '/biblia'}
+          className="p-2 rounded-full hover:bg-muted transition-all"
+          aria-label="Início"
+        >
+          <Home size={20} />
+        </button>
+      </div>
       {renderCurrentView()}
     </div>
   );

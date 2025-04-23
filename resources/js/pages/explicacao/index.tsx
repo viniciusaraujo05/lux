@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, BookOpen, ArrowRight, ArrowLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 
 interface BibleExplanationProps {
   testamento: string;
@@ -13,15 +13,29 @@ export default function BibleExplanation(props: BibleExplanationProps) {
   const [explanation, setExplanation] = useState('');
   const [source, setSource] = useState('');
   const [currentVerse, setCurrentVerse] = useState<number | null>(null);
+  const [explanationId, setExplanationId] = useState<number | null>(null);
+  const [showFeedbackForm, setShowFeedbackForm] = useState(false);
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'positive' | 'negative' | null>(null);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [feedbackStats, setFeedbackStats] = useState<{
+    positive_count: number;
+    negative_count: number;
+    total_count: number;
+    positive_percentage: number;
+    negative_percentage: number;
+  } | null>(null);
   
   // Extrair os parâmetros da URL
   const testament = props.testamento;
   const book = props.livro;
   const chapter = props.capitulo;
-  const verses = new URLSearchParams(window.location.search).get('versiculos');
+  // Obter versículos da URL (pode estar como 'versiculos' em português ou 'verses' em inglês)
+  const versiculosParam = new URLSearchParams(window.location.search).get('versiculos');
+  const versesParam = new URLSearchParams(window.location.search).get('verses');
+  const verses = versiculosParam || versesParam;
   
-  // Determinar o número máximo de versículos para este capítulo
-  // Isso é um placeholder - idealmente viria de uma API ou dados da Bíblia
   const maxVerses = 50; // Valor padrão alto para a maioria dos capítulos
 
   useEffect(() => {
@@ -45,7 +59,13 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         
         setExplanation(data.explanation || 'No explanation was returned.');
         setSource(data.origin || 'unknown');
+        setExplanationId(data.id || null);
         setLoading(false);
+        
+        // Se temos um ID de explicação, buscar estatísticas de feedback
+        if (data.id) {
+          fetchFeedbackStats(data.id);
+        }
       } catch (error) {
         console.error('Error fetching explanation:', error);
         setExplanation('Erro ao buscar explicação. Por favor, tente novamente.');
@@ -95,13 +115,117 @@ export default function BibleExplanation(props: BibleExplanationProps) {
     }
   };
 
+  // Função para buscar estatísticas de feedback
+  const fetchFeedbackStats = async (id: number) => {
+    try {
+      const response = await fetch(`/api/feedback/stats/${id}`);
+      if (response.ok) {
+        const stats = await response.json();
+        setFeedbackStats(stats);
+      }
+    } catch (error) {
+      console.error('Error fetching feedback stats:', error);
+    }
+  };
+
+  // Função para enviar feedback
+  const submitFeedback = async (isPositive: boolean) => {
+    if (!explanationId) return;
+    
+    setFeedbackType(isPositive ? 'positive' : 'negative');
+    
+    if (isPositive) {
+      // Se for positivo, envie imediatamente e mostre celebração
+      try {
+        const response = await fetch('/api/feedback', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          },
+          body: JSON.stringify({
+            bible_explanation_id: explanationId,
+            is_positive: true,
+            comment: '',
+            testament,
+            book,
+            chapter,
+            verses,
+          }),
+        });
+        
+        if (response.ok) {
+          setFeedbackSubmitted(true);
+          setShowCelebration(true);
+
+          setTimeout(() => {
+            setShowCelebration(false);
+          }, 8000);
+          
+          // Atualizar estatísticas
+          if (explanationId) {
+            fetchFeedbackStats(explanationId);
+          }
+        }
+      } catch (error) {
+        console.error('Error submitting positive feedback:', error);
+      }
+    } else {
+      // Se for negativo, mostre o formulário para comentários
+      setShowFeedbackForm(true);
+      setFeedbackType('negative');
+    }
+  };
+
+  // Função para enviar feedback com comentário
+  const submitFeedbackWithComment = async () => {
+    if (!explanationId || !feedbackType) return;
+    
+    try {
+      const response = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+        },
+        body: JSON.stringify({
+          bible_explanation_id: explanationId,
+          is_positive: feedbackType === 'positive',
+          comment: feedbackComment,
+          testament,
+          book,
+          chapter,
+          verses,
+        }),
+      });
+      
+      if (response.ok) {
+        setFeedbackSubmitted(true);
+        setShowFeedbackForm(false);
+        // Atualizar estatísticas
+        if (explanationId) {
+          fetchFeedbackStats(explanationId);
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting feedback with comment:', error);
+    }
+  };
+
   return (
     <div className="container max-w-4xl mx-auto p-4">
       <header className="mb-6 flex items-center justify-between bg-white shadow-sm rounded-lg p-4">
         <div className="flex items-center">
-          <Link href="/" className="mr-4 text-indigo-600 hover:text-indigo-800 transition-colors">
+          <button 
+            onClick={() => {
+              // Redirecionar para a página de versículos usando a nova estrutura de URLs
+              window.location.href = `/biblia/${testament}/${book}/${chapter}`;
+            }}
+            className="mr-4 text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-center"
+            aria-label="Voltar"
+          >
             <ChevronLeft size={22} />
-          </Link>
+          </button>
           <h1 className="text-xl font-bold text-gray-800">
             {book} {chapter}
             {verses && <span className="ml-2 text-sm text-gray-600">(Versículos: {verses})</span>}
@@ -141,8 +265,14 @@ export default function BibleExplanation(props: BibleExplanationProps) {
           </div>
         )}
         {loading ? (
-          <div className="flex justify-center py-8">
-            <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+          <div className="flex flex-col items-center justify-center py-12 space-y-4">
+            <div className="animate-spin h-12 w-12 border-4 border-primary rounded-full border-t-transparent"></div>
+            <p className="text-lg text-center text-slate-600 animate-pulse">
+              Preparando explicação...
+            </p>
+            <p className="text-sm text-center text-slate-500">
+              "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
+            </p>
           </div>
         ) : (
           <div>
@@ -156,13 +286,101 @@ export default function BibleExplanation(props: BibleExplanationProps) {
             </div>
             
             <div className="prose max-w-none">
-              <div className="explanation-container bg-slate-50 rounded-lg p-6 mt-4 shadow-sm border border-slate-200">
+              <div 
+                className="explanation-container bg-slate-50 rounded-lg p-6 mt-4 shadow-sm border border-slate-200"
+                style={{
+                  animation: 'fadeIn 0.8s ease-in-out',
+                }}
+              >
                 {explanation && (
                   <div
                     className="explanation-text text-slate-800 text-lg leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: explanation }}
                   />
                 )}
+                
+                {/* Seção de Feedback */}
+                <div className="mt-8 pt-6 border-t border-slate-200">
+                  <h3 className="text-lg font-semibold mb-4">Esta explicação foi útil?</h3>
+                  
+                  {feedbackSubmitted ? (
+                    <div 
+                      className={`p-4 rounded-md border ${feedbackType === 'positive' 
+                        ? 'bg-green-50 text-green-700 border-green-200' + (showCelebration ? ' celebration' : '')
+                        : 'bg-amber-50 text-amber-700 border-amber-200'}`}
+                    >
+                      {feedbackType === 'positive' ? (
+                        <div className="flex flex-col items-center text-center">
+                          <div className="text-2xl mb-2">🎉 Que maravilha! 🙏</div>
+                          <p>Obrigado pelo seu feedback positivo! Ficamos felizes que a explicação tenha sido útil para sua jornada espiritual.</p>
+                          <p className="text-sm mt-2 text-green-600">"Pois a palavra de Deus é viva e eficaz..." - Hebreus 4:12</p>
+                        </div>
+                      ) : (
+                        <p>Obrigado pelo seu feedback! Sua opinião é muito importante para melhorarmos nosso conteúdo.</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col space-y-4">
+                      <div className="flex space-x-4">
+                        <button 
+                          onClick={() => submitFeedback(true)}
+                          className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                        >
+                          <ThumbsUp size={18} />
+                          <span>Sim, foi útil</span>
+                        </button>
+                        
+                        <button 
+                          onClick={() => submitFeedback(false)}
+                          className="flex items-center space-x-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-md border border-amber-200 hover:bg-amber-100 transition-colors"
+                        >
+                          <ThumbsDown size={18} />
+                          <span>Não foi útil</span>
+                        </button>
+                      </div>
+                      
+                      {showFeedbackForm && (
+                        <div className="bg-slate-100 p-4 rounded-md border border-slate-200">
+                          <h4 className="font-medium mb-2">Como podemos melhorar esta explicação?</h4>
+                          <textarea 
+                            className="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none mb-3"
+                            rows={4}
+                            placeholder="Compartilhe suas sugestões para melhorarmos o conteúdo..."
+                            value={feedbackComment}
+                            onChange={(e) => setFeedbackComment(e.target.value)}
+                          />
+                          <div className="flex justify-end space-x-3">
+                            <button 
+                              onClick={() => setShowFeedbackForm(false)}
+                              className="px-4 py-2 text-slate-700 bg-slate-200 rounded-md hover:bg-slate-300 transition-colors"
+                            >
+                              Cancelar
+                            </button>
+                            <button 
+                              onClick={submitFeedbackWithComment}
+                              className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                            >
+                              Enviar feedback
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  
+                  {/* Estatísticas de Feedback */}
+                  {feedbackStats && feedbackStats.total_count > 0 && (
+                    <div className="mt-4 text-sm text-slate-600">
+                      <p className="mb-1">{feedbackStats.positive_count} de {feedbackStats.total_count} pessoas acharam esta explicação útil ({feedbackStats.positive_percentage}%)</p>
+                      <div className="w-full bg-slate-200 rounded-full h-2.5">
+                        <div 
+                          className="bg-emerald-500 h-2.5 rounded-full" 
+                          style={{ width: `${feedbackStats.positive_percentage}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               
               {verses && (
@@ -187,6 +405,26 @@ export default function BibleExplanation(props: BibleExplanationProps) {
               )}
               {/* CSS para a explicação bíblica estruturada */}
               <style>{`
+                @keyframes fadeIn {
+                  from { opacity: 0; transform: translateY(10px); }
+                  to { opacity: 1; transform: translateY(0); }
+                }
+                
+                @keyframes celebrate {
+                  0% { transform: scale(1); box-shadow: 0 0 0 rgba(72, 187, 120, 0); }
+                  25% { transform: scale(1.03); }
+                  50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(72, 187, 120, 0.4); }
+                  75% { transform: scale(1.03); }
+                  100% { transform: scale(1); box-shadow: 0 0 0 rgba(72, 187, 120, 0); }
+                }
+                
+                .celebration {
+                  animation: celebrate 1.2s ease-in-out infinite;
+                  background-color: rgba(236, 253, 245, 0.9);
+                  transition: all 0.3s ease;
+                  border-color: rgba(72, 187, 120, 0.6) !important;
+                }
+                
                 /* Estilos gerais para a explicação bíblica - Inspirado no Shadcn UI */
                 .bible-explanation {
                   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;

@@ -4,8 +4,9 @@ namespace App\Services;
 
 use App\Models\BibleExplanation;
 use Illuminate\Support\Facades\Log;
-use OpenAI;
-use OpenAI\Client;
+use Illuminate\Support\Facades\Http;
+use GuzzleHttp\Client;
+use GuzzleHttp\Exception\GuzzleException;
 
 class BibleExplanationService
 {
@@ -42,6 +43,7 @@ class BibleExplanationService
             $explanation->incrementAccessCount();
 
             return [
+                'id' => $explanation->id,
                 'origin' => 'cache',
                 'explanation' => $explanation->explanation_text,
                 'source' => $explanation->source,
@@ -52,7 +54,7 @@ class BibleExplanationService
         $explanationText = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
 
         // Save to database
-        BibleExplanation::create([
+        $newExplanation = BibleExplanation::create([
             'testament' => $testament,
             'book' => $book,
             'chapter' => $chapter,
@@ -63,6 +65,7 @@ class BibleExplanationService
         ]);
 
         return [
+            'id' => $newExplanation->id,
             'origin' => 'api',
             'explanation' => $explanationText,
             'source' => 'gpt-4', // Adjust according to the API you're using
@@ -94,28 +97,89 @@ class BibleExplanationService
             // Get prompt for the AI
             $prompt = $this->buildPrompt($testament, $book, $chapter, $verses);
 
-            // Set up the OpenAI client with API key from config
-            $client = OpenAI::client($apiKey);
-
-            // Create the chat completion request with GPT-3.5 Turbo
-            $response = $client->chat()->create([
-                'model' => config('services.openai.model', 'gpt-3.5-turbo'),
-                'messages' => [
-                    [
-                        'role' => 'system',
-                        'content' => 'You are an expert in theology and biblical studies, capable of explaining verses and chapters with historical context, theological meaning, and practical application.',
+            $client = new Client();
+            $model = config('services.openai.model', 'gpt-3.5-turbo-1106');
+            
+            logger("Modelo sendo usado: " . $model);
+            
+            try {
+                $response = Http::withHeaders([
+                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Content-Type' => 'application/json',
+                ])->post('https://api.openai.com/v1/chat/completions', [
+                    'model' => $model,
+                    'messages' => [
+                        [
+                            'role' => 'system',
+                            'content' => 'You are an expert in theology and biblical studies, capable of explaining verses and chapters with historical context, theological meaning, and practical application. You MUST provide a complete and detailed explanation with all the required HTML formatting. DO NOT respond with preliminary messages like "I\'ll provide an explanation" or "Let me analyze this". Instead, immediately begin with the full explanation. Include the verse text, historical context, theological analysis, and practical applications.',
+                        ],
+                        [
+                            'role' => 'user',
+                            'content' => $prompt,
+                        ],
                     ],
-                    [
-                        'role' => 'user',
-                        'content' => $prompt,
-                    ],
-                ],
-                'temperature' => 0.7,
-                'max_tokens' => 1000,
-            ]);
-
-            // Extract the explanation from the response
-            return $response->choices[0]->message->content;
+                    'temperature' => 0.6,
+                    'max_tokens' => 4000,
+                    'presence_penalty' => 0.1,
+                    'frequency_penalty' => 0.1,
+                    'stop' => null,
+                ]);
+                
+                if ($response->successful()) {
+                    $responseData = $response->json();
+                    $content = $responseData['choices'][0]['message']['content'];
+                    
+                    // Verificar se a resposta contém apenas uma mensagem introdutória
+                    if (strlen($content) < 200 || 
+                        strpos($content, 'permita-me') !== false || 
+                        strpos($content, 'vou explicar') !== false ||
+                        strpos($content, 'alguns instantes') !== false) {
+                        
+                        // Se for apenas uma introdução, tentar novamente com instruções mais explícitas
+                        Log::warning('Resposta muito curta ou apenas introdutória, tentando novamente');
+                        
+                        $retryResponse = Http::withHeaders([
+                            'Authorization' => 'Bearer ' . $apiKey,
+                            'Content-Type' => 'application/json',
+                        ])->post('https://api.openai.com/v1/chat/completions', [
+                            'model' => $model,
+                            'messages' => [
+                                [
+                                    'role' => 'system',
+                                    'content' => 'Você é um especialista em teologia e estudos bíblicos. FORNEÇA IMEDIATAMENTE uma explicação COMPLETA e DETALHADA do texto bíblico, sem mensagens introdutórias. Inclua o texto do versículo, contexto histórico, análise teológica e aplicações práticas. Use formatação HTML conforme solicitado no prompt. NÃO diga que vai explicar ou que precisa de tempo, simplesmente forneça a explicação completa.',
+                                ],
+                                [
+                                    'role' => 'user',
+                                    'content' => 'IMPORTANTE: Forneça uma explicação completa e detalhada, não apenas uma introdução. ' . $prompt,
+                                ],
+                            ],
+                            'temperature' => 0.5, // Temperatura mais baixa para respostas mais determinísticas
+                            'max_tokens' => 4000,
+                            'presence_penalty' => 0.2,
+                            'frequency_penalty' => 0.2,
+                            'stop' => null,
+                        ]);
+                        
+                        if ($retryResponse->successful()) {
+                            $retryData = $retryResponse->json();
+                            return $retryData['choices'][0]['message']['content'];
+                        }
+                    }
+                    
+                    return $content;
+                } else {
+                    Log::error('OpenAI API Error', [
+                        'status' => $response->status(),
+                        'body' => $response->body(),
+                    ]);
+                    throw new \Exception('Error calling OpenAI API: ' . $response->body());
+                }
+            } catch (\Exception $e) {
+                Log::error('Exception in HTTP request to OpenAI', [
+                    'message' => $e->getMessage(),
+                ]);
+                throw $e;
+            }
         } catch (\Exception $e) {
             Log::error('Exception when generating explanation', [
                 'message' => $e->getMessage(),
@@ -160,6 +224,8 @@ class BibleExplanationService
                                  . "Se o texto original ou tradução não estiver disponível, OMITA completamente a seção 'Texto Original e Tradução'.";
     
         return <<<EOD
+    IMPORTANTE: Forneça IMEDIATAMENTE uma explicação COMPLETA e DETALHADA. NÃO responda com mensagens introdutórias como "vou explicar" ou "permita-me alguns instantes". Comece diretamente com a explicação completa usando a estrutura HTML solicitada.
+    
     Você é um teólogo cristão experiente, especializado em exegese e hermenêutica bíblica, com profundo conhecimento dos textos originais, contexto histórico e aplicações práticas.
     
     Sua missão é tornar a Palavra de Deus clara, acessível e inspiradora para todos, em linha com o propósito do LuxApp. Adote um tom respeitoso, acolhedor e motivador, escrevendo em português simples para leigos, jovens cristãos e buscadores espirituais, sem comprometer a profundidade teológica.
@@ -188,14 +254,14 @@ class BibleExplanationService
         <h3 class='section-title'>Texto Bíblico</h3>
         <p class='bible-text'>[Insira o texto bíblico em português, usando uma tradução fiel como a Almeida Revista e Atualizada ou Nova Versão Internacional]</p>
     
-        <!-- Inclua a seção abaixo SOMENTE se o texto original e/ou tradução estiverem disponíveis -->
-        <h3 class='section-title'>Texto Original e Tradução</h3>
-        <div class='original-translation'>
-            <div class='original-text'>[Insira o texto no idioma original (hebraico, aramaico ou grego)]</div>
-            <div class='transliteration'>[Insira a transliteração, se aplicável]</div>
-            <div class='translation'>[Insira a tradução literal do texto original]</div>
-            <div class='word-analysis'>[Opcional: análise de palavras-chave no idioma original, destacando seu significado]</div>
-        </div>
+        // <!-- Inclua a seção abaixo SOMENTE se o texto original e/ou tradução estiverem disponíveis -->
+        // <h3 class='section-title'>Texto Original e Tradução</h3>
+        // <div class='original-translation'>
+        //     <div class='original-text'>[Insira o texto no idioma original (hebraico, aramaico ou grego)]</div>
+        //     <div class='transliteration'>[Insira a transliteração, se aplicável]</div>
+        //     <div class='translation'>[Insira a tradução literal do texto original]</div>
+        //     <div class='word-analysis'>[Opcional: análise de palavras-chave no idioma original, destacando seu significado]</div>
+        // </div>
     
         <h3 class='section-title'>Contexto Histórico e Cultural</h3>
         <p>[Explique detalhadamente o contexto histórico, cultural, geográfico e literário do texto, incluindo informações sobre o autor, público original, propósito, situação política e religiosa da época, e costumes relevantes]</p>
@@ -230,6 +296,8 @@ class BibleExplanationService
     </div>
     
     Substitua os textos entre colchetes pelo conteúdo real. Mantenha a estrutura HTML exata, mas preencha com explicações relevantes, profundas e inspiradoras. Use linguagem acessível, respeitosa e alinhada com o propósito do LuxApp de iluminar a Palavra de Deus.
+    
+    LEMBRE-SE: Forneça uma resposta COMPLETA com todas as seções HTML. NÃO envie mensagens introdutórias ou explicações sobre o que você vai fazer. Comece imediatamente com o conteúdo HTML completo da explicação bíblica.
     EOD;
     }
 

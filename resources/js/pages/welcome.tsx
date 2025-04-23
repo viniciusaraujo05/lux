@@ -10,11 +10,17 @@ const CTA = () => (
     animate={{ opacity: 1, y: 0 }}
     transition={{ delay: 0.7, duration: 0.6 }}
   >
-    Escolha um livro para começar sua leitura
+    Escolha um livro para começar os seus estudos
   </motion.p>
 );
 
-export default function Welcome() {
+interface WelcomeProps {
+  testamento?: string;
+  livro?: string;
+  capitulo?: string;
+}
+
+export default function Welcome(props: WelcomeProps) {
   return (
     <>
       <Head title="Verbum - Bíblia Sagrada">
@@ -48,7 +54,11 @@ export default function Welcome() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 1, duration: 0.7 }}
           >
-            <BibleBooksGrid />
+            <BibleBooksGrid 
+              initialTestament={props.testamento as 'velho' | 'novo' | undefined}
+              initialBook={props.livro}
+              initialChapter={props.capitulo ? parseInt(props.capitulo) : undefined}
+            />
           </motion.main>
         </div>
       </div>

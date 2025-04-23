@@ -16,6 +16,30 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // Bible Explanation API Route
 Route::get('/api/explanation/{testament}/{book}/{chapter}', [\App\Http\Controllers\BibleExplanationController::class, 'getExplanation']);
 
+// Feedback API Routes
+Route::post('/api/feedback', [\App\Http\Controllers\ExplanationFeedbackController::class, 'store']);
+Route::get('/api/feedback/stats/{id}', [\App\Http\Controllers\ExplanationFeedbackController::class, 'getStats']);
+
+// Bible Navigation Routes
+Route::get('/biblia', function () {
+    return Inertia::render('welcome');
+});
+
+Route::get('/biblia/{testamento}/{livro}', function (string $testamento, string $livro) {
+    return Inertia::render('welcome', [
+        'testamento' => $testamento,
+        'livro' => $livro
+    ]);
+});
+
+Route::get('/biblia/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
+    return Inertia::render('welcome', [
+        'testamento' => $testamento,
+        'livro' => $livro,
+        'capitulo' => $capitulo
+    ]);
+});
+
 // Bible Explanation Page Route
 Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
     return Inertia::render('explicacao/index', [
