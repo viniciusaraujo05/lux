@@ -1,5 +1,8 @@
-# Use a imagem oficial do PHP 8.2 FPM Alpine (leve e estável)
+# Imagem base com PHP 8.2, Nginx e Alpine para Laravel no Render
 FROM php:8.2-fpm-alpine
+
+# Instale Nginx e supervisor
+RUN apk add --no-cache nginx supervisor
 
 # Defina o diretório de trabalho
 WORKDIR /var/www/html
@@ -37,8 +40,15 @@ RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cac
 # Configuração do PHP
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
+# Configurar Nginx
+RUN mkdir -p /run/nginx
+COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+
+# Configurar Supervisor para gerenciar Nginx e PHP-FPM
+COPY docker/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
+
 # Exponha a porta 80
 EXPOSE 80
 
-# Comando para iniciar o PHP-FPM
-CMD ["php-fpm"]
+# Comando para iniciar o supervisor (que inicia Nginx e PHP-FPM)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
