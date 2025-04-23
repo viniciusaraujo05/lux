@@ -22,4 +22,4 @@ RUN chown -R www-data:www-data /var/www/html \
 
 EXPOSE 80
 
-CMD ["php-fpm8.3"]
+CMD ["php-fpm"]
