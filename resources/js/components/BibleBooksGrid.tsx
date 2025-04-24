@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import BibleService from "@/services/BibleService";
+import SlugService from "@/services/SlugService";
 import { ChevronLeft, Home, Book, Bookmark, Search } from "lucide-react";
 import { motion } from 'framer-motion';
+import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 // Definindo os estados de navegação possíveis
 type NavigationState = 'testamentos' | 'livros' | 'capitulos' | 'versiculos';
@@ -32,8 +34,12 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   // Estado para controlar animações
   const [animationDirection, setAnimationDirection] = useState<'forward' | 'backward'>('forward');
   
-  // Instância do serviço da Bíblia
+  // Instâncias dos serviços
   const bibleService = BibleService.getInstance();
+  const slugService = SlugService.getInstance();
+  
+  // Verificar se é dispositivo móvel
+  const isMobile = useMediaQuery('(max-width: 640px)');
 
   // Carrega os livros quando o componente é montado
   useEffect(() => {
@@ -51,7 +57,6 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
           setActiveTestament(initialTestament);
           setSelectedBook(initialBook);
           
-          // Carregar capítulos para o livro selecionado
           const bookChapters = await bibleService.getCapitulos(initialBook, initialTestament);
           setChapters(bookChapters);
           
@@ -154,11 +159,14 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       const testament = livrosVelhoTestamento.includes(book) ? 'velho' as const : 'novo' as const;
       setActiveTestament(testament);
       
+      // Converter o nome do livro para slug para URL limpa
+      const bookSlug = slugService.livroParaSlug(book);
+      
       // Atualizar a URL do navegador
       window.history.pushState(
         { testament, book }, 
         '', 
-        `/biblia/${testament}/${book}`
+        `/biblia/${testament}/${bookSlug}`
       );
       
       const bookChapters = await bibleService.getCapitulos(book, testament);
@@ -182,11 +190,14 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     try {
       if (!selectedBook) throw new Error('Nenhum livro selecionado');
       
+      // Converter o nome do livro para slug para URL limpa
+      const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
+      
       // Atualizar a URL do navegador
       window.history.pushState(
         { testament: activeTestament, book: selectedBook, chapter }, 
         '', 
-        `/biblia/${activeTestament}/${selectedBook}/${chapter}`
+        `/biblia/${activeTestament}/${bookSlug}/${chapter}`
       );
       
       // Garantir que o testamento seja do tipo correto
@@ -446,20 +457,26 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       case 'capitulos':
         return (
           <div className="always-visible">
-            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2">
-              {chapters.map((chapter) => (
-                <motion.button
-                  key={chapter}
-                  className="p-3 rounded-md border text-sm font-medium transition-all hover:bg-accent cursor-pointer"
-                  whileHover={{ scale: 1.08, backgroundColor: "#f1f5f9" }}
-                  whileTap={{ scale: 0.96 }}
-                  transition={{ type: 'spring', stiffness: 300 }}
-                  onClick={() => navigateToVerses(chapter)}
-                >
-                  {chapter}
-                </motion.button>
-              ))}
-            </div>
+            <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1 sm:gap-2">
+  {chapters.map((chapter) => {
+    const isSelected = selectedChapter === chapter;
+    return (
+      <motion.button
+        key={chapter}
+        className={`relative p-2 sm:p-3 md:p-4 rounded-md border text-sm sm:text-base transition-all cursor-pointer font-semibold text-center focus:outline-none ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-card hover:bg-accent border-border text-foreground'}`}
+        whileHover={{ scale: 1.08, boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}
+        whileTap={{ scale: 0.96 }}
+        transition={{ type: 'spring', stiffness: 300 }}
+        onClick={() => navigateToVerses(chapter)}
+      >
+        {chapter}
+        {isSelected && (
+          <span className="absolute -top-1 -right-1 bg-primary-foreground text-primary w-4 h-4 flex items-center justify-center rounded-full text-xs border border-primary">✓</span>
+        )}
+      </motion.button>
+    );
+  })}
+</div>
           </div>
         );
       
@@ -505,19 +522,20 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
             {/* Informações de seleção */}
             {selectionMode && (
-              <div className="bg-muted/30 p-4 rounded-lg border border-border text-center">
-                <p className="text-sm">Selecione os versículos que deseja explicar {selectedVerses.length > 0 && <span className="font-bold">({selectedVerses.length} selecionados)</span>}</p>
+              <div className="bg-muted/30 p-2 sm:p-4 rounded-lg border border-border text-center">
+                <p className="text-xs sm:text-sm">Selecione os versículos que deseja explicar {selectedVerses.length > 0 && <span className="font-bold">({selectedVerses.length} selecionados)</span>}</p>
                 {selectedVerses.length > 0 && (
                   <motion.button
-                    className="mt-2 px-4 py-2 bg-primary text-black rounded-md text-sm font-medium shadow-sm inline-flex items-center gap-1 hover:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="mt-3 sm:mt-4 px-3 sm:px-4 py-1.5 sm:py-2 bg-primary text-primary-foreground rounded-md text-xs sm:text-sm font-medium shadow-sm inline-flex items-center gap-1 hover:bg-primary/80 focus:outline-none focus:ring-2 focus:ring-primary/50"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     transition={{ type: 'spring', stiffness: 400 }}
                     onClick={() => {
                       const versiculosParam = selectedVerses.join(',');
                       
-                      // Navegar para a página de explicação com os versículos selecionados
-                      window.location.href = `/explicacao/${activeTestament}/${selectedBook}/${selectedChapter}?versiculos=${versiculosParam}`;
+                      const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
+                      
+                      window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedChapter}?versiculos=${versiculosParam}`;
                     }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -529,14 +547,14 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
               </div>
             )}
 
-            {/* Grid de versículos */}
-            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-2">
+            {/* Grid de versículos - ajustado para mobile */}
+            <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1 sm:gap-2">
               {verses.map((verse) => {
                 const isSelected = selectedVerses.includes(verse);
                 return (
                   <motion.button
                     key={verse}
-                    className={`p-3 rounded-md border ${isSelected ? 'bg-primary text-white border-primary' : 'bg-card hover:bg-accent'} text-sm font-medium transition-all cursor-pointer`}
+                    className={`p-2 sm:p-3 md:p-4 rounded-md border text-sm sm:text-base ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-accent'} transition-all cursor-pointer`}
                     whileHover={{ scale: 1.08, boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}
                     whileTap={{ scale: 0.96 }}
                     transition={{ type: 'spring', stiffness: 300 }}
@@ -550,7 +568,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                         );
                       } else {
                         // Modo normal: navegar para explicação de versículo único
-                        window.location.href = `/explicacao/${activeTestament}/${selectedBook}/${selectedChapter}?versiculos=${verse}`;
+                        const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
+                        window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedChapter}?versiculos=${verse}`;
                       }
                     }}
                   >
@@ -574,8 +593,6 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   useEffect(() => {
     setNavState('livros');
   }, []);
-
-
 
   return (
     <div className="flex flex-col space-y-4">
@@ -618,10 +635,10 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         
         <button 
           onClick={() => window.location.href = '/biblia'}
-          className="p-2 rounded-full hover:bg-muted transition-all"
+          className="p-1 sm:p-2 rounded-full hover:bg-muted transition-all"
           aria-label="Início"
         >
-          <Home size={20} />
+          <Home size={16} className="sm:w-5 sm:h-5" />
         </button>
       </div>
       {renderCurrentView()}

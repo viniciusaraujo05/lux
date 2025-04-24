@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, BookOpen, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
+import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 interface BibleExplanationProps {
   testamento: string;
@@ -27,6 +28,9 @@ export default function BibleExplanation(props: BibleExplanationProps) {
     negative_percentage: number;
   } | null>(null);
   
+  // Verificar se é dispositivo móvel
+  const isMobile = useMediaQuery('(max-width: 640px)');
+  
   // Extrair os parâmetros da URL
   const testament = props.testamento;
   const book = props.livro;
@@ -46,16 +50,13 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         if (verses) {
           apiUrl += `?verses=${verses}`;
         }
-        
-        console.log('Fetching explanation from:', apiUrl);
-        
+                
         const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`API responded with status: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log('API response:', data);
         
         setExplanation(data.explanation || 'No explanation was returned.');
         setSource(data.origin || 'unknown');
@@ -130,13 +131,15 @@ export default function BibleExplanation(props: BibleExplanationProps) {
 
   // Função para enviar feedback
   const submitFeedback = async (isPositive: boolean) => {
-    if (!explanationId) return;
+    if (!explanationId) {
+      console.error('Erro: ID da explicação não encontrado');
+      return;
+    }
     
     setFeedbackType(isPositive ? 'positive' : 'negative');
     
     if (isPositive) {
-      // Se for positivo, envie imediatamente e mostre celebração
-      try {
+      try {        
         const response = await fetch('/api/feedback', {
           method: 'POST',
           headers: {
@@ -153,7 +156,7 @@ export default function BibleExplanation(props: BibleExplanationProps) {
             verses,
           }),
         });
-        
+                
         if (response.ok) {
           setFeedbackSubmitted(true);
           setShowCelebration(true);
@@ -162,26 +165,27 @@ export default function BibleExplanation(props: BibleExplanationProps) {
             setShowCelebration(false);
           }, 8000);
           
-          // Atualizar estatísticas
-          if (explanationId) {
-            fetchFeedbackStats(explanationId);
-          }
+          fetchFeedbackStats(explanationId);
+        } else {
+          console.error('Erro na resposta do servidor:', await response.text());
         }
       } catch (error) {
-        console.error('Error submitting positive feedback:', error);
+        console.error('Erro ao enviar feedback positivo:', error);
       }
     } else {
       // Se for negativo, mostre o formulário para comentários
       setShowFeedbackForm(true);
-      setFeedbackType('negative');
     }
   };
 
   // Função para enviar feedback com comentário
   const submitFeedbackWithComment = async () => {
-    if (!explanationId || !feedbackType) return;
+    if (!explanationId || !feedbackType) {
+      console.error('Erro: ID da explicação ou tipo de feedback não encontrado');
+      return;
+    }
     
-    try {
+    try {      
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
@@ -198,23 +202,23 @@ export default function BibleExplanation(props: BibleExplanationProps) {
           verses,
         }),
       });
-      
+            
       if (response.ok) {
         setFeedbackSubmitted(true);
         setShowFeedbackForm(false);
         // Atualizar estatísticas
-        if (explanationId) {
-          fetchFeedbackStats(explanationId);
-        }
+        fetchFeedbackStats(explanationId);
+      } else {
+        console.error('Erro na resposta do servidor:', await response.text());
       }
     } catch (error) {
-      console.error('Error submitting feedback with comment:', error);
+      console.error('Erro ao enviar feedback com comentário:', error);
     }
   };
 
   return (
-    <div className="container max-w-4xl mx-auto p-4">
-      <header className="mb-6 flex items-center justify-between bg-white shadow-sm rounded-lg p-4">
+    <div className="container max-w-4xl mx-auto p-2 sm:p-4">
+      <header className="mb-3 sm:mb-6 flex items-center justify-between bg-white shadow-sm rounded-lg p-2 sm:p-4">
         <div className="flex items-center">
           <button 
             onClick={() => {
@@ -224,11 +228,11 @@ export default function BibleExplanation(props: BibleExplanationProps) {
             className="mr-4 text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-center"
             aria-label="Voltar"
           >
-            <ChevronLeft size={22} />
+            <ChevronLeft size={isMobile ? 18 : 22} />
           </button>
-          <h1 className="text-xl font-bold text-gray-800">
+          <h1 className="text-base sm:text-xl font-bold text-gray-800 truncate max-w-[150px] sm:max-w-full">
             {book} {chapter}
-            {verses && <span className="ml-2 text-sm text-gray-600">(Versículos: {verses})</span>}
+            {verses && <span className="ml-2 text-xs sm:text-sm text-gray-600 hidden sm:inline">(Versículos: {verses})</span>}
           </h1>
         </div>
         
@@ -236,30 +240,30 @@ export default function BibleExplanation(props: BibleExplanationProps) {
           <div className="flex items-center space-x-2">
             <button 
               onClick={navigateToPreviousVerse}
-              className="p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+              className="p-1 sm:p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
               aria-label="Versículo anterior"
             >
-              <ArrowLeft size={18} />
+              <ArrowLeft size={isMobile ? 16 : 18} />
             </button>
             <button 
               onClick={navigateToNextVerse}
-              className="p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+              className="p-1 sm:p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
               aria-label="Próximo versículo"
             >
-              <ArrowRight size={18} />
+              <ArrowRight size={isMobile ? 16 : 18} />
             </button>
           </div>
         )}
       </header>
       
-      <div className="border rounded-lg p-6 bg-white shadow-sm">
+      <div className="border rounded-lg p-3 sm:p-6 bg-white shadow-sm">
         {!verses && (
           <div className="mb-6 flex justify-end">
             <button 
               onClick={startVerseByVerseAnalysis}
-              className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs sm:text-sm"
             >
-              <BookOpen size={18} />
+              <BookOpen size={isMobile ? 14 : 18} />
               Analisar versículo por versículo
             </button>
           </div>
@@ -287,78 +291,79 @@ export default function BibleExplanation(props: BibleExplanationProps) {
             
             <div className="prose max-w-none">
               <div 
-                className="explanation-container bg-slate-50 rounded-lg p-6 mt-4 shadow-sm border border-slate-200"
+                className="explanation-container bg-slate-50 rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-slate-200"
                 style={{
                   animation: 'fadeIn 0.8s ease-in-out',
                 }}
               >
                 {explanation && (
                   <div
-                    className="explanation-text text-slate-800 text-lg leading-relaxed"
+                    className="explanation-text text-slate-800 text-base sm:text-lg leading-relaxed"
                     dangerouslySetInnerHTML={{ __html: explanation }}
                   />
                 )}
                 
                 {/* Seção de Feedback */}
-                <div className="mt-8 pt-6 border-t border-slate-200">
-                  <h3 className="text-lg font-semibold mb-4">Esta explicação foi útil?</h3>
+                <div className="mt-4 sm:mt-8 pt-3 sm:pt-6 border-t border-slate-200">
+                  <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-4">Esta explicação foi útil?</h3>
                   
                   {feedbackSubmitted ? (
                     <div 
-                      className={`p-4 rounded-md border ${feedbackType === 'positive' 
+                      className={`p-2 sm:p-4 rounded-md border ${feedbackType === 'positive' 
                         ? 'bg-green-50 text-green-700 border-green-200' + (showCelebration ? ' celebration' : '')
                         : 'bg-amber-50 text-amber-700 border-amber-200'}`}
                     >
                       {feedbackType === 'positive' ? (
-                        <div className="flex flex-col items-center text-center">
-                          <div className="text-2xl mb-2">🎉 Que maravilha! 🙏</div>
-                          <p>Obrigado pelo seu feedback positivo! Ficamos felizes que a explicação tenha sido útil para sua jornada espiritual.</p>
-                          <p className="text-sm mt-2 text-green-600">"Pois a palavra de Deus é viva e eficaz..." - Hebreus 4:12</p>
-                        </div>
+                        <p className="text-center text-sm sm:text-base text-green-700">
+                          Obrigado pelo seu feedback positivo! Sua opinião nos ajuda a melhorar.
+                        </p>
                       ) : (
                         <p>Obrigado pelo seu feedback! Sua opinião é muito importante para melhorarmos nosso conteúdo.</p>
                       )}
                     </div>
                   ) : (
                     <div className="flex flex-col space-y-4">
-                      <div className="flex space-x-4">
+                      <div className="flex space-x-2 sm:space-x-4">
                         <button 
                           onClick={() => submitFeedback(true)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                          className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-emerald-50 text-emerald-700 rounded-md border border-emerald-200 hover:bg-emerald-100 transition-colors"
+                          disabled={!explanationId}
                         >
-                          <ThumbsUp size={18} />
-                          <span>Sim, foi útil</span>
+                          <ThumbsUp size={isMobile ? 14 : 18} />
+                          <span className="text-xs sm:text-sm">Sim, foi útil</span>
                         </button>
                         
                         <button 
                           onClick={() => submitFeedback(false)}
-                          className="flex items-center space-x-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-md border border-amber-200 hover:bg-amber-100 transition-colors"
+                          className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-amber-50 text-amber-700 rounded-md border border-amber-200 hover:bg-amber-100 transition-colors"
+                          disabled={!explanationId}
                         >
-                          <ThumbsDown size={18} />
-                          <span>Não foi útil</span>
+                          <ThumbsDown size={isMobile ? 14 : 18} />
+                          <span className="text-xs sm:text-sm">Não foi útil</span>
                         </button>
                       </div>
                       
                       {showFeedbackForm && (
-                        <div className="bg-slate-100 p-4 rounded-md border border-slate-200">
-                          <h4 className="font-medium mb-2">Como podemos melhorar esta explicação?</h4>
+                        <div className="bg-slate-100 p-2 sm:p-4 rounded-md border border-slate-200">
+                          <h4 className="font-medium mb-1 sm:mb-2 text-sm sm:text-base text-slate-700">Como podemos melhorar esta explicação?</h4>
                           <textarea 
-                            className="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none mb-3"
-                            rows={4}
+                            className="w-full p-2 text-black sm:p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none mb-2 sm:mb-3 text-sm"
+                            rows={isMobile ? 3 : 4}
                             placeholder="Compartilhe suas sugestões para melhorarmos o conteúdo..."
                             value={feedbackComment}
                             onChange={(e) => setFeedbackComment(e.target.value)}
                           />
-                          <div className="flex justify-end space-x-3">
+                          <div className="flex justify-end space-x-2 sm:space-x-3">
                             <button 
                               onClick={() => setShowFeedbackForm(false)}
-                              className="px-4 py-2 text-slate-700 bg-slate-200 rounded-md hover:bg-slate-300 transition-colors"
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 text-slate-700 bg-slate-200 rounded-md hover:bg-slate-300 transition-colors text-xs sm:text-sm"
                             >
                               Cancelar
                             </button>
                             <button 
                               onClick={submitFeedbackWithComment}
-                              className="px-4 py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors"
+                              className="px-3 sm:px-4 py-1.5 sm:py-2 text-white bg-indigo-600 rounded-md hover:bg-indigo-700 transition-colors text-xs sm:text-sm"
+                              disabled={!feedbackComment.trim()}
                             >
                               Enviar feedback
                             </button>
@@ -370,11 +375,11 @@ export default function BibleExplanation(props: BibleExplanationProps) {
                   
                   {/* Estatísticas de Feedback */}
                   {feedbackStats && feedbackStats.total_count > 0 && (
-                    <div className="mt-4 text-sm text-slate-600">
+                    <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-slate-600">
                       <p className="mb-1">{feedbackStats.positive_count} de {feedbackStats.total_count} pessoas acharam esta explicação útil ({feedbackStats.positive_percentage}%)</p>
-                      <div className="w-full bg-slate-200 rounded-full h-2.5">
+                      <div className="w-full bg-slate-200 rounded-full h-1.5 sm:h-2.5">
                         <div 
-                          className="bg-emerald-500 h-2.5 rounded-full" 
+                          className="bg-emerald-500 h-1.5 sm:h-2.5 rounded-full" 
                           style={{ width: `${feedbackStats.positive_percentage}%` }}
                         ></div>
                       </div>
@@ -384,22 +389,24 @@ export default function BibleExplanation(props: BibleExplanationProps) {
               </div>
               
               {verses && (
-                <div className="mt-8 flex justify-between items-center">
+                <div className="mt-4 sm:mt-8 flex justify-between items-center">
                   <button 
                     onClick={navigateToPreviousVerse}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors"
+                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors text-xs sm:text-sm"
                     disabled={parseInt(verses.split(',')[0]) <= 1}
                   >
-                    <ArrowLeft size={16} />
-                    Versículo anterior
+                    <ArrowLeft size={isMobile ? 14 : 16} />
+                    <span className="hidden xs:inline">Versículo anterior</span>
+                    <span className="xs:hidden">Anterior</span>
                   </button>
                   
                   <button 
                     onClick={navigateToNextVerse}
-                    className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors"
+                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs sm:text-sm"
                   >
-                    Próximo versículo
-                    <ArrowRight size={16} />
+                    <span className="hidden xs:inline">Próximo versículo</span>
+                    <span className="xs:hidden">Próximo</span>
+                    <ArrowRight size={isMobile ? 14 : 16} />
                   </button>
                 </div>
               )}

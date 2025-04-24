@@ -6,6 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class ExplanationFeedback extends Model
 {
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'explanation_feedbacks';
     protected $fillable = [
         'bible_explanation_id',
         'is_positive',

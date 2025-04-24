@@ -3,10 +3,9 @@
 namespace App\Services;
 
 use App\Models\BibleExplanation;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\GuzzleException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class BibleExplanationService
 {
@@ -97,14 +96,14 @@ class BibleExplanationService
             // Get prompt for the AI
             $prompt = $this->buildPrompt($testament, $book, $chapter, $verses);
 
-            $client = new Client();
+            $client = new Client;
             $model = config('services.openai.model', 'gpt-3.5-turbo-1106');
-            
-            logger("Modelo sendo usado: " . $model);
-            
+
+            logger('Modelo sendo usado: '.$model);
+
             try {
                 $response = Http::withHeaders([
-                    'Authorization' => 'Bearer ' . $apiKey,
+                    'Authorization' => 'Bearer '.$apiKey,
                     'Content-Type' => 'application/json',
                 ])->post('https://api.openai.com/v1/chat/completions', [
                     'model' => $model,
@@ -124,22 +123,22 @@ class BibleExplanationService
                     'frequency_penalty' => 0.1,
                     'stop' => null,
                 ]);
-                
+
                 if ($response->successful()) {
                     $responseData = $response->json();
                     $content = $responseData['choices'][0]['message']['content'];
-                    
+
                     // Verificar se a resposta contém apenas uma mensagem introdutória
-                    if (strlen($content) < 200 || 
-                        strpos($content, 'permita-me') !== false || 
+                    if (strlen($content) < 200 ||
+                        strpos($content, 'permita-me') !== false ||
                         strpos($content, 'vou explicar') !== false ||
                         strpos($content, 'alguns instantes') !== false) {
-                        
+
                         // Se for apenas uma introdução, tentar novamente com instruções mais explícitas
                         Log::warning('Resposta muito curta ou apenas introdutória, tentando novamente');
-                        
+
                         $retryResponse = Http::withHeaders([
-                            'Authorization' => 'Bearer ' . $apiKey,
+                            'Authorization' => 'Bearer '.$apiKey,
                             'Content-Type' => 'application/json',
                         ])->post('https://api.openai.com/v1/chat/completions', [
                             'model' => $model,
@@ -150,7 +149,7 @@ class BibleExplanationService
                                 ],
                                 [
                                     'role' => 'user',
-                                    'content' => 'IMPORTANTE: Forneça uma explicação completa e detalhada, não apenas uma introdução. ' . $prompt,
+                                    'content' => 'IMPORTANTE: Forneça uma explicação completa e detalhada, não apenas uma introdução. '.$prompt,
                                 ],
                             ],
                             'temperature' => 0.5, // Temperatura mais baixa para respostas mais determinísticas
@@ -159,20 +158,21 @@ class BibleExplanationService
                             'frequency_penalty' => 0.2,
                             'stop' => null,
                         ]);
-                        
+
                         if ($retryResponse->successful()) {
                             $retryData = $retryResponse->json();
+
                             return $retryData['choices'][0]['message']['content'];
                         }
                     }
-                    
+
                     return $content;
                 } else {
                     Log::error('OpenAI API Error', [
                         'status' => $response->status(),
                         'body' => $response->body(),
                     ]);
-                    throw new \Exception('Error calling OpenAI API: ' . $response->body());
+                    throw new \Exception('Error calling OpenAI API: '.$response->body());
                 }
             } catch (\Exception $e) {
                 Log::error('Exception in HTTP request to OpenAI', [
@@ -203,101 +203,113 @@ class BibleExplanationService
     private function buildPrompt($testament, $book, $chapter, $verses = null)
     {
         $isFullChapter = $verses === null;
-    
-        // Format the passage description
+
         $passageText = $isFullChapter
             ? "o capítulo {$chapter} do livro de {$book} ({$testament} Testamento)"
             : "os versículos {$verses} do capítulo {$chapter} do livro de {$book} ({$testament} Testamento)";
-    
-        // Specific instructions for full chapter or selected verses
-        $specificInstructions = $isFullChapter
-            ? "Analise o contexto geral do capítulo, fornecendo uma visão abrangente de seus temas e propósito. "
-              . "Em seguida, explique cada versículo como um comentário bíblico, destacando seu significado e conexão com o todo. "
-              . "Conclua com uma síntese teológica que una os principais ensinamentos e aplicações do capítulo."
-            : "Analise detalhadamente cada versículo listado ({$verses}), considerando o contexto do capítulo como um todo. "
-              . "Se forem múltiplos versículos (ex.: '1-3' ou '1,3,5'), comente TODOS individualmente, explicando seu significado e relevância. "
-              . "Certifique-se de abordar cada versículo ou intervalo explicitamente, sem omitir nenhum.";
-    
-        // Conditional instruction for original text and translation
-        $originalTextInstruction = "Se o texto original (hebraico, aramaico ou grego) e sua tradução literal estiverem disponíveis, inclua-os na seção 'Texto Original e Tradução'. "
-                                 . "Forneça a transliteração (se aplicável) e, opcionalmente, uma análise de palavras-chave no idioma original. "
-                                 . "Se o texto original ou tradução não estiver disponível, OMITA completamente a seção 'Texto Original e Tradução'.";
-    
+
+        // Instruções específicas para diferentes casos
+        if ($isFullChapter) {
+            $specificInstructions =
+                "1. Apresente uma visão geral do capítulo, destacando temas centrais e propósito.\n"
+                ."2. Explique cada versículo individualmente, como num comentário bíblico, conectando-o ao contexto do capítulo.\n"
+                .'3. Finalize com uma síntese teológica que una os principais ensinamentos e aplicações.';
+        } else {
+            // Verifica se é um único versículo
+            $isSingleVerse = preg_match('/^\d+$/', $verses);
+            $isDoubleVerse = preg_match('/^\d+-\d+$/', $verses) && (intval(explode('-', $verses)[1]) - intval(explode('-', $verses)[0]) === 1);
+
+            if ($isSingleVerse) {
+                $specificInstructions =
+                    "1. Separe as principais frases ou palavras-chave do versículo (ex: \"No princípio era o Verbo\", \"o Verbo estava com Deus\", etc) e explique cada uma individualmente, de forma didática.\n"
+                    ."2. Apresente essas explicações em uma lista HTML (<ul class='key-phrases'>) com cada frase/palavra-chave como um <li>.\n"
+                    .'3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
+            } elseif ($isDoubleVerse) {
+                $specificInstructions =
+                    "1. Para cada versículo, separe as principais frases ou palavras-chave e explique cada uma individualmente, de forma didática.\n"
+                    ."2. Apresente as explicações de cada versículo em uma lista HTML (<ul class='key-phrases'>) separada para cada versículo.\n"
+                    .'3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
+            } else {
+                $specificInstructions =
+                    "1. Analise detalhadamente cada versículo listado ({$verses}), considerando o contexto do capítulo.\n"
+                    ."2. Comente TODOS os versículos individualmente, explicando significado, relevância e conexões.\n"
+                    .'3. Certifique-se de abordar cada versículo ou intervalo explicitamente, sem omitir nenhum.';
+            }
+        }
+
+        $originalTextInstruction =
+            "Se o texto original (hebraico, aramaico ou grego) e sua tradução literal estiverem disponíveis, inclua-os na secção 'Texto Original e Tradução'."
+            .' Forneça a transliteração (se aplicável) e, opcionalmente, uma análise de palavras-chave no idioma original.'
+            .' Se o texto original ou tradução não estiver disponível, omita completamente essa secção.';
+
         return <<<EOD
-    IMPORTANTE: Forneça IMEDIATAMENTE uma explicação COMPLETA e DETALHADA. NÃO responda com mensagens introdutórias como "vou explicar" ou "permita-me alguns instantes". Comece diretamente com a explicação completa usando a estrutura HTML solicitada.
+    IMPORTANTE: Forneça IMEDIATAMENTE uma explicação COMPLETA e DETALHADA, sem mensagens introdutórias. Comece diretamente com a explicação, usando a estrutura HTML abaixo.
     
-    Você é um teólogo cristão experiente, especializado em exegese e hermenêutica bíblica, com profundo conhecimento dos textos originais, contexto histórico e aplicações práticas.
+    Você é um teólogo cristão experiente, especialista em exegese bíblica, com profundo conhecimento dos textos originais, contexto histórico e aplicações práticas.
     
-    Sua missão é tornar a Palavra de Deus clara, acessível e inspiradora para todos, em linha com o propósito do LuxApp. Adote um tom respeitoso, acolhedor e motivador, escrevendo em português simples para leigos, jovens cristãos e buscadores espirituais, sem comprometer a profundidade teológica.
-    
-    Baseie-se em teólogos confiáveis, como John Stott, R.C. Sproul, F.F. Bruce, Martyn Lloyd-Jones, Craig Keener, Hernandes Dias Lopes e Augustus Nicodemus. Mantenha fidelidade às Escrituras e ao contexto original, evitando interpretações subjetivas ou místicas.
-    
-    Explique {$passageText} para glorificar a Palavra de Deus, oferecendo uma exegese e hermenêutica profunda, detalhada e rica, mas ainda assim acessível. Explore:
-    
-    1. O significado original no idioma bíblico (hebraico, aramaico ou grego), incluindo análise etimológica de palavras-chave
-    2. Contexto histórico, cultural, geográfico e social da época, incluindo costumes e práticas relevantes
-    3. Contexto literário, incluindo gênero, estrutura e relação com o livro como um todo
-    4. Implicações teológicas profundas, doutrinas relacionadas e temas espirituais
-    5. Interpretações históricas de teólogos importantes ao longo da história da igreja
-    6. Aplicações práticas detalhadas e relevantes para a vida contemporânea
-    7. Conexões com outros textos bíblicos, tanto do Antigo quanto do Novo Testamento
+    - Escreva em português europeu, num tom respeitoso, acolhedor e motivador, acessível a leigos, jovens cristãos e buscadores espirituais, sem perder profundidade teológica.
+    - Baseie-se em teólogos confiáveis (John Stott, R.C. Sproul, F.F. Bruce, Martyn Lloyd-Jones, Craig Keener, Hernandes Dias Lopes, Augustus Nicodemus).
+    - Mantenha fidelidade às Escrituras e ao contexto original, evitando interpretações subjetivas ou místicas.
+    - Explique {$passageText} para glorificar a Palavra de Deus, oferecendo exegese profunda, detalhada e acessível.
+    - Siga estas etapas:
+        1. Analise o significado original no idioma bíblico, incluindo análise etimológica de palavras-chave.
+        2. Explique o contexto histórico, cultural, geográfico e social.
+        3. Aborde o contexto literário, género, estrutura e relação com o livro.
+        4. Apresente implicações teológicas profundas, doutrinas relacionadas e temas espirituais.
+        5. Cite interpretações históricas de teólogos importantes.
+        6. Forneça aplicações práticas detalhadas e relevantes para a vida contemporânea.
+        7. Relacione com outros textos bíblicos relevantes.
     
     {$specificInstructions}
     
     {$originalTextInstruction}
     
-    Siga EXATAMENTE esta estrutura em sua resposta, usando HTML:
+    Siga EXATAMENTE esta estrutura HTML na resposta (não altere nem adicione comentários):
     
     <div class='bible-explanation'>
         <h2 class='main-title'>Explorando {$book} {$chapter}" . ($verses ? ":$verses" : '') . "</h2>
-    
         <h3 class='section-title'>Texto Bíblico</h3>
-        <p class='bible-text'>[Insira o texto bíblico em português, usando uma tradução fiel como a Almeida Revista e Atualizada ou Nova Versão Internacional]</p>
-    
-        // <!-- Inclua a seção abaixo SOMENTE se o texto original e/ou tradução estiverem disponíveis -->
-        // <h3 class='section-title'>Texto Original e Tradução</h3>
-        // <div class='original-translation'>
-        //     <div class='original-text'>[Insira o texto no idioma original (hebraico, aramaico ou grego)]</div>
-        //     <div class='transliteration'>[Insira a transliteração, se aplicável]</div>
-        //     <div class='translation'>[Insira a tradução literal do texto original]</div>
-        //     <div class='word-analysis'>[Opcional: análise de palavras-chave no idioma original, destacando seu significado]</div>
-        // </div>
-    
+        <p class='bible-text'>[Texto bíblico em português, versão fiel como Almeida Revista e Atualizada ou Nova Versão Internacional]</p>
+        <!-- Se for 1 versículo, inclua a lista de frases-chave explicadas -->
+        <h3 class='section-title'>Análise de Expressões Importantes</h3>
+        <ul class='key-phrases'>
+            <li><strong>"[Frase ou palavra-chave 1]"</strong>: [explicação detalhada]</li>
+            <li><strong>"[Frase ou palavra-chave 2]"</strong>: [explicação detalhada]</li>
+            <li><strong>"[Frase ou palavra-chave 3]"</strong>: [explicação detalhada]</li>
+        </ul>
+        <h3 class='section-title'>Texto Original e Tradução</h3>
+        <div class='original-translation'>
+            <div class='original-text'>[Texto original]</div>
+            <div class='transliteration'>[Transliteração, se aplicável]</div>
+            <div class='translation'>[Tradução literal]</div>
+            <div class='word-analysis'>[Análise de palavras-chave, opcional]</div>
+        </div>
         <h3 class='section-title'>Contexto Histórico e Cultural</h3>
-        <p>[Explique detalhadamente o contexto histórico, cultural, geográfico e literário do texto, incluindo informações sobre o autor, público original, propósito, situação política e religiosa da época, e costumes relevantes]</p>
-    
+        <p>[Contexto histórico, cultural, geográfico e literário detalhado]</p>
         <h3 class='section-title'>Análise Teológica Detalhada</h3>
-        <p>[Explique profundamente o significado teológico e espiritual do texto, analisando cada aspecto importante. Inclua interpretações de teólogos importantes ao longo da história e doutrinas relacionadas]</p>
-        
+        <p>[Significado teológico e espiritual, com interpretações de teólogos e doutrinas relacionadas]</p>
         <h3 class='section-title'>Aplicações Práticas</h3>
         <ul class='applications'>
-            <li>[Aplicação prática 1: como o texto pode ser vivido hoje, com exemplos concretos]</li>
-            <li>[Aplicação prática 2: implicações para a vida espiritual, relacionamentos e decisões]</li>
-            <li>[Aplicação prática 3: desafios e oportunidades que o texto apresenta]</li>
-            <li>[Aplicação prática 4: como aplicar este texto em diferentes contextos de vida]</li>
+            <li>[Aplicação prática 1]</li>
+            <li>[Aplicação prática 2]</li>
+            <li>[Aplicação prática 3]</li>
+            <li>[Aplicação prática 4]</li>
         </ul>
-    
         <h3 class='section-title'>Conexões com Outros Textos Bíblicos</h3>
         <ul class='connections'>
-            <li>[Conexão 1: referência bíblica, explicação detalhada e como ela ilumina o texto atual]</li>
-            <li>[Conexão 2: referência bíblica, explicação detalhada e como ela complementa o texto atual]</li>
-            <li>[Conexão 3: referência bíblica que mostra o cumprimento ou desenvolvimento do tema]</li>
-            <li>[Conexão 4: referência bíblica que oferece uma perspectiva adicional ou contraste]</li>
+            <li>[Conexão 1]</li>
+            <li>[Conexão 2]</li>
+            <li>[Conexão 3]</li>
+            <li>[Conexão 4]</li>
         </ul>
-        
         <h3 class='section-title'>Perspectivas Teológicas</h3>
-        <p>[Apresente diferentes perspectivas teológicas sobre o texto, de diferentes tradições cristãs, mantendo fidelidade à ortodoxia bíblica]</p>
-    
+        <p>[Perspectivas de diferentes tradições cristãs, mantendo ortodoxia bíblica]</p>
         <div class='reflection'>
             <blockquote>
-                <p><em>[Reflexão final inspiradora, conectando o texto à vida espiritual do leitor]</em></p>
+                <p><em>[Reflexão final inspiradora]</em></p>
             </blockquote>
         </div>
     </div>
-    
-    Substitua os textos entre colchetes pelo conteúdo real. Mantenha a estrutura HTML exata, mas preencha com explicações relevantes, profundas e inspiradoras. Use linguagem acessível, respeitosa e alinhada com o propósito do LuxApp de iluminar a Palavra de Deus.
-    
-    LEMBRE-SE: Forneça uma resposta COMPLETA com todas as seções HTML. NÃO envie mensagens introdutórias ou explicações sobre o que você vai fazer. Comece imediatamente com o conteúdo HTML completo da explicação bíblica.
     EOD;
     }
 
@@ -333,14 +345,14 @@ class BibleExplanationService
             ."<h3 class='section-title'>Contexto Histórico e Cultural</h3>"
             ."<p>Este livro faz parte do {$testamentLabel} Testamento e tem importância significativa na história bíblica. "
             ."O capítulo {$chapter} foi escrito em um período importante da história de Israel, refletindo as realidades culturais, "
-            ."sociais e religiosas da época. O autor aborda temas relevantes para o contexto original e para os leitores atuais, "
-            ."estabelecendo princípios duradouros da revelação divina.</p>"
+            .'sociais e religiosas da época. O autor aborda temas relevantes para o contexto original e para os leitores atuais, '
+            .'estabelecendo princípios duradouros da revelação divina.</p>'
 
             ."<h3 class='section-title'>Análise Teológica Detalhada</h3>"
-            ."<p>Este texto revela aspectos importantes da natureza de Deus, Seu plano redentor e Sua relação com a humanidade. "
-            ."Teólogos ao longo da história da igreja têm destacado a profundidade deste texto e suas implicações para a fé cristã. "
-            ."A passagem contém verdades fundamentais que se conectam com temas centrais das Escrituras.</p>"
-            
+            .'<p>Este texto revela aspectos importantes da natureza de Deus, Seu plano redentor e Sua relação com a humanidade. '
+            .'Teólogos ao longo da história da igreja têm destacado a profundidade deste texto e suas implicações para a fé cristã. '
+            .'A passagem contém verdades fundamentais que se conectam com temas centrais das Escrituras.</p>'
+
             ."<h3 class='section-title'>Aplicações Práticas</h3>"
             ."<ul class='applications'>"
             .'<li>Fé e confiança em Deus são fundamentais para uma vida espiritual plena, especialmente em momentos de incerteza</li>'
@@ -356,12 +368,12 @@ class BibleExplanationService
             .'<li>O livro de Romanos desenvolve muitos dos temas teológicos presentes nesta passagem, aprofundando seu significado</li>'
             .'<li>Há conexões com o livro de Apocalipse, que mostra o cumprimento final dos propósitos de Deus</li>'
             .'</ul>'
-            
+
             ."<h3 class='section-title'>Perspectivas Teológicas</h3>"
-            ."<p>Este texto tem sido interpretado de diversas formas ao longo da história da igreja, com diferentes ênfases "
-            ."dependendo da tradição teológica. Mantendo a fidelidade à ortodoxia bíblica, podemos apreciar as contribuições "
-            ."de diferentes perspectivas para uma compreensão mais rica e completa da passagem.</p>"
-            
+            .'<p>Este texto tem sido interpretado de diversas formas ao longo da história da igreja, com diferentes ênfases '
+            .'dependendo da tradição teológica. Mantendo a fidelidade à ortodoxia bíblica, podemos apreciar as contribuições '
+            .'de diferentes perspectivas para uma compreensão mais rica e completa da passagem.</p>'
+
             ."<h3 class='section-title'>Referências Bibliográficas</h3>"
             ."<ul class='references'>"
             .'<li>Comentário Bíblico Expositivo - Warren W. Wiersbe</li>'

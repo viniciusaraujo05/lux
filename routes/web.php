@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Services\SlugService;
 
 Route::get('/', function () {
     return Inertia::render('welcome');
@@ -14,7 +15,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
 });
 
 // Bible Explanation API Route
-Route::get('/api/explanation/{testament}/{book}/{chapter}', [\App\Http\Controllers\BibleExplanationController::class, 'getExplanation']);
+Route::get('/api/explanation/{testament}/{book}/{chapter}', function (string $testament, string $book, string $chapter, \Illuminate\Http\Request $request) {
+    // Converter o slug para o nome original do livro
+    $bookOriginal = SlugService::slugParaLivro($book);
+    
+    // Encaminhar para o controlador com o nome original do livro
+    return app()->make(\App\Http\Controllers\BibleExplanationController::class)
+        ->getExplanation($request, $testament, $bookOriginal, $chapter);
+});
 
 // Feedback API Routes
 Route::post('/api/feedback', [\App\Http\Controllers\ExplanationFeedbackController::class, 'store']);
@@ -26,25 +34,34 @@ Route::get('/biblia', function () {
 });
 
 Route::get('/biblia/{testamento}/{livro}', function (string $testamento, string $livro) {
+    // Converter o slug para o nome original do livro
+    $livroOriginal = SlugService::slugParaLivro($livro);
+    
     return Inertia::render('welcome', [
         'testamento' => $testamento,
-        'livro' => $livro
+        'livro' => $livroOriginal
     ]);
 });
 
 Route::get('/biblia/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
+    // Converter o slug para o nome original do livro
+    $livroOriginal = SlugService::slugParaLivro($livro);
+    
     return Inertia::render('welcome', [
         'testamento' => $testamento,
-        'livro' => $livro,
+        'livro' => $livroOriginal,
         'capitulo' => $capitulo
     ]);
 });
 
 // Bible Explanation Page Route
 Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
+    // Converter o slug para o nome original do livro
+    $livroOriginal = SlugService::slugParaLivro($livro);
+    
     return Inertia::render('explicacao/index', [
         'testamento' => $testamento,
-        'livro' => $livro,
+        'livro' => $livroOriginal,
         'capitulo' => $capitulo
     ]);
 });
