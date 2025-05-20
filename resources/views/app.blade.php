@@ -65,5 +65,6 @@
     </head>
     <body class="font-sans antialiased">
         @inertia
+        @include('partials.cookie-consent')
     </body>
 </html>

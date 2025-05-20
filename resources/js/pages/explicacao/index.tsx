@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, Head } from '@inertiajs/react';
-import { ChevronLeft, ChevronRight, BookOpen, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
+import { ChevronLeft, ChevronRight, BookOpen, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, MessageSquare, Gift, Heart } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import Footer from '@/components/footer';
+import DonateButton from '@/components/donate-button';
 
 interface BibleExplanationProps {
   testamento: string;
@@ -416,10 +418,24 @@ export default function BibleExplanation(props: BibleExplanationProps) {
                 }}
               >
                 {explanation && (
-                  <div
-                    className="explanation-text text-slate-800 text-base sm:text-lg leading-relaxed"
-                    dangerouslySetInnerHTML={{ __html: explanation }}
-                  />
+                  <>
+                    <div
+                      className="explanation-text text-slate-800 text-base sm:text-lg leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: explanation }}
+                    />
+                    
+                    {/* Banner de doação */}
+                    <div className="my-8 p-4 bg-purple-50 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700/50 rounded-lg flex flex-col sm:flex-row items-center justify-between">
+                      <div className="flex items-center mb-4 sm:mb-0">
+                        <Heart className="h-5 w-5 text-purple-600 dark:text-purple-400 mr-3" />
+                        <div>
+                          <h3 className="font-medium text-purple-900 dark:text-purple-100">Abençoe este ministério!</h3>
+                          <p className="text-sm text-purple-800/80 dark:text-purple-200/80">"Dai, e dar-se-vos-á; boa medida, recalcada, sacudida e transbordante" - Lucas 6:38</p>
+                        </div>
+                      </div>
+                      <DonateButton size="md" className="w-full sm:w-auto" />
+                    </div>
+                  </>
                 )}
                 
                 {/* Seção de Feedback */}
@@ -803,6 +819,7 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         )}
       </div>
     </div>
+    <Footer />
     </>
   );
 }

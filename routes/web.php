@@ -118,6 +118,15 @@ Route::get('/api/related/{testament}/{book}/{chapter}', function (string $testam
     ]);
 });
 
+// Rotas para páginas institucionais
+Route::get('/sobre', function () {
+    return Inertia::render('about');
+})->name('about');
+
+Route::get('/faq', function () {
+    return Inertia::render('faq');
+})->name('faq');
+
 // Bible Explanation Page Routes
 Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
     // Converter o slug para o nome original do livro
