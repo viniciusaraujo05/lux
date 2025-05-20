@@ -1,6 +1,8 @@
+import React from 'react';
 import { Head } from '@inertiajs/react';
 import BibleBooksGrid from '@/components/BibleBooksGrid';
 import { motion } from 'framer-motion';
+import ThemeToggleButton from '@/components/ThemeToggleButton';
 
 // Frase de orientação
 const CTA = () => (
@@ -23,10 +25,11 @@ interface WelcomeProps {
 export default function Welcome(props: WelcomeProps) {
   return (
     <>
-      <Head title="Verbum - Bíblia Sagrada">
+      <Head title="Verbum - Bíblia Explicada">
         <link rel="preconnect" href="https://fonts.bunny.net" />
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
       </Head>
+      <ThemeToggleButton />
       <div className="min-h-screen bg-background text-foreground flex flex-col justify-center">
         <div className="mx-auto max-w-7xl px-4 py-8 md:px-6 md:py-12 lg:px-8 w-full">
           <header className="mb-8 md:mb-12">
@@ -36,7 +39,7 @@ export default function Welcome(props: WelcomeProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              Verbum
+              Verbum - Bíblia Explicada
             </motion.h1>
             <motion.p
               className="text-lg text-muted-foreground text-center"
@@ -44,7 +47,6 @@ export default function Welcome(props: WelcomeProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
             >
-              Bíblia Sagrada
             </motion.p>
           </header>
           <CTA />

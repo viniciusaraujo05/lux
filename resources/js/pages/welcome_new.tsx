@@ -4,7 +4,7 @@ import BibleBooksGrid from '@/components/BibleBooksGrid';
 export default function Welcome() {
     return (
         <>
-            <Head title="Verbum - Bíblia Sagrada">
+            <Head title="Verbum - Bíblia explicada">
                 <link rel="preconnect" href="https://fonts.bunny.net" />
                 <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
             </Head>

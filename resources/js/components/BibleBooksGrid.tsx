@@ -486,7 +486,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             {/* Botões de ação */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <motion.button
-                className="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-black hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all dark:bg-primary dark:text-primary-foreground dark:border-primary"
                 whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
@@ -501,7 +501,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 Explicar Capítulo Completo
               </motion.button>
               
-              <motion.button
+              {/* <motion.button
                 className={`w-full sm:w-auto px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border transition-all
                   ${selectionMode
                     ? 'bg-amber-500 text-white border-amber-500 hover:bg-amber-600'
@@ -517,11 +517,11 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
                 {selectionMode ? 'Finalizar Seleção' : 'Selecionar Versículos'}
-              </motion.button>
+              </motion.button> */}
             </div>
 
             {/* Informações de seleção */}
-            {selectionMode && (
+            {/* {selectionMode && (
               <div className="bg-muted/30 p-2 sm:p-4 rounded-lg border border-border text-center">
                 <p className="text-xs sm:text-sm">Selecione os versículos que deseja explicar {selectedVerses.length > 0 && <span className="font-bold">({selectedVerses.length} selecionados)</span>}</p>
                 {selectedVerses.length > 0 && (
@@ -545,7 +545,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                   </motion.button>
                 )}
               </div>
-            )}
+            )} */}
 
             {/* Grid de versículos - ajustado para mobile */}
             <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1 sm:gap-2">

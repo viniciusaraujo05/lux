@@ -1,10 +1,34 @@
+import '../../../../../css/app.css';
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Book, Bookmark, Copy, Share } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import BibleService from "@/services/BibleService";
+import ThemeToggleButton from '@/components/ThemeToggleButton';
+
+// Aplica o tema imediatamente ao carregar a página (evita flash/reset)
+if (typeof window !== 'undefined') {
+  try {
+    const theme = localStorage.getItem('theme');
+    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  } catch (e) {}
+}
 
 export default function BibleExplanation() {
+  return (
+    <>
+      <ThemeToggleButton />
+      <BibleExplanationContent />
+    </>
+  );
+}
+
+// Componente extraído para manter a lógica original
+function BibleExplanationContent() {
   const { testamento: testament, livro: book, capitulo: chapter } = useParams<{
     testamento: string;
     livro: string;
