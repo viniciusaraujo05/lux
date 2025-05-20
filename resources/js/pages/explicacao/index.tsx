@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from '@inertiajs/react';
+import { Link, Head } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, BookOpen, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, MessageSquare } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
@@ -7,6 +7,7 @@ interface BibleExplanationProps {
   testamento: string;
   livro: string;
   capitulo: string;
+  versos?: string; // Adicionado para suportar o parâmetro da rota amigável para SEO
 }
 
 export default function BibleExplanation(props: BibleExplanationProps) {
@@ -20,6 +21,12 @@ export default function BibleExplanation(props: BibleExplanationProps) {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'positive' | 'negative' | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
+  const [seoMetadata, setSeoMetadata] = useState({
+    title: '',
+    description: '',
+    keywords: ''
+  });
+  const [relatedLinks, setRelatedLinks] = useState([]);
   const [feedbackStats, setFeedbackStats] = useState<{
     positive_count: number;
     negative_count: number;
@@ -35,13 +42,65 @@ export default function BibleExplanation(props: BibleExplanationProps) {
   const testament = props.testamento;
   const book = props.livro;
   const chapter = props.capitulo;
-  // Obter versículos da URL (pode estar como 'versiculos' em português ou 'verses' em inglês)
+  
+  // Obter versículos de diferentes fontes, por ordem de prioridade:
+  // 1. Props 'versos' (da rota amigável para SEO)
+  // 2. Parâmetro de consulta 'versiculos' ou 'verses' da URL
   const versiculosParam = new URLSearchParams(window.location.search).get('versiculos');
   const versesParam = new URLSearchParams(window.location.search).get('verses');
-  const verses = versiculosParam || versesParam;
+  const verses = props.versos || versiculosParam || versesParam;
   
   const maxVerses = 50; // Valor padrão alto para a maioria dos capítulos
 
+  // Efeito para carregar metadados SEO
+  useEffect(() => {
+    async function fetchSeoMetadata() {
+      try {
+        let seoUrl = `/api/seo/${testament}/${book}/${chapter}`;
+        if (verses) {
+          seoUrl += `?verses=${verses}`;
+        }
+                
+        const response = await fetch(seoUrl);
+        if (response.ok) {
+          const seoData = await response.json();
+          setSeoMetadata({
+            title: seoData.title || `${book} ${chapter} - Explicação Bíblica | Verbum`,
+            description: seoData.description || `Explicação detalhada de ${book} ${chapter} com contexto histórico e aplicações práticas.`,
+            keywords: seoData.keywords || `Bíblia, ${book}, ${chapter}, explicação bíblica, estudo bíblico`
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching SEO metadata:', error);
+      }
+    }
+    
+    fetchSeoMetadata();
+  }, [testament, book, chapter, verses]);
+  
+  // Efeito para carregar links relacionados
+  useEffect(() => {
+    async function fetchRelatedLinks() {
+      try {
+        let relatedUrl = `/api/related/${testament}/${book}/${chapter}`;
+        if (verses) {
+          relatedUrl += `?verses=${verses}`;
+        }
+                
+        const response = await fetch(relatedUrl);
+        if (response.ok) {
+          const data = await response.json();
+          setRelatedLinks(data.relatedLinks || []);
+        }
+      } catch (error) {
+        console.error('Error fetching related links:', error);
+      }
+    }
+    
+    fetchRelatedLinks();
+  }, [testament, book, chapter, verses]);
+
+  // Efeito para carregar a explicação bíblica
   useEffect(() => {
     async function fetchExplanation() {
       try {
@@ -66,6 +125,16 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         // Se temos um ID de explicação, buscar estatísticas de feedback
         if (data.id) {
           fetchFeedbackStats(data.id);
+        }
+        
+        // Gerar URLs amigáveis para SEO e atualizar o histórico do navegador
+        if (verses && !window.location.pathname.includes('/'+verses+'-')) {
+          // Somente se não estiver já em uma URL com slug
+          const slug = verses + '-explicacao-biblica';
+          const newUrl = `/explicacao/${testament}/${book}/${chapter}/${slug}`;
+          
+          // Atualizar URL sem recarregar a página
+          window.history.replaceState({}, '', newUrl);
         }
       } catch (error) {
         console.error('Error fetching explanation:', error);
@@ -217,6 +286,56 @@ export default function BibleExplanation(props: BibleExplanationProps) {
   };
 
   return (
+    <>
+      <Head>
+        <title>{seoMetadata.title}</title>
+        <meta name="description" content={seoMetadata.description} />
+        <meta name="keywords" content={seoMetadata.keywords} />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="article" />
+        <meta property="og:url" content={window.location.href} />
+        <meta property="og:title" content={seoMetadata.title} />
+        <meta property="og:description" content={seoMetadata.description} />
+        
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content={window.location.href} />
+        <meta property="twitter:title" content={seoMetadata.title} />
+        <meta property="twitter:description" content={seoMetadata.description} />
+        
+        {/* URL canônica - importante para SEO */}
+        <link rel="canonical" href={window.location.href} />
+        
+        {/* Link para versão AMP */}
+        <link rel="amphtml" href={`/amp/explicacao/${testament}/${book}/${chapter}${verses ? '?verses='+verses : ''}`} />
+        
+        {/* Estruturação JSON-LD para resultados mais ricos nas buscas */}
+        <script type="application/ld+json">{`
+          {
+            "@context": "https://schema.org",
+            "@type": "Article",
+            "headline": "${book} ${chapter}${verses ? ':'+verses : ''} - Explicação Bíblica",
+            "description": "${seoMetadata.description}",
+            "author": {
+              "@type": "Organization",
+              "name": "Verbum - Bíblia Explicada"
+            },
+            "publisher": {
+              "@type": "Organization",
+              "name": "Verbum - Bíblia Explicada",
+              "logo": {
+                "@type": "ImageObject",
+                "url": "${window.location.origin}/images/logo.png"
+              }
+            },
+            "mainEntityOfPage": {
+              "@type": "WebPage",
+              "@id": "${window.location.href}"
+            }
+          }
+        `}</script>
+      </Head>
     <div className="container max-w-4xl mx-auto p-2 sm:p-4">
       <header className="mb-3 sm:mb-6 flex items-center justify-between bg-white shadow-sm rounded-lg p-2 sm:p-4">
         <div className="flex items-center">
@@ -684,5 +803,6 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         )}
       </div>
     </div>
+    </>
   );
 }

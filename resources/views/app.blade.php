@@ -31,8 +31,30 @@
             }
         </style>
 
-        <title inertia>{{ config('app.name', 'Laravel') }}</title>
-
+        <title inertia>{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'Verbum - Bíblia Explicada') }}</title>
+        
+        <!-- Meta tags para SEO -->
+        <meta name="description" content="{{ isset($description) ? $description : 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
+        <meta name="keywords" content="{{ isset($keywords) ? $keywords : 'bíblia, explicação bíblica, estudo bíblico, versículos da bíblia, verbum, comentário bíblico' }}">
+        <meta name="author" content="Verbum">
+        
+        <!-- Open Graph / Facebook -->
+        <meta property="og:type" content="website">
+        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'Verbum - Bíblia Explicada') }}">
+        <meta property="og:description" content="{{ isset($description) ? $description : 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
+        <meta property="og:image" content="{{ asset('images/verbum-og-image.jpg') }}">
+        
+        <!-- Twitter -->
+        <meta property="twitter:card" content="summary_large_image">
+        <meta property="twitter:url" content="{{ url()->current() }}">
+        <meta property="twitter:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'Verbum - Bíblia Explicada') }}">
+        <meta property="twitter:description" content="{{ isset($description) ? $description : 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
+        <meta property="twitter:image" content="{{ asset('images/verbum-og-image.jpg') }}">
+        
+        <!-- Canonical URL -->
+        <link rel="canonical" href="{{ url()->current() }}">
+        
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
 
