@@ -425,15 +425,17 @@ export default function BibleExplanation(props: BibleExplanationProps) {
                     />
                     
                     {/* Banner de doação */}
-                    <div className="my-8 p-4 bg-purple-50 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700/50 rounded-lg flex flex-col sm:flex-row items-center justify-between">
-                      <div className="flex items-center mb-4 sm:mb-0">
-                        <Heart className="h-5 w-5 text-purple-600 dark:text-purple-400 mr-3" />
-                        <div>
-                          <h3 className="font-medium text-purple-900 dark:text-purple-100">Abençoe este ministério!</h3>
-                          <p className="text-sm text-purple-800/80 dark:text-purple-200/80">"Dai, e dar-se-vos-á; boa medida, recalcada, sacudida e transbordante" - Lucas 6:38</p>
+                    <div className="my-8 p-5 bg-purple-50 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700/50 rounded-lg shadow-sm">
+                      <div className="flex flex-col items-center text-center mb-4">
+                        <div className="inline-flex items-center justify-center bg-purple-100 dark:bg-purple-800/40 p-2 rounded-full mb-3">
+                          <Heart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                         </div>
+                        <h3 className="font-medium text-lg text-purple-900 dark:text-purple-100 mb-1">Abençoe este ministério!</h3>
+                        <p className="text-sm text-purple-800/80 dark:text-purple-200/80 max-w-md">"Dai, e dar-se-vos-á; boa medida, recalcada, sacudida e transbordante" - Lucas 6:38</p>
                       </div>
-                      <DonateButton size="md" className="w-full sm:w-auto" />
+                      <div className="flex justify-center">
+                        <DonateButton size="md" className="w-full sm:w-auto max-w-xs" />
+                      </div>
                     </div>
                   </>
                 )}

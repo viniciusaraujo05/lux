@@ -14,9 +14,9 @@ const DonateButton: React.FC<DonateButtonProps> = ({
 }) => {
   // Tamanhos para os diferentes componentes
   const buttonSizes = {
-    sm: 'text-xs px-2 py-1',
-    md: 'text-sm px-3 py-1.5',
-    lg: 'text-base px-4 py-2'
+    sm: 'text-xs px-3 py-1.5',
+    md: 'text-sm px-3 py-2',
+    lg: 'text-base px-4 py-2.5'
   };
   
   const iconSizes = {
@@ -61,7 +61,7 @@ const DonateButton: React.FC<DonateButtonProps> = ({
       href="https://buymeacoffee.com/viniciusaraujo" 
       target="_blank"
       rel="noopener noreferrer"
-      className={`flex items-center bg-purple-700 hover:bg-purple-800 text-white rounded-md transition-colors font-semibold ${buttonSizes[size]} ${className}`}
+      className={`flex items-center justify-center bg-purple-700 hover:bg-purple-800 text-white rounded-md transition-colors font-semibold ${buttonSizes[size]} ${className}`}
     >
       <Gift className={`${iconSizes[size]} mr-2`} />
       Ofertar Agora
