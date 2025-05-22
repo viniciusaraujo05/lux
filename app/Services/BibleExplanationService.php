@@ -82,114 +82,122 @@ class BibleExplanationService
      */
     private function generateExplanationViaAPI($testament, $book, $chapter, $verses = null)
     {
-        // Check for API key availability
-        $apiKey = config('services.openai.api_key');
-
-        // Check if the API key looks valid (not empty and not starting with 'sk-your-')
-        if (empty($apiKey) || strpos($apiKey, 'sk-your-') === 0) {
-            Log::warning('Invalid or missing OpenAI API key, using fallback content');
-
-            return $this->generateFallbackExplanation($testament, $book, $chapter, $verses);
-        }
-
+        // Use a chave da Perplexity (configure em config/services.php)
+        $apiKey = config('services.perplexity.api_key');
+    
         try {
-            // Get prompt for the AI
             $prompt = $this->buildPrompt($testament, $book, $chapter, $verses);
-
-            $client = new Client;
-            $model = config('services.openai.model', 'gpt-3.5-turbo-1106');
-
-            logger('Modelo sendo usado: '.$model);
-
-            try {
-                $response = Http::withHeaders([
-                    'Authorization' => 'Bearer '.$apiKey,
-                    'Content-Type' => 'application/json',
-                ])->post('https://api.openai.com/v1/chat/completions', [
-                    'model' => $model,
-                    'messages' => [
+    
+            $model = config('services.perplexity.model', 'pplx-7b-online'); // Ou 'sonar-medium-online'
+    
+            logger('Modelo sendo usado: ' . $model);
+    
+            $messages = [
+                [
+                    'role' => 'system',
+                    'content' => 'Você é um especialista em teologia e estudos bíblicos, capaz de explicar versículos e capítulos com contexto histórico, significado teológico e aplicação prática. Forneça uma explicação completa e detalhada com toda a formatação HTML necessária. NÃO responda com mensagens introdutórias, apenas comece com a explicação completa. Inclua o texto do versículo, contexto histórico, análise teológica e aplicações práticas.',
+                ],
+                [
+                    'role' => 'user',
+                    'content' => $prompt,
+                ],
+            ];
+    
+            $payload = [
+                'model' => $model,
+                'messages' => $messages,
+                'temperature' => 0.6,
+                'max_tokens' => 4000,
+                'presence_penalty' => 0.1,
+                // 'frequency_penalty' => 0.1,
+            ];
+    
+            $response = Http::withHeaders([
+                'Authorization' => 'Bearer ' . $apiKey,
+                'Content-Type' => 'application/json',
+            ])->timeout(120)
+              ->post('https://api.perplexity.ai/chat/completions', $payload);
+    
+            if ($response->successful()) {
+                $responseData = $response->json();
+                $content = $responseData['choices'][0]['message']['content'] ?? '';
+    
+                if (strlen($content) < 200 ||
+                    str_contains($content, 'permita-me') ||
+                    str_contains($content, 'vou explicar') ||
+                    str_contains($content, 'alguns instantes')) {
+    
+                    Log::warning('Resposta muito curta ou apenas introdutória, tentando novamente');
+    
+                    $retryMessages = [
                         [
                             'role' => 'system',
-                            'content' => 'You are an expert in theology and biblical studies, capable of explaining verses and chapters with historical context, theological meaning, and practical application. You MUST provide a complete and detailed explanation with all the required HTML formatting. DO NOT respond with preliminary messages like "I\'ll provide an explanation" or "Let me analyze this". Instead, immediately begin with the full explanation. Include the verse text, historical context, theological analysis, and practical applications.',
+                            'content' => 'Você é um especialista em teologia e estudos bíblicos. FORNEÇA IMEDIATAMENTE uma explicação COMPLETA e DETALHADA do texto bíblico, sem mensagens introdutórias. Inclua o texto do versículo, contexto histórico, análise teológica e aplicações práticas. Use formatação HTML conforme solicitado no prompt. NÃO diga que vai explicar ou que precisa de tempo, simplesmente forneça a explicação completa.',
                         ],
                         [
                             'role' => 'user',
-                            'content' => $prompt,
+                            'content' => 'IMPORTANTE: Forneça uma explicação completa e detalhada, não apenas uma introdução. ' . $prompt,
                         ],
-                    ],
-                    'temperature' => 0.6,
-                    'max_tokens' => 4000,
-                    'presence_penalty' => 0.1,
-                    'frequency_penalty' => 0.1,
-                    'stop' => null,
-                ]);
-
-                if ($response->successful()) {
-                    $responseData = $response->json();
-                    $content = $responseData['choices'][0]['message']['content'];
-
-                    // Verificar se a resposta contém apenas uma mensagem introdutória
-                    if (strlen($content) < 200 ||
-                        strpos($content, 'permita-me') !== false ||
-                        strpos($content, 'vou explicar') !== false ||
-                        strpos($content, 'alguns instantes') !== false) {
-
-                        // Se for apenas uma introdução, tentar novamente com instruções mais explícitas
-                        Log::warning('Resposta muito curta ou apenas introdutória, tentando novamente');
-
-                        $retryResponse = Http::withHeaders([
-                            'Authorization' => 'Bearer '.$apiKey,
-                            'Content-Type' => 'application/json',
-                        ])->post('https://api.openai.com/v1/chat/completions', [
-                            'model' => $model,
-                            'messages' => [
-                                [
-                                    'role' => 'system',
-                                    'content' => 'Você é um especialista em teologia e estudos bíblicos. FORNEÇA IMEDIATAMENTE uma explicação COMPLETA e DETALHADA do texto bíblico, sem mensagens introdutórias. Inclua o texto do versículo, contexto histórico, análise teológica e aplicações práticas. Use formatação HTML conforme solicitado no prompt. NÃO diga que vai explicar ou que precisa de tempo, simplesmente forneça a explicação completa.',
-                                ],
-                                [
-                                    'role' => 'user',
-                                    'content' => 'IMPORTANTE: Forneça uma explicação completa e detalhada, não apenas uma introdução. '.$prompt,
-                                ],
-                            ],
-                            'temperature' => 0.5, // Temperatura mais baixa para respostas mais determinísticas
-                            'max_tokens' => 4000,
-                            'presence_penalty' => 0.2,
-                            'frequency_penalty' => 0.2,
-                            'stop' => null,
-                        ]);
-
-                        if ($retryResponse->successful()) {
-                            $retryData = $retryResponse->json();
-
-                            return $retryData['choices'][0]['message']['content'];
-                        }
+                    ];
+    
+                    $retryPayload = [
+                        'model' => $model,
+                        'messages' => $retryMessages,
+                        'temperature' => 0.5,
+                        'max_tokens' => 4000,
+                        'presence_penalty' => 0.2,
+                        'frequency_penalty' => 0.2,
+                    ];
+    
+                    $retryResponse = Http::withHeaders([
+                        'Authorization' => 'Bearer ' . $apiKey,
+                        'Content-Type' => 'application/json',
+                    ])->timeout(120)
+                      ->post('https://api.perplexity.ai/chat/completions', $retryPayload);
+    
+                    if ($retryResponse->successful()) {
+                        $retryData = $retryResponse->json();
+                        $retryContent = $retryData['choices'][0]['message']['content'] ?? '';
+                        $retryContent = preg_replace('/^```html[\r\n]+|```$/i', '', trim($retryContent));
+                        $retryContent = preg_replace('/^```[\r\n]+|```$/i', '', trim($retryContent));
+                        // Remove artefatos como [2][4) do final do texto
+                        $retryContent = preg_replace('/\[\d+\]\[\d+\)[\s]*$/', '', $retryContent);
+                        return trim($retryContent);
                     }
-
-                    return $content;
-                } else {
-                    Log::error('OpenAI API Error', [
+                }
+    
+                // Remove blocos de código markdown (```html ... ```)
+                $content = preg_replace('/^```html[\r\n]+|```$/i', '', trim($content));
+                $content = preg_replace('/^```[\r\n]+|```$/i', '', trim($content));
+                // Remove blocos de código markdown (```html ... ```)
+                $content = preg_replace('/^```html[\r\n]+|```$/i', '', trim($content));
+                $content = preg_replace('/^```[\r\n]+|```$/i', '', trim($content));
+                // Remove artefatos como [2][4) do final do texto
+                $content = preg_replace('/\[\d+\]\[\d+\)[\s]*$/', '', $content);
+                return trim($content);
+            } else {
+                if (str_contains($response->body(), 'cURL error 28')) {
+                    Log::error('Perplexity API Timeout', [
                         'status' => $response->status(),
                         'body' => $response->body(),
                     ]);
-                    throw new \Exception('Error calling OpenAI API: '.$response->body());
+                    throw new \Exception('A requisição para a API demorou demais para responder. Tente novamente em instantes.');
                 }
-            } catch (\Exception $e) {
-                Log::error('Exception in HTTP request to OpenAI', [
-                    'message' => $e->getMessage(),
+                Log::error('Perplexity API Error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
                 ]);
-                throw $e;
+                throw new \Exception('Error calling Perplexity API: ' . $response->body());
             }
         } catch (\Exception $e) {
             Log::error('Exception when generating explanation', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            // Provide fallback content instead of error message
             return $this->generateFallbackExplanation($testament, $book, $chapter, $verses);
         }
     }
+    
 
     /**
      * Build the prompt for the AI API.
@@ -211,9 +219,13 @@ class BibleExplanationService
         // Instruções específicas para diferentes casos
         if ($isFullChapter) {
             $specificInstructions =
-                "1. Apresente uma visão geral do capítulo, destacando temas centrais e propósito.\n"
-                ."2. Explique cada versículo individualmente, como num comentário bíblico, conectando-o ao contexto do capítulo.\n"
-                .'3. Finalize com uma síntese teológica que una os principais ensinamentos e aplicações.';
+                "Resuma de forma clara e objetiva o capítulo, sem detalhar versículo por versículo. Siga as instruções:\n"
+                ."1. Diga em poucas frases sobre o que esse capítulo fala (tema central e propósito).\n"
+                ."2. Liste os principais pontos e acontecimentos do capítulo, em tópicos.\n"
+                ."3. Explique brevemente o contexto histórico do capítulo e do livro ao qual ele pertence.\n"
+                ."4. Evite repetições, rodeios ou explicações longas. Seja direto e conciso.\n"
+                ."5. NÃO inclua introduções, despedidas, nem explique versículo por versículo.\n"
+                ."6. Responda apenas com HTML simples, usando <ul> para tópicos e <p> para textos.";
         } else {
             // Verifica se é um único versículo
             $isSingleVerse = preg_match('/^\d+$/', $verses);
@@ -242,6 +254,9 @@ class BibleExplanationService
             .' Forneça a transliteração (se aplicável) e, opcionalmente, uma análise de palavras-chave no idioma original.'
             .' Se o texto original ou tradução não estiver disponível, omita completamente essa secção.';
 
+        // Não incluir instrução de texto original no resumo de capítulo
+        $originalTextInstructionForPrompt = ($isFullChapter ? '' : $originalTextInstruction);
+
         return <<<EOD
     IMPORTANTE: Forneça IMEDIATAMENTE uma explicação COMPLETA e DETALHADA, sem mensagens introdutórias. Comece diretamente com a explicação, usando a estrutura HTML abaixo.
     
@@ -269,7 +284,7 @@ class BibleExplanationService
     
     {$specificInstructions}
     
-    {$originalTextInstruction}
+    {$originalTextInstructionForPrompt}
     
     Siga EXATAMENTE esta estrutura HTML na resposta (não altere nem adicione comentários):
     

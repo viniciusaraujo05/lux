@@ -39,5 +39,8 @@ return [
         'api_key' => env('OPENAI_API_KEY'),
         'model' => env('OPENAI_MODEL', 'gpt-3.5-turbo-1106'),
     ],
-
+    'perplexity' => [
+        'api_key' => env('PERPLEXITY_API_KEY'),
+        'model' => env('PERPLEXITY_MODEL', 'llama-3.1-sonar-large-128k-online'),
+    ],
 ];
