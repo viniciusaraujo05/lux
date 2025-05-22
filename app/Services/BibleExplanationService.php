@@ -84,14 +84,14 @@ class BibleExplanationService
     {
         // Use a chave da Perplexity (configure em config/services.php)
         $apiKey = config('services.perplexity.api_key');
-    
+
         try {
             $prompt = $this->buildPrompt($testament, $book, $chapter, $verses);
-    
+
             $model = config('services.perplexity.model', 'pplx-7b-online'); // Ou 'sonar-medium-online'
-    
+
             logger('Modelo sendo usado: ' . $model);
-    
+
             $messages = [
                 [
                     'role' => 'system',
@@ -102,7 +102,7 @@ class BibleExplanationService
                     'content' => $prompt,
                 ],
             ];
-    
+
             $payload = [
                 'model' => $model,
                 'messages' => $messages,
@@ -110,24 +110,26 @@ class BibleExplanationService
                 'max_tokens' => 4000,
                 'presence_penalty' => 0.1,
             ];
-    
+
             $response = Http::withHeaders([
                 'Authorization' => 'Bearer ' . $apiKey,
                 'Content-Type' => 'application/json',
             ])->timeout(120)
-              ->post('https://api.perplexity.ai/chat/completions', $payload);
-    
+                ->post('https://api.perplexity.ai/chat/completions', $payload);
+
             if ($response->successful()) {
                 $responseData = $response->json();
                 $content = $responseData['choices'][0]['message']['content'] ?? '';
-    
-                if (strlen($content) < 200 ||
+
+                if (
+                    strlen($content) < 200 ||
                     str_contains($content, 'permita-me') ||
                     str_contains($content, 'vou explicar') ||
-                    str_contains($content, 'alguns instantes')) {
-    
+                    str_contains($content, 'alguns instantes')
+                ) {
+
                     Log::warning('Resposta muito curta ou apenas introdutória, tentando novamente');
-    
+
                     $retryMessages = [
                         [
                             'role' => 'system',
@@ -138,7 +140,7 @@ class BibleExplanationService
                             'content' => 'IMPORTANTE: Forneça uma explicação completa e detalhada, não apenas uma introdução. ' . $prompt,
                         ],
                     ];
-    
+
                     $retryPayload = [
                         'model' => $model,
                         'messages' => $retryMessages,
@@ -147,13 +149,13 @@ class BibleExplanationService
                         'presence_penalty' => 0.2,
                         'frequency_penalty' => 0.2,
                     ];
-    
+
                     $retryResponse = Http::withHeaders([
                         'Authorization' => 'Bearer ' . $apiKey,
                         'Content-Type' => 'application/json',
                     ])->timeout(120)
-                      ->post('https://api.perplexity.ai/chat/completions', $retryPayload);
-    
+                        ->post('https://api.perplexity.ai/chat/completions', $retryPayload);
+
                     if ($retryResponse->successful()) {
                         $retryData = $retryResponse->json();
                         $retryContent = $retryData['choices'][0]['message']['content'] ?? '';
@@ -164,7 +166,7 @@ class BibleExplanationService
                         return trim($retryContent);
                     }
                 }
-    
+
                 // Remove blocos de código markdown (```html ... ```)
                 $content = preg_replace('/^```html[\r\n]+|```$/i', '', trim($content));
                 $content = preg_replace('/^```[\r\n]+|```$/i', '', trim($content));
@@ -196,7 +198,7 @@ class BibleExplanationService
             return $this->generateFallbackExplanation($testament, $book, $chapter, $verses);
         }
     }
-    
+
 
     /**
      * Build the prompt for the AI API.
@@ -219,12 +221,12 @@ class BibleExplanationService
         if ($isFullChapter) {
             $specificInstructions =
                 "Resuma de forma clara e objetiva o capítulo, sem detalhar versículo por versículo. Siga as instruções:\n"
-                ."1. Diga em poucas frases sobre o que esse capítulo fala (tema central e propósito).\n"
-                ."2. Liste os principais pontos e acontecimentos do capítulo, em tópicos.\n"
-                ."3. Explique brevemente o contexto histórico do capítulo e do livro ao qual ele pertence.\n"
-                ."4. Evite repetições, rodeios ou explicações longas. Seja direto e conciso.\n"
-                ."5. NÃO inclua introduções, despedidas, nem explique versículo por versículo.\n"
-                ."6. Responda apenas com HTML simples, usando <ul> para tópicos e <p> para textos.";
+                . "1. Diga em poucas frases sobre o que esse capítulo fala (tema central e propósito).\n"
+                . "2. Liste os principais pontos e acontecimentos do capítulo, em tópicos.\n"
+                . "3. Explique brevemente o contexto histórico do capítulo e do livro ao qual ele pertence.\n"
+                . "4. Evite repetições, rodeios ou explicações longas. Seja direto e conciso.\n"
+                . "5. NÃO inclua introduções, despedidas, nem explique versículo por versículo.\n"
+                . "6. Responda apenas com HTML simples, usando <ul> para tópicos e <p> para textos.";
         } else {
             // Verifica se é um único versículo
             $isSingleVerse = preg_match('/^\d+$/', $verses);
@@ -232,26 +234,26 @@ class BibleExplanationService
 
             if ($isSingleVerse) {
                 $specificInstructions =
-                    "1. Separe as principais frases ou palavras-chave do versículo (ex: \"No princípio era o Verbo\", \"o Verbo estava com Deus\", etc) e explique cada uma individualmente, de forma didática.\n"
-                    ."2. Apresente essas explicações em uma lista HTML (<ul class='key-phrases'>) com cada frase/palavra-chave como um <li>.\n"
-                    .'3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
+                    "1. Separe as principais frases ou palavras-chave do versículo e explique cada uma individualmente, de forma didática.\n"
+                    . "2. Apresente essas explicações em uma lista HTML (<ul class='key-phrases'>) com cada frase/palavra-chave como um <li>.\n"
+                    . '3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
             } elseif ($isDoubleVerse) {
                 $specificInstructions =
                     "1. Para cada versículo, separe as principais frases ou palavras-chave e explique cada uma individualmente, de forma didática.\n"
-                    ."2. Apresente as explicações de cada versículo em uma lista HTML (<ul class='key-phrases'>) separada para cada versículo.\n"
-                    .'3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
+                    . "2. Apresente as explicações de cada versículo em uma lista HTML (<ul class='key-phrases'>) separada para cada versículo.\n"
+                    . '3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
             } else {
                 $specificInstructions =
                     "1. Analise detalhadamente cada versículo listado ({$verses}), considerando o contexto do capítulo.\n"
-                    ."2. Comente TODOS os versículos individualmente, explicando significado, relevância e conexões.\n"
-                    .'3. Certifique-se de abordar cada versículo ou intervalo explicitamente, sem omitir nenhum.';
+                    . "2. Comente TODOS os versículos individualmente, explicando significado, relevância e conexões.\n"
+                    . '3. Certifique-se de abordar cada versículo ou intervalo explicitamente, sem omitir nenhum.';
             }
         }
 
         $originalTextInstruction =
             "Se o texto original (hebraico, aramaico ou grego) e sua tradução literal estiverem disponíveis, inclua-os na secção 'Texto Original e Tradução'."
-            .' Forneça a transliteração (se aplicável) e, opcionalmente, uma análise de palavras-chave no idioma original.'
-            .' Se o texto original ou tradução não estiver disponível, omita completamente essa secção.';
+            . ' Forneça a transliteração (se aplicável) e, opcionalmente, uma análise de palavras-chave no idioma original.'
+            . ' Se o texto original ou tradução não estiver disponível, omita completamente essa secção.';
 
         // Não incluir instrução de texto original no resumo de capítulo
         $originalTextInstructionForPrompt = ($isFullChapter ? '' : $originalTextInstruction);
@@ -291,7 +293,6 @@ class BibleExplanationService
         <h2 class='main-title'>Explorando {$book} {$chapter}" . ($verses ? ":$verses" : '') . "</h2>
         <h3 class='section-title'>Texto Bíblico</h3>
         <p class='bible-text'>[Texto bíblico em português, versão fiel como Almeida Revista e Atualizada ou Nova Versão Internacional]</p>
-        <!-- Se for 1 versículo, inclua a lista de frases-chave explicadas -->
         <h3 class='section-title'>Análise de Expressões Importantes</h3>
         <ul class='key-phrases'>
             <li><strong>"[Frase ou palavra-chave 1]"</strong>: [explicação detalhada]</li>
@@ -350,70 +351,70 @@ class BibleExplanationService
         $testamentLabel = ucfirst($testament);
 
         return '<div class="bible-explanation">'
-            ."<h2 class='main-title'>Explorando {$bookLabel} {$chapter}{$versesText}</h2>"
+            . "<h2 class='main-title'>Explorando {$bookLabel} {$chapter}{$versesText}</h2>"
 
-            ."<h3 class='section-title'>Texto Bíblico</h3>"
-            ."<p class='bible-text'>Texto não disponível nesta demonstração. Em um ambiente de produção, você veria aqui o texto bíblico completo.</p>"
+            . "<h3 class='section-title'>Texto Bíblico</h3>"
+            . "<p class='bible-text'>Texto não disponível nesta demonstração. Em um ambiente de produção, você veria aqui o texto bíblico completo.</p>"
 
-            ."<h3 class='section-title'>Texto Original e Tradução</h3>"
-            ."<div class='original-translation'>"
-            ."    <div class='original-text'>Texto original não disponível nesta demonstração. Em um ambiente de produção, você veria aqui o texto no idioma original.</div>"
-            ."    <div class='transliteration'>Transliteração não disponível nesta demonstração.</div>"
-            ."    <div class='translation'>Tradução não disponível nesta demonstração. Em um ambiente de produção, você veria aqui a tradução literal do texto.</div>"
-            ."    <div class='word-analysis'>Análise de palavras-chave não disponível nesta demonstração.</div>"
-            .'</div>'
+            . "<h3 class='section-title'>Texto Original e Tradução</h3>"
+            . "<div class='original-translation'>"
+            . "    <div class='original-text'>Texto original não disponível nesta demonstração. Em um ambiente de produção, você veria aqui o texto no idioma original.</div>"
+            . "    <div class='transliteration'>Transliteração não disponível nesta demonstração.</div>"
+            . "    <div class='translation'>Tradução não disponível nesta demonstração. Em um ambiente de produção, você veria aqui a tradução literal do texto.</div>"
+            . "    <div class='word-analysis'>Análise de palavras-chave não disponível nesta demonstração.</div>"
+            . '</div>'
 
-            ."<h3 class='section-title'>Contexto Histórico e Cultural</h3>"
-            ."<p>Este livro faz parte do {$testamentLabel} Testamento e tem importância significativa na história bíblica. "
-            ."O capítulo {$chapter} foi escrito em um período importante da história de Israel, refletindo as realidades culturais, "
-            .'sociais e religiosas da época. O autor aborda temas relevantes para o contexto original e para os leitores atuais, '
-            .'estabelecendo princípios duradouros da revelação divina.</p>'
+            . "<h3 class='section-title'>Contexto Histórico e Cultural</h3>"
+            . "<p>Este livro faz parte do {$testamentLabel} Testamento e tem importância significativa na história bíblica. "
+            . "O capítulo {$chapter} foi escrito em um período importante da história de Israel, refletindo as realidades culturais, "
+            . 'sociais e religiosas da época. O autor aborda temas relevantes para o contexto original e para os leitores atuais, '
+            . 'estabelecendo princípios duradouros da revelação divina.</p>'
 
-            ."<h3 class='section-title'>Análise Teológica Detalhada</h3>"
-            .'<p>Este texto revela aspectos importantes da natureza de Deus, Seu plano redentor e Sua relação com a humanidade. '
-            .'Teólogos ao longo da história da igreja têm destacado a profundidade deste texto e suas implicações para a fé cristã. '
-            .'A passagem contém verdades fundamentais que se conectam com temas centrais das Escrituras.</p>'
+            . "<h3 class='section-title'>Análise Teológica Detalhada</h3>"
+            . '<p>Este texto revela aspectos importantes da natureza de Deus, Seu plano redentor e Sua relação com a humanidade. '
+            . 'Teólogos ao longo da história da igreja têm destacado a profundidade deste texto e suas implicações para a fé cristã. '
+            . 'A passagem contém verdades fundamentais que se conectam com temas centrais das Escrituras.</p>'
 
-            ."<h3 class='section-title'>Aplicações Práticas</h3>"
-            ."<ul class='applications'>"
-            .'<li>Fé e confiança em Deus são fundamentais para uma vida espiritual plena, especialmente em momentos de incerteza</li>'
-            .'<li>A obediência aos mandamentos divinos traz bênçãos e sabedoria para nossas decisões cotidianas</li>'
-            .'<li>O relacionamento com Deus deve ser cultivado diariamente através da oração, meditação na Palavra e adoração</li>'
-            .'<li>Podemos aplicar os princípios deste texto em nossos relacionamentos, trabalho e vida comunitária</li>'
-            .'</ul>'
+            . "<h3 class='section-title'>Aplicações Práticas</h3>"
+            . "<ul class='applications'>"
+            . '<li>Fé e confiança em Deus são fundamentais para uma vida espiritual plena, especialmente em momentos de incerteza</li>'
+            . '<li>A obediência aos mandamentos divinos traz bênçãos e sabedoria para nossas decisões cotidianas</li>'
+            . '<li>O relacionamento com Deus deve ser cultivado diariamente através da oração, meditação na Palavra e adoração</li>'
+            . '<li>Podemos aplicar os princípios deste texto em nossos relacionamentos, trabalho e vida comunitária</li>'
+            . '</ul>'
 
-            ."<h3 class='section-title'>Conexões com outros textos bíblicos</h3>"
-            ."<ul class='connections'>"
-            .'<li>Este texto se relaciona com os ensinamentos de Jesus em Mateus 22:37-40 sobre o amor a Deus e ao próximo, mostrando como o amor é o cumprimento da lei</li>'
-            .'<li>Há paralelos com os Salmos que exaltam a fidelidade e a misericórdia divina, especialmente o Salmo 119 que celebra a Palavra de Deus</li>'
-            .'<li>O livro de Romanos desenvolve muitos dos temas teológicos presentes nesta passagem, aprofundando seu significado</li>'
-            .'<li>Há conexões com o livro de Apocalipse, que mostra o cumprimento final dos propósitos de Deus</li>'
-            .'</ul>'
+            . "<h3 class='section-title'>Conexões com outros textos bíblicos</h3>"
+            . "<ul class='connections'>"
+            . '<li>Este texto se relaciona com os ensinamentos de Jesus em Mateus 22:37-40 sobre o amor a Deus e ao próximo, mostrando como o amor é o cumprimento da lei</li>'
+            . '<li>Há paralelos com os Salmos que exaltam a fidelidade e a misericórdia divina, especialmente o Salmo 119 que celebra a Palavra de Deus</li>'
+            . '<li>O livro de Romanos desenvolve muitos dos temas teológicos presentes nesta passagem, aprofundando seu significado</li>'
+            . '<li>Há conexões com o livro de Apocalipse, que mostra o cumprimento final dos propósitos de Deus</li>'
+            . '</ul>'
 
-            ."<h3 class='section-title'>Perspectivas Teológicas</h3>"
-            .'<p>Este texto tem sido interpretado de diversas formas ao longo da história da igreja, com diferentes ênfases '
-            .'dependendo da tradição teológica. Mantendo a fidelidade à ortodoxia bíblica, podemos apreciar as contribuições '
-            .'de diferentes perspectivas para uma compreensão mais rica e completa da passagem.</p>'
+            . "<h3 class='section-title'>Perspectivas Teológicas</h3>"
+            . '<p>Este texto tem sido interpretado de diversas formas ao longo da história da igreja, com diferentes ênfases '
+            . 'dependendo da tradição teológica. Mantendo a fidelidade à ortodoxia bíblica, podemos apreciar as contribuições '
+            . 'de diferentes perspectivas para uma compreensão mais rica e completa da passagem.</p>'
 
-            ."<h3 class='section-title'>Referências Bibliográficas</h3>"
-            ."<ul class='references'>"
-            .'<li>Comentário Bíblico Expositivo - Warren W. Wiersbe</li>'
-            .'<li>Manual Bíblico de Halley - Henry H. Halley</li>'
-            .'<li>Novo Comentário Bíblico - D. Guthrie, J. A. Motyer</li>'
-            .'<li>Comentário Bíblico Moody - Charles Ryrie</li>'
-            .'<li>Comentário Histórico-Cultural da Bíblia - Craig S. Keener</li>'
-            .'</ul>'
+            . "<h3 class='section-title'>Referências Bibliográficas</h3>"
+            . "<ul class='references'>"
+            . '<li>Comentário Bíblico Expositivo - Warren W. Wiersbe</li>'
+            . '<li>Manual Bíblico de Halley - Henry H. Halley</li>'
+            . '<li>Novo Comentário Bíblico - D. Guthrie, J. A. Motyer</li>'
+            . '<li>Comentário Bíblico Moody - Charles Ryrie</li>'
+            . '<li>Comentário Histórico-Cultural da Bíblia - Craig S. Keener</li>'
+            . '</ul>'
 
-            ."<div class='reflection'>"
-            .'<blockquote>'
-            .'<p><em>Que possamos refletir sobre estas palavras sagradas e aplicá-las em nossa vida diária, '
-            .'crescendo em sabedoria e na graça de nosso Senhor.</em></p>'
-            .'</blockquote>'
-            .'</div>'
+            . "<div class='reflection'>"
+            . '<blockquote>'
+            . '<p><em>Que possamos refletir sobre estas palavras sagradas e aplicá-las em nossa vida diária, '
+            . 'crescendo em sabedoria e na graça de nosso Senhor.</em></p>'
+            . '</blockquote>'
+            . '</div>'
 
-            ."<p class='bible-explanation-note'><em>Nota: Esta é uma explicação genérica. "
-            .'Para uma análise mais profunda e personalizada, por favor configure uma chave de API válida do OpenAI no sistema.</em></p>'
+            . "<p class='bible-explanation-note'><em>Nota: Esta é uma explicação genérica. "
+            . 'Para uma análise mais profunda e personalizada, por favor configure uma chave de API válida do OpenAI no sistema.</em></p>'
 
-            .'</div>';
+            . '</div>';
     }
 }
