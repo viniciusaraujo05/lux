@@ -35,15 +35,17 @@ export default function About() {
           
           <div className="prose prose-lg max-w-none">
             <p>
-              <strong>Verbum - Bíblia Explicada</strong> nasceu da paixão por tornar as Escrituras acessíveis a todos, 
-              independentemente do seu nível de conhecimento bíblico. Nossa missão é oferecer explicações 
-              detalhadas, bem fundamentadas e de fácil compreensão para cada capítulo e versículo da Bíblia.
+              <strong>Verbum - Bíblia Explicada</strong> nasceu da visão de utilizar a tecnologia moderna com inteligência 
+              artificial para tornar as Escrituras acessíveis a todos. Nossa missão é oferecer explicações 
+              bíblicas detalhadas e bem fundamentadas, geradas com o auxílio de IA avançada, mas sempre com 
+              supervisão teológica adequada.
             </p>
             
             <p>
-              Combinamos rigor teológico com linguagem acessível, contexto histórico com aplicações contemporâneas, 
-              e profundidade acadêmica com relevância prática. Queremos ser uma ponte entre o texto original e 
-              a vida diária dos leitores.
+              Combinamos o poder da inteligência artificial com rigor teológico, proporcionando explicações 
+              que conectam o contexto histórico com aplicações contemporâneas. Nosso objetivo é usar a tecnologia 
+              para criar uma ponte entre o texto bíblico original e a vida diária dos leitores, tornando o estudo 
+              bíblico mais acessível e enriquecedor.
             </p>
           </div>
         </section>

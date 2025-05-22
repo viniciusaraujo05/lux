@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import AppLayout from '@/layouts/app-layout';
 import { Link, Head } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, BookOpen, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, MessageSquare, Gift, Heart } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -9,10 +10,27 @@ interface BibleExplanationProps {
   testamento: string;
   livro: string;
   capitulo: string;
-  versos?: string; // Adicionado para suportar o parâmetro da rota amigável para SEO
+  versos?: string;
 }
 
 export default function BibleExplanation(props: BibleExplanationProps) {
+  return <BibleExplanationContent {...props} />;
+}
+
+function BibleExplanationContent(props: BibleExplanationProps) {
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {}
+    }
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [explanation, setExplanation] = useState('');
   const [source, setSource] = useState('');
@@ -36,25 +54,38 @@ export default function BibleExplanation(props: BibleExplanationProps) {
     positive_percentage: number;
     negative_percentage: number;
   } | null>(null);
-  
-  // Verificar se é dispositivo móvel
+
   const isMobile = useMediaQuery('(max-width: 640px)');
-  
-  // Extrair os parâmetros da URL
   const testament = props.testamento;
   const book = props.livro;
   const chapter = props.capitulo;
-  
-  // Obter versículos de diferentes fontes, por ordem de prioridade:
-  // 1. Props 'versos' (da rota amigável para SEO)
-  // 2. Parâmetro de consulta 'versiculos' ou 'verses' da URL
-  const versiculosParam = new URLSearchParams(window.location.search).get('versiculos');
-  const versesParam = new URLSearchParams(window.location.search).get('verses');
-  const verses = props.versos || versiculosParam || versesParam;
-  
-  const maxVerses = 50; // Valor padrão alto para a maioria dos capítulos
 
-  // Efeito para carregar metadados SEO
+  // Função robusta para extrair versículos da URL amigável ou query
+  function extractVerses() {
+    // 1. Query param
+    const params = new URLSearchParams(window.location.search);
+    let v = params.get('versiculos') || params.get('verses');
+    if (v) return v;
+    // 2. Slug amigável na URL: /explicacao/{testamento}/{livro}/{capitulo}/{slug}
+    const pathParts = window.location.pathname.split('/');
+    if (pathParts.length > 5) {
+      // slug é o último
+      const slug = pathParts[pathParts.length - 1];
+      // Exemplo: "3-explicacao-biblica" => pega antes do primeiro hifen
+      const match = slug.match(/^(\d+(?:,\d+)*)-explicacao-biblica/);
+      if (match) return match[1];
+    }
+    // 3. Props (fallback)
+    if (props.versos) return props.versos;
+    return null;
+  }
+  const verses = extractVerses();
+  const isChapterMode = !verses;
+  // Debug temporário
+  console.log('[explicacao] verses extraído:', verses, 'pathname:', window.location.pathname, 'search:', window.location.search);
+
+  const maxVerses = 50;
+
   useEffect(() => {
     async function fetchSeoMetadata() {
       try {
@@ -62,7 +93,6 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         if (verses) {
           seoUrl += `?verses=${verses}`;
         }
-                
         const response = await fetch(seoUrl);
         if (response.ok) {
           const seoData = await response.json();
@@ -76,11 +106,9 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         console.error('Error fetching SEO metadata:', error);
       }
     }
-    
     fetchSeoMetadata();
   }, [testament, book, chapter, verses]);
-  
-  // Efeito para carregar links relacionados
+
   useEffect(() => {
     async function fetchRelatedLinks() {
       try {
@@ -88,7 +116,6 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         if (verses) {
           relatedUrl += `?verses=${verses}`;
         }
-                
         const response = await fetch(relatedUrl);
         if (response.ok) {
           const data = await response.json();
@@ -98,45 +125,35 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         console.error('Error fetching related links:', error);
       }
     }
-    
     fetchRelatedLinks();
   }, [testament, book, chapter, verses]);
 
-  // Efeito para carregar a explicação bíblica
   useEffect(() => {
     async function fetchExplanation() {
       try {
-        // Construir a URL da API com os parâmetros corretos
         let apiUrl = `/api/explanation/${testament}/${book}/${chapter}`;
         if (verses) {
           apiUrl += `?verses=${verses}`;
         }
-                
         const response = await fetch(apiUrl);
         if (!response.ok) {
           throw new Error(`API responded with status: ${response.status}`);
         }
-        
         const data = await response.json();
-        
         setExplanation(data.explanation || 'No explanation was returned.');
         setSource(data.origin || 'unknown');
         setExplanationId(data.id || null);
         setLoading(false);
-        
-        // Se temos um ID de explicação, buscar estatísticas de feedback
         if (data.id) {
           fetchFeedbackStats(data.id);
         }
-        
-        // Gerar URLs amigáveis para SEO e atualizar o histórico do navegador
-        if (verses && !window.location.pathname.includes('/'+verses+'-')) {
-          // Somente se não estiver já em uma URL com slug
+        if (verses) {
+          const slugifiedBook = encodeURIComponent(book);
           const slug = verses + '-explicacao-biblica';
-          const newUrl = `/explicacao/${testament}/${book}/${chapter}/${slug}`;
-          
-          // Atualizar URL sem recarregar a página
-          window.history.replaceState({}, '', newUrl);
+          const expectedPath = `/explicacao/${testament}/${slugifiedBook}/${chapter}/${slug}`;
+          if (window.location.pathname !== expectedPath) {
+            window.history.replaceState({}, '', expectedPath);
+          }
         }
       } catch (error) {
         console.error('Error fetching explanation:', error);
@@ -144,50 +161,36 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         setLoading(false);
       }
     }
-    
     fetchExplanation();
   }, [testament, book, chapter, verses]);
 
-
-
-  // Função para navegar para um versículo específico
   const navigateToVerse = (verseNumber: number) => {
     if (verseNumber < 1 || verseNumber > maxVerses) return;
     window.location.href = `/explicacao/${testament}/${book}/${chapter}?versiculos=${verseNumber}`;
   };
 
-  // Função para iniciar análise versículo por versículo
   const startVerseByVerseAnalysis = () => {
     navigateToVerse(1);
   };
 
-  // Função para navegar para o próximo versículo
   const navigateToNextVerse = () => {
     if (!verses) return;
-    
-    // Se temos múltiplos versículos, pegamos o último
     const versesList = verses.split(',');
     const lastVerse = parseInt(versesList[versesList.length - 1], 10);
-    
     if (lastVerse < maxVerses) {
       navigateToVerse(lastVerse + 1);
     }
   };
 
-  // Função para navegar para o versículo anterior
   const navigateToPreviousVerse = () => {
     if (!verses) return;
-    
-    // Se temos múltiplos versículos, pegamos o primeiro
     const versesList = verses.split(',');
     const firstVerse = parseInt(versesList[0], 10);
-    
     if (firstVerse > 1) {
       navigateToVerse(firstVerse - 1);
     }
   };
 
-  // Função para buscar estatísticas de feedback
   const fetchFeedbackStats = async (id: number) => {
     try {
       const response = await fetch(`/api/feedback/stats/${id}`);
@@ -200,17 +203,14 @@ export default function BibleExplanation(props: BibleExplanationProps) {
     }
   };
 
-  // Função para enviar feedback
   const submitFeedback = async (isPositive: boolean) => {
     if (!explanationId) {
       console.error('Erro: ID da explicação não encontrado');
       return;
     }
-    
     setFeedbackType(isPositive ? 'positive' : 'negative');
-    
     if (isPositive) {
-      try {        
+      try {
         const response = await fetch('/api/feedback', {
           method: 'POST',
           headers: {
@@ -227,15 +227,12 @@ export default function BibleExplanation(props: BibleExplanationProps) {
             verses,
           }),
         });
-                
         if (response.ok) {
           setFeedbackSubmitted(true);
           setShowCelebration(true);
-
           setTimeout(() => {
             setShowCelebration(false);
           }, 8000);
-          
           fetchFeedbackStats(explanationId);
         } else {
           console.error('Erro na resposta do servidor:', await response.text());
@@ -244,19 +241,16 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         console.error('Erro ao enviar feedback positivo:', error);
       }
     } else {
-      // Se for negativo, mostre o formulário para comentários
       setShowFeedbackForm(true);
     }
   };
 
-  // Função para enviar feedback com comentário
   const submitFeedbackWithComment = async () => {
     if (!explanationId || !feedbackType) {
       console.error('Erro: ID da explicação ou tipo de feedback não encontrado');
       return;
     }
-    
-    try {      
+    try {
       const response = await fetch('/api/feedback', {
         method: 'POST',
         headers: {
@@ -273,11 +267,9 @@ export default function BibleExplanation(props: BibleExplanationProps) {
           verses,
         }),
       });
-            
       if (response.ok) {
         setFeedbackSubmitted(true);
         setShowFeedbackForm(false);
-        // Atualizar estatísticas
         fetchFeedbackStats(explanationId);
       } else {
         console.error('Erro na resposta do servidor:', await response.text());
@@ -293,31 +285,21 @@ export default function BibleExplanation(props: BibleExplanationProps) {
         <title>{seoMetadata.title}</title>
         <meta name="description" content={seoMetadata.description} />
         <meta name="keywords" content={seoMetadata.keywords} />
-        
-        {/* Open Graph / Facebook */}
         <meta property="og:type" content="article" />
         <meta property="og:url" content={window.location.href} />
         <meta property="og:title" content={seoMetadata.title} />
         <meta property="og:description" content={seoMetadata.description} />
-        
-        {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content={window.location.href} />
         <meta property="twitter:title" content={seoMetadata.title} />
         <meta property="twitter:description" content={seoMetadata.description} />
-        
-        {/* URL canônica - importante para SEO */}
         <link rel="canonical" href={window.location.href} />
-        
-        {/* Link para versão AMP */}
-        <link rel="amphtml" href={`/amp/explicacao/${testament}/${book}/${chapter}${verses ? '?verses='+verses : ''}`} />
-        
-        {/* Estruturação JSON-LD para resultados mais ricos nas buscas */}
+        <link rel="amphtml" href={`/amp/explicacao/${testament}/${book}/${chapter}${verses ? '?verses=' + verses : ''}`} />
         <script type="application/ld+json">{`
           {
             "@context": "https://schema.org",
             "@type": "Article",
-            "headline": "${book} ${chapter}${verses ? ':'+verses : ''} - Explicação Bíblica",
+            "headline": "${book} ${chapter}${verses ? ':' + verses : ''} - Explicação Bíblica",
             "description": "${seoMetadata.description}",
             "author": {
               "@type": "Organization",
@@ -338,112 +320,95 @@ export default function BibleExplanation(props: BibleExplanationProps) {
           }
         `}</script>
       </Head>
-    <div className="container max-w-4xl mx-auto p-2 sm:p-4">
-      <header className="mb-3 sm:mb-6 flex items-center justify-between bg-white shadow-sm rounded-lg p-2 sm:p-4">
-        <div className="flex items-center">
-          <button 
-            onClick={() => {
-              // Redirecionar para a página de versículos usando a nova estrutura de URLs
-              window.location.href = `/biblia/${testament}/${book}/${chapter}`;
-            }}
-            className="mr-4 text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-center"
-            aria-label="Voltar"
-          >
-            <ChevronLeft size={isMobile ? 18 : 22} />
-          </button>
-          <h1 className="text-base sm:text-xl font-bold text-gray-800 truncate max-w-[150px] sm:max-w-full">
-            {book} {chapter}
-            {verses && <span className="ml-2 text-xs sm:text-sm text-gray-600 hidden sm:inline">(Versículos: {verses})</span>}
-          </h1>
-        </div>
-        
-        {verses && (
-          <div className="flex items-center space-x-2">
-            <button 
-              onClick={navigateToPreviousVerse}
-              className="p-1 sm:p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-              aria-label="Versículo anterior"
-            >
-              <ArrowLeft size={isMobile ? 16 : 18} />
-            </button>
-            <button 
-              onClick={navigateToNextVerse}
-              className="p-1 sm:p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
-              aria-label="Próximo versículo"
-            >
-              <ArrowRight size={isMobile ? 16 : 18} />
-            </button>
-          </div>
-        )}
-      </header>
-      
-      <div className="border rounded-lg p-3 sm:p-6 bg-white shadow-sm">
-        {!verses && (
-          <div className="mb-6 flex justify-end">
-            <button 
-              onClick={startVerseByVerseAnalysis}
-              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs sm:text-sm"
-            >
-              <BookOpen size={isMobile ? 14 : 18} />
-              Analisar versículo por versículo
-            </button>
-          </div>
-        )}
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-12 space-y-4">
-            <div className="animate-spin h-12 w-12 border-4 border-primary rounded-full border-t-transparent"></div>
-            <p className="text-lg text-center text-slate-600 animate-pulse">
-              Preparando explicação...
-            </p>
-            <p className="text-sm text-center text-slate-500">
-              "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
-            </p>
-          </div>
-        ) : (
-          <div>
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-800">Explicação Bíblica</h2>
-              {source && (
-                <div className={`text-xs px-3 py-1 rounded-full font-medium ${source === 'cache' ? 'bg-emerald-100 text-emerald-700' : 'bg-indigo-100 text-indigo-700'}`}>
-                  Fonte: {source === 'cache' ? 'Banco de Dados' : 'Inteligência Artificial'}
-                </div>
-              )}
+      <AppLayout>
+        <div className="container max-w-4xl mx-auto p-2 sm:p-4">
+          <header className="mb-3 sm:mb-6 flex items-center justify-between bg-white shadow-sm rounded-lg p-2 sm:p-4">
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={() => {
+                  window.location.href = `/biblia/${testament}/${book}/${chapter}`;
+                }}
+                className="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center justify-center"
+                aria-label="Voltar"
+              >
+                <ChevronLeft size={isMobile ? 18 : 22} />
+              </button>
+              <h1 className="text-base sm:text-xl font-bold text-gray-800 truncate max-w-[150px] sm:max-w-full">
+                {book} {chapter}
+                {verses && <span className="ml-2 text-xs sm:text-sm text-gray-600 hidden sm:inline">(Versículos: {verses})</span>}
+              </h1>
             </div>
-            
+            {verses && (
+              <div className="flex items-center space-x-2">
+                <button 
+                  onClick={navigateToPreviousVerse}
+                  className="p-1 sm:p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  aria-label="Versículo anterior"
+                >
+                  <ArrowLeft size={isMobile ? 16 : 18} />
+                </button>
+                <button 
+                  onClick={navigateToNextVerse}
+                  className="p-1 sm:p-2 rounded-full bg-indigo-50 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  aria-label="Próximo versículo"
+                >
+                  <ArrowRight size={isMobile ? 16 : 18} />
+                </button>
+              </div>
+            )}
+          </header>
+          {loading ? (
+            <div className="flex flex-col justify-center items-center p-6 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-100 dark:border-slate-800 mt-6">
+              <div className="relative mb-4">
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Heart className="h-8 w-8 text-purple-600 dark:text-purple-400 animate-pulse" />
+                </div>
+                <div className="h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-900/30 animate-ping opacity-75"></div>
+              </div>
+              <p className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-2">
+                Preparando explicação...
+              </p>
+              <div className="w-16 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded mb-4"></div>
+              <p className="text-sm text-center text-slate-600 dark:text-slate-400 italic max-w-xs">
+                "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
+              </p>
+            </div>
+          ) : (
             <div className="prose max-w-none">
               <div 
                 className="explanation-container bg-slate-50 rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-slate-200"
-                style={{
-                  animation: 'fadeIn 0.8s ease-in-out',
-                }}
+                style={{ animation: 'fadeIn 0.8s ease-in-out' }}
               >
-                {explanation && (
+                {verses ? (
                   <>
+                    <h2 className="font-semibold text-base sm:text-lg mb-2 text-indigo-700">Explicação do(s) versículo(s): {verses}</h2>
                     <div
                       className="explanation-text text-slate-800 text-base sm:text-lg leading-relaxed"
                       dangerouslySetInnerHTML={{ __html: explanation }}
                     />
-                    
-                    {/* Banner de doação */}
-                    <div className="my-8 p-5 bg-purple-50 dark:bg-purple-900/30 border border-purple-300 dark:border-purple-700/50 rounded-lg shadow-sm">
-                      <div className="flex flex-col items-center text-center mb-4">
-                        <div className="inline-flex items-center justify-center bg-purple-100 dark:bg-purple-800/40 p-2 rounded-full mb-3">
-                          <Heart className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                        </div>
-                        <h3 className="font-medium text-lg text-purple-900 dark:text-purple-100 mb-1">Abençoe este ministério!</h3>
-                        <p className="text-sm text-purple-800/80 dark:text-purple-200/80 max-w-md">"Dai, e dar-se-vos-á; boa medida, recalcada, sacudida e transbordante" - Lucas 6:38</p>
-                      </div>
-                      <div className="flex justify-center">
-                        <DonateButton size="md" className="w-full sm:w-auto max-w-xs" />
-                      </div>
-                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h2 className="font-semibold text-base sm:text-lg mb-2 text-indigo-700">Explicação do capítulo {chapter}</h2>
+                    <div
+                      className="explanation-text text-slate-800 text-base sm:text-lg leading-relaxed"
+                      dangerouslySetInnerHTML={{ __html: explanation }}
+                    />
                   </>
                 )}
-                
-                {/* Seção de Feedback */}
+                <div className="my-8 p-5 bg-purple-50 dark:bg-purple-950/30 border border-purple-300 dark:border-purple-700/40 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
+                  <div className="flex flex-col items-center text-center mb-4">
+                    <div className="inline-flex items-center justify-center bg-purple-100 dark:bg-purple-800/50 p-3 rounded-full mb-3 shadow-inner">
+                      <Heart className="h-5 w-5 text-purple-600 dark:text-purple-300" />
+                    </div>
+                    <h3 className="font-semibold text-lg text-purple-900 dark:text-purple-50 mb-2">Nos ajude a continuar!</h3>
+                  </div>
+                  <div className="flex justify-center">
+                    <DonateButton size="md" className="w-full sm:w-auto max-w-xs shadow-sm hover:shadow transition-shadow" />
+                  </div>
+                </div>
                 <div className="mt-4 sm:mt-8 pt-3 sm:pt-6 border-t border-slate-200">
                   <h3 className="text-base sm:text-lg font-semibold mb-2 sm:mb-4">Esta explicação foi útil?</h3>
-                  
                   {feedbackSubmitted ? (
                     <div 
                       className={`p-2 sm:p-4 rounded-md border ${feedbackType === 'positive' 
@@ -469,17 +434,15 @@ export default function BibleExplanation(props: BibleExplanationProps) {
                           <ThumbsUp size={isMobile ? 14 : 18} />
                           <span className="text-xs sm:text-sm">Sim, foi útil</span>
                         </button>
-                        
                         <button 
                           onClick={() => submitFeedback(false)}
                           className="flex items-center space-x-1 sm:space-x-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-amber-50 text-amber-700 rounded-md border border-amber-200 hover:bg-amber-100 transition-colors"
                           disabled={!explanationId}
                         >
                           <ThumbsDown size={isMobile ? 14 : 18} />
-                          <span className="text-xs sm:text-sm">Não foi útil</span>
+                          <span className="text-xs sm:text-sm.">Não foi útil</span>
                         </button>
                       </div>
-                      
                       {showFeedbackForm && (
                         <div className="bg-slate-100 p-2 sm:p-4 rounded-md border border-slate-200">
                           <h4 className="font-medium mb-1 sm:mb-2 text-sm sm:text-base text-slate-700">Como podemos melhorar esta explicação?</h4>
@@ -509,8 +472,6 @@ export default function BibleExplanation(props: BibleExplanationProps) {
                       )}
                     </div>
                   )}
-                  
-                  {/* Estatísticas de Feedback */}
                   {feedbackStats && feedbackStats.total_count > 0 && (
                     <div className="mt-3 sm:mt-4 text-xs sm:text-sm text-slate-600">
                       <p className="mb-1">{feedbackStats.positive_count} de {feedbackStats.total_count} pessoas acharam esta explicação útil ({feedbackStats.positive_percentage}%)</p>
@@ -523,305 +484,252 @@ export default function BibleExplanation(props: BibleExplanationProps) {
                     </div>
                   )}
                 </div>
-              </div>
-              
-              {verses && (
-                <div className="mt-4 sm:mt-8 flex justify-between items-center">
-                  <button 
-                    onClick={navigateToPreviousVerse}
-                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors text-xs sm:text-sm"
-                    disabled={parseInt(verses.split(',')[0]) <= 1}
-                  >
-                    <ArrowLeft size={isMobile ? 14 : 16} />
-                    <span className="hidden xs:inline">Versículo anterior</span>
-                    <span className="xs:hidden">Anterior</span>
-                  </button>
-                  
-                  <button 
-                    onClick={navigateToNextVerse}
-                    className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs sm:text-sm"
-                  >
-                    <span className="hidden xs:inline">Próximo versículo</span>
-                    <span className="xs:hidden">Próximo</span>
-                    <ArrowRight size={isMobile ? 14 : 16} />
-                  </button>
-                </div>
-              )}
-              {/* CSS para a explicação bíblica estruturada */}
-              <style>{`
-                @keyframes fadeIn {
-                  from { opacity: 0; transform: translateY(10px); }
-                  to { opacity: 1; transform: translateY(0); }
-                }
-                
-                @keyframes celebrate {
-                  0% { transform: scale(1); box-shadow: 0 0 0 rgba(72, 187, 120, 0); }
-                  25% { transform: scale(1.03); }
-                  50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(72, 187, 120, 0.4); }
-                  75% { transform: scale(1.03); }
-                  100% { transform: scale(1); box-shadow: 0 0 0 rgba(72, 187, 120, 0); }
-                }
-                
-                .celebration {
-                  animation: celebrate 1.2s ease-in-out infinite;
-                  background-color: rgba(236, 253, 245, 0.9);
-                  transition: all 0.3s ease;
-                  border-color: rgba(72, 187, 120, 0.6) !important;
-                }
-                
-                /* Estilos gerais para a explicação bíblica - Inspirado no Shadcn UI */
-                .bible-explanation {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                  color: hsl(240 10% 3.9%);
-                  line-height: 1.8;
-                  max-width: 100%;
-                  overflow-wrap: break-word;
-                }
-                
-                /* Título principal */
-                .main-title {
-                  color: hsl(240 5.9% 10%);
-                  font-size: 1.875rem;
-                  margin-bottom: 1.75rem;
-                  text-align: center;
-                  border-bottom: 1px solid hsl(240 5.9% 90%);
-                  padding-bottom: 1rem;
-                  font-weight: 700;
-                  letter-spacing: -0.025em;
-                }
-                
-                /* Títulos de seção */
-                .section-title {
-                  color: hsl(240 6% 10%);
-                  font-size: 1.25rem;
-                  margin-top: 2.5rem;
-                  margin-bottom: 1rem;
-                  border-left: 3px solid hsl(221.2 83.2% 53.3%);
-                  padding-left: 0.75rem;
-                  font-weight: 600;
-                  letter-spacing: -0.025em;
-                }
-                
-                /* Texto bíblico */
-                .bible-text {
-                  font-size: 1.125rem;
-                  background-color: hsl(220 14.3% 95.9%);
-                  padding: 1.25rem;
-                  border-radius: 0.5rem;
-                  margin: 1.25rem 0;
-                  font-style: italic;
-                  color: hsl(240 5.9% 26%);
-                  border-left: 3px solid hsl(142.1 76.2% 36.3%);
-                  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-                }
-                
-                /* Seção combinada de texto original e tradução */
-                .original-translation {
-                  display: flex;
-                  flex-direction: column;
-                  gap: 1rem;
-                  margin: 1.75rem 0;
-                  background-color: hsl(210 40% 98%);
-                  border-radius: 0.5rem;
-                  padding: 1.5rem;
-                  border-left: 3px solid hsl(262.1 83.3% 57.8%);
-                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-                }
-                
-                /* Texto original */
-                .original-text {
-                  font-family: 'SBL Hebrew', 'Times New Roman', Times, serif;
-                  font-size: 1.25rem;
-                  line-height: 1.7;
-                  direction: rtl;
-                  text-align: right;
-                  padding-bottom: 1rem;
-                  border-bottom: 1px solid hsl(240 5.9% 90%);
-                  color: hsl(240 5.9% 26%);
-                  font-weight: 500;
-                }
-                
-                /* Transliteração */
-                .transliteration {
-                  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-                  font-style: italic;
-                  color: hsl(240 3.8% 46.1%);
-                  padding-bottom: 1rem;
-                  border-bottom: 1px solid hsl(240 5.9% 90%);
-                }
-                
-                /* Tradução */
-                .translation {
-                  font-size: 1.125rem;
-                  padding-bottom: 1rem;
-                  color: hsl(240 5.9% 10%);
-                  font-weight: 500;
-                  border-bottom: 1px solid hsl(240 5.9% 90%);
-                }
-                
-                /* Análise de palavras */
-                .word-analysis {
-                  font-size: 0.95rem;
-                  color: hsl(240 3.8% 46.1%);
-                  line-height: 1.7;
-                  background-color: hsl(240 5.9% 96%);
-                  padding: 1rem;
-                  border-radius: 0.375rem;
-                  margin-top: 0.75rem;
-                }
-                
-                /* Listas de aplicações, conexões e referências */
-                .applications, .connections, .references {
-                  margin-left: 1.5rem;
-                  margin-top: 1.25rem;
-                  list-style-type: none;
-                }
-                
-                .applications li, .connections li, .references li {
-                  margin-bottom: 1rem;
-                  position: relative;
-                  padding-left: 0.75rem;
-                  line-height: 1.7;
-                }
-                
-                .applications li:before {
-                  content: '•';
-                  color: hsl(142.1 76.2% 36.3%);
-                  font-weight: bold;
-                  display: inline-block;
-                  width: 1em;
-                  margin-left: -1em;
-                }
-                
-                .connections li:before {
-                  content: '•';
-                  color: hsl(221.2 83.2% 53.3%);
-                  font-weight: bold;
-                  display: inline-block;
-                  width: 1em;
-                  margin-left: -1em;
-                }
-                
-                .references li:before {
-                  content: '•';
-                  color: hsl(262.1 83.3% 57.8%);
-                  font-weight: bold;
-                  display: inline-block;
-                  width: 1em;
-                  margin-left: -1em;
-                }
-                
-                .references {
-                  font-size: 0.95rem;
-                  color: hsl(240 3.8% 46.1%);
-                  font-style: italic;
-                }
-                
-                /* Bloco de reflexão */
-                .reflection {
-                  margin: 2.5rem 0;
-                }
-                
-                .reflection blockquote {
-                  background-color: hsl(210 40% 98%);
-                  border-left: 3px solid hsl(221.2 83.2% 53.3%);
-                  margin: 1.75rem 0;
-                  padding: 1.5rem;
-                  font-style: italic;
-                  border-radius: 0 0.5rem 0.5rem 0;
-                  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-                }
-                
-                .reflection blockquote p {
-                  margin: 0;
-                  color: hsl(221.2 83.2% 53.3%);
-                  font-size: 1.125rem;
-                  line-height: 1.7;
-                  font-weight: 500;
-                }
-                
-                /* Estilos para fallback */
-                .bible-explanation-fallback h2, .bible-explanation-fallback h3 {
-                  color: #3b3b7c;
-                  margin-top: 1.2em;
-                }
-                
-                .bible-explanation-fallback ul {
-                  margin-left: 1.5em;
-                  list-style: disc;
-                }
-                
-                .bible-explanation-fallback blockquote {
-                  background: #eef2fa;
-                  border-left: 4px solid #3b3b7c;
-                  margin: 1em 0;
-                  padding: 0.7em 1em;
-                  color: #444;
-                }
-                
-                .bible-explanation-note {
-                  color: #777;
-                  font-size: 0.95em;
-                  margin-top: 2em;
-                }
-                
-                /* Responsividade para telas menores */
-                @media (max-width: 768px) {
+                {verses && (
+                  <div className="mt-4 sm:mt-8 flex justify-between items-center">
+                    <button 
+                      onClick={navigateToPreviousVerse}
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200 transition-colors text-xs sm:text-sm"
+                      disabled={parseInt(verses.split(',')[0]) <= 1}
+                    >
+                      <ArrowLeft size={isMobile ? 14 : 16} />
+                      <span className="hidden xs:inline">Versículo anterior</span>
+                      <span className="xs:hidden">Anterior</span>
+                    </button>
+                    <button 
+                      onClick={navigateToNextVerse}
+                      className="flex items-center gap-1 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition-colors text-xs sm:text-sm"
+                    >
+                      <span className="hidden xs:inline">Próximo versículo</span>
+                      <span className="xs:hidden">Próximo</span>
+                      <ArrowRight size={isMobile ? 14 : 16} />
+                    </button>
+                  </div>
+                )}
+                <style>{`
+                  @keyframes fadeIn {
+                    from { opacity: 0; transform: translateY(10px); }
+                    to { opacity: 1; transform: translateY(0); }
+                  }
+                  @keyframes celebrate {
+                    0% { transform: scale(1); box-shadow: 0 0 0 rgba(72, 187, 120, 0); }
+                    25% { transform: scale(1.03); }
+                    50% { transform: scale(1.05); box-shadow: 0 0 20px rgba(72, 187, 120, 0.4); }
+                    75% { transform: scale(1.03); }
+                    100% { transform: scale(1); box-shadow: 0 0 0 rgba(72, 187, 120, 0); }
+                  }
+                  .celebration {
+                    animation: celebrate 1.2s ease-in-out infinite;
+                    background-color: rgba(236, 253, 245, 0.9);
+                    transition: all 0.3s ease;
+                    border-color: rgba(72, 187, 120, 0.6) !important;
+                  }
+                  .bible-explanation {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    color: hsl(240 10% 3.9%);
+                    line-height: 1.8;
+                    max-width: 100%;
+                    overflow-wrap: break-word;
+                  }
                   .main-title {
-                    font-size: 1.5rem;
-                    padding-bottom: 0.75rem;
-                    margin-bottom: 1.5rem;
+                    color: hsl(240 5.9% 10%);
+                    font-size: 1.875rem;
+                    margin-bottom: 1.75rem;
+                    text-align: center;
+                    border-bottom: 1px solid hsl(240 5.9% 90%);
+                    padding-bottom: 1rem;
+                    font-weight: 700;
+                    letter-spacing: -0.025em;
                   }
-                  
                   .section-title {
-                    font-size: 1.125rem;
-                    margin-top: 2rem;
+                    color: hsl(240 6% 10%);
+                    font-size: 1.25rem;
+                    margin-top: 2.5rem;
+                    margin-bottom: 1rem;
+                    border-left: 3px solid hsl(221.2 83.2% 53.3%);
+                    padding-left: 0.75rem;
+                    font-weight: 600;
+                    letter-spacing: -0.025em;
                   }
-                  
                   .bible-text {
-                    padding: 1rem;
-                    font-size: 1rem;
-                  }
-                  
-                  .original-text {
                     font-size: 1.125rem;
-                  }
-                  
-                  .translation {
-                    font-size: 1rem;
-                  }
-                  
-                  .reflection blockquote {
+                    background-color: hsl(220 14.3% 95.9%);
                     padding: 1.25rem;
+                    border-radius: 0.5rem;
+                    margin: 1.25rem 0;
+                    font-style: italic;
+                    color: hsl(240 5.9% 26%);
+                    border-left: 3px solid hsl(142.1 76.2% 36.3%);
+                    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
                   }
-                  
+                  .original-translation {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1rem;
+                    margin: 1.75rem 0;
+                    background-color: hsl(210 40% 98%);
+                    border-radius: 0.5rem;
+                    padding: 1.5rem;
+                    border-left: 3px solid hsl(262.1 83.3% 57.8%);
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                  }
+                  .original-text {
+                    font-family: 'SBL Hebrew', 'Times New Roman', Times, serif;
+                    font-size: 1.25rem;
+                    line-height: 1.7;
+                    direction: rtl;
+                    text-align: right;
+                    padding-bottom: 1rem;
+                    border-bottom: 1px solid hsl(240 5.9% 90%);
+                    color: hsl(240 5.9% 26%);
+                    font-weight: 500;
+                  }
+                  .transliteration {
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                    font-style: italic;
+                    color: hsl(240 3.8% 46.1%);
+                    padding-bottom: 1rem;
+                    border-bottom: 1px solid hsl(240 5.9% 90%);
+                  }
+                  .translation {
+                    font-size: 1.125rem;
+                    padding-bottom: 1rem;
+                    color: hsl(240 5.9% 10%);
+                    font-weight: 500;
+                    border-bottom: 1px solid hsl(240 5.9% 90%);
+                  }
+                  .word-analysis {
+                    font-size: 0.95rem;
+                    color: hsl(240 3.8% 46.1%);
+                    line-height: 1.7;
+                    background-color: hsl(240 5.9% 96%);
+                    padding: 1rem;
+                    border-radius: 0.375rem;
+                    margin-top: 0.75rem;
+                  }
+                  .applications, .connections, .references {
+                    margin-left: 1.5rem;
+                    margin-top: 1.25rem;
+                    list-style-type: none;
+                  }
+                  .applications li, .connections li, .references li {
+                    margin-bottom: 1rem;
+                    position: relative;
+                    padding-left: 0.75rem;
+                    line-height: 1.7;
+                  }
+                  .applications li:before {
+                    content: '•';
+                    color: hsl(142.1 76.2% 36.3%);
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 1em;
+                    margin-left: -1em;
+                  }
+                  .connections li:before {
+                    content: '•';
+                    color: hsl(221.2 83.2% 53.3%);
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 1em;
+                    margin-left: -1em;
+                  }
+                  .references li:before {
+                    content: '•';
+                    color: hsl(262.1 83.3% 57.8%);
+                    font-weight: bold;
+                    display: inline-block;
+                    width: 1em;
+                    margin-left: -1em;
+                  }
+                  .references {
+                    font-size: 0.95rem;
+                    color: hsl(240 3.8% 46.1%);
+                    font-style: italic;
+                  }
+                  .reflection {
+                    margin: 2.5rem 0;
+                  }
+                  .reflection blockquote {
+                    background-color: hsl(210 40% 98%);
+                    border-left: 3px solid hsl(221.2 83.2% 53.3%);
+                    margin: 1.75rem 0;
+                    padding: 1.5rem;
+                    font-style: italic;
+                    border-radius: 0 0.5rem 0.5rem 0;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+                  }
                   .reflection blockquote p {
-                    font-size: 1rem;
+                    margin: 0;
+                    color: hsl(221.2 83.2% 53.3%);
+                    font-size: 1.125rem;
+                    line-height: 1.7;
+                    font-weight: 500;
                   }
-                }
-                
-                /* Animações suaves */
-                .bible-explanation * {
-                  transition: all 0.2s ease-in-out;
-                }
-                
-                /* Melhorias de acessibilidade */
-                .bible-explanation a {
-                  color: hsl(221.2 83.2% 53.3%);
-                  text-decoration: underline;
-                  text-underline-offset: 0.2em;
-                }
-                
-                .bible-explanation a:hover {
-                  color: hsl(221.2 83.2% 43.3%);
-                }
-              `}</style>
+                  .bible-explanation-fallback h2, .bible-explanation-fallback h3 {
+                    color: #3b3b7c;
+                    margin-top: 1.2em;
+                  }
+                  .bible-explanation-fallback ul {
+                    margin-left: 1.5em;
+                    list-style: disc;
+                  }
+                  .bible-explanation-fallback blockquote {
+                    background: #eef2fa;
+                    border-left: 4px solid #3b3b7c;
+                    margin: 1em 0;
+                    padding: 0.7em 1em;
+                    color: #444;
+                  }
+                  .bible-explanation-note {
+                    color: #777;
+                    font-size: 0.95em;
+                    margin-top: 2em;
+                  }
+                  @media (max-width: 768px) {
+                    .main-title {
+                      font-size: 1.5rem;
+                      padding-bottom: 0.75rem;
+                      margin-bottom: 1.5rem;
+                    }
+                    .section-title {
+                      font-size: 1.125rem;
+                      margin-top: 2rem;
+                    }
+                    .bible-text {
+                      padding: 1rem;
+                      font-size: 1rem;
+                    }
+                    .original-text {
+                      font-size: 1.125rem;
+                    }
+                    .translation {
+                      font-size: 1rem;
+                    }
+                    .reflection blockquote {
+                      padding: 1.25rem;
+                    }
+                    .reflection blockquote p {
+                      font-size: 1rem;
+                    }
+                  }
+                  .bible-explanation * {
+                    transition: all 0.2s ease-in-out;
+                  }
+                  .bible-explanation a {
+                    color: hsl(221.2 83.2% 53.3%);
+                    text-decoration: underline;
+                    text-underline-offset: 0.2em;
+                  }
+                  .bible-explanation a:hover {
+                    color: hsl(221.2 83.2% 43.3%);
+                  }
+                `}</style>
+              </div>
             </div>
-          </div>
-        )}
-      </div>
-    </div>
-    <Footer />
+          )}
+        </div>
+        <Footer />
+      </AppLayout>
     </>
   );
 }

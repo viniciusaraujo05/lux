@@ -72,11 +72,6 @@ export default function BibleExplanation(props: BibleExplanationProps) {
           <div>
             <div className="flex justify-between items-center mb-4">
               <h2 className="text-lg font-semibold">Explicação</h2>
-              {source && (
-                <div className={`text-xs px-2 py-1 rounded-full ${source === 'cache' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                  Fonte: {source === 'cache' ? 'Banco de Dados' : 'Inteligência Artificial'}
-                </div>
-              )}
             </div>
             
             <div className="prose max-w-none">
