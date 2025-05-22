@@ -58,10 +58,10 @@ export default function Welcome(props: WelcomeProps) {
               animate={{ opacity: 1 }}
               transition={{ delay: 0.9, duration: 0.6 }}
             >
-              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-2 bg-purple-100 dark:bg-purple-900/30 p-3 sm:px-4 sm:py-2 rounded-lg sm:rounded-full border border-purple-300 dark:border-purple-500/40 shadow-sm">
+              <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-2 bg-blue-100 dark:bg-blue-900/30 p-3 sm:px-4 sm:py-2 rounded-lg sm:rounded-full border border-blue-300 dark:border-blue-500/40 shadow-sm">
                 <div className="flex items-center">
-                  <Heart className="h-4 w-4 text-purple-600 dark:text-purple-400 mr-2" />
-                  <span className="text-sm text-purple-900 dark:text-purple-200">Oferte e nos ajude a continuar</span>
+                  <Heart className="h-4 w-4 text-blue-600 dark:text-blue-400 mr-2" />
+                  <span className="text-sm text-blue-900 dark:text-blue-200">Oferte e nos ajude a continuar</span>
                 </div>
                 <DonateButton size="sm" className="w-full sm:w-auto" />
               </div>

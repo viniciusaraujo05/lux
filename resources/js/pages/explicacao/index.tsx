@@ -361,14 +361,14 @@ function BibleExplanationContent(props: BibleExplanationProps) {
             <div className="flex flex-col justify-center items-center p-6 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-100 dark:border-slate-800 mt-6">
               <div className="relative mb-4">
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Heart className="h-8 w-8 text-purple-600 dark:text-purple-400 animate-pulse" />
+                  <Heart className="h-8 w-8 text-blue-600 dark:text-blue-400 animate-pulse" />
                 </div>
-                <div className="h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-900/30 animate-ping opacity-75"></div>
+                <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/30 animate-ping opacity-75"></div>
               </div>
               <p className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-2">
                 Preparando explicação...
               </p>
-              <div className="w-16 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded mb-4"></div>
+              <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-blue-700 rounded mb-4"></div>
               <p className="text-sm text-center text-slate-600 dark:text-slate-400 italic max-w-xs">
                 "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
               </p>
@@ -396,12 +396,12 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                     />
                   </>
                 )}
-                <div className="my-8 p-5 bg-purple-50 dark:bg-purple-950/30 border border-purple-300 dark:border-purple-700/40 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
+                <div className="my-8 p-5 bg-blue-50 dark:bg-blue-950/30 border border-blue-300 dark:border-blue-700/40 rounded-lg shadow-md transition-all duration-300 hover:shadow-lg">
                   <div className="flex flex-col items-center text-center mb-4">
-                    <div className="inline-flex items-center justify-center bg-purple-100 dark:bg-purple-800/50 p-3 rounded-full mb-3 shadow-inner">
-                      <Heart className="h-5 w-5 text-purple-600 dark:text-purple-300" />
+                    <div className="inline-flex items-center justify-center bg-blue-100 dark:bg-blue-800/50 p-3 rounded-full mb-3 shadow-inner">
+                      <Heart className="h-5 w-5 text-blue-600 dark:text-blue-300" />
                     </div>
-                    <h3 className="font-semibold text-lg text-purple-900 dark:text-purple-50 mb-2">Nos ajude a continuar!</h3>
+                    <h3 className="font-semibold text-lg text-blue-900 dark:text-blue-50 mb-2">Nos ajude a continuar!</h3>
                   </div>
                   <div className="flex justify-center">
                     <DonateButton size="md" className="w-full sm:w-auto max-w-xs shadow-sm hover:shadow transition-shadow" />

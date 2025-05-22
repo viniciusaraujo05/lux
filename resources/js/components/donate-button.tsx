@@ -32,7 +32,7 @@ const DonateButton: React.FC<DonateButtonProps> = ({
         href="https://buymeacoffee.com/viniciusaraujo" 
         target="_blank"
         rel="noopener noreferrer"
-        className={`text-purple-600 hover:text-purple-500 transition-colors ${className}`}
+        className={`text-blue-400 hover:text-blue-300 transition-colors ${className}`}
         aria-label="Ofertar"
         title="Ofertar e Contribuir com a Obra"
       >
@@ -47,7 +47,7 @@ const DonateButton: React.FC<DonateButtonProps> = ({
         href="https://buymeacoffee.com/viniciusaraujo" 
         target="_blank"
         rel="noopener noreferrer"
-        className={`text-purple-600 hover:text-purple-500 font-medium transition-colors ${className}`}
+        className={`text-blue-400 hover:text-blue-300 font-medium transition-colors ${className}`}
         aria-label="Ofertar"
       >
         Ofertar
@@ -61,7 +61,7 @@ const DonateButton: React.FC<DonateButtonProps> = ({
       href="https://buymeacoffee.com/viniciusaraujo" 
       target="_blank"
       rel="noopener noreferrer"
-      className={`flex items-center justify-center bg-purple-700 hover:bg-purple-800 text-white rounded-md transition-colors font-semibold ${buttonSizes[size]} ${className}`}
+      className={`flex items-center justify-center bg-blue-700 hover:bg-blue-800 text-white rounded-md transition-colors font-semibold ${buttonSizes[size]} ${className}`}
     >
       <Gift className={`${iconSizes[size]} mr-2`} />
       Ofertar Agora

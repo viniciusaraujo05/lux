@@ -66,12 +66,12 @@ const Footer: React.FC = () => {
         </div>
 
         <div className="border-t border-gray-300 dark:border-gray-700 mt-8 pt-6">
-          <div className="flex flex-col items-center justify-center mb-6 bg-purple-100 dark:bg-purple-900/30 rounded-lg p-4 border border-purple-300 dark:border-purple-500/40 shadow-md">
+          <div className="flex flex-col items-center justify-center mb-6 bg-blue-100 dark:bg-blue-900/30 rounded-lg p-4 border border-blue-300 dark:border-blue-500/40 shadow-md">
             <div className="flex items-center mb-2">
-              <Gift className="h-5 w-5 text-purple-600 dark:text-purple-400 mr-2" />
-              <h4 className="font-semibold text-purple-900 dark:text-white">Nos ajude a manter esse site vivo!</h4>
+              <Gift className="h-5 w-5 text-blue-600 dark:text-blue-400 mr-2" />
+              <h4 className="font-semibold text-blue-900 dark:text-white">Nos ajude a manter esse site vivo!</h4>
             </div>
-            <p className="text-sm text-purple-800 dark:text-gray-300 mb-4 text-center">
+            <p className="text-sm text-blue-800 dark:text-gray-300 mb-4 text-center">
               Sua oferta ajuda a manter este site de estudos bíblicos disponível gratuitamente.
             </p>
             <DonateButton size="md" />
@@ -82,7 +82,7 @@ const Footer: React.FC = () => {
               &copy; {currentYear} Verbum - Bíblia Explicada. Todos os direitos reservados.
             </p>
             <div className="flex space-x-4">
-              <DonateButton variant="icon" size="md" className="text-purple-400 hover:text-purple-300" />
+              <DonateButton variant="icon" size="md" className="text-blue-400 hover:text-blue-300" />
               <a 
                 href="https://github.com/viniciusaraujo05" 
                 target="_blank" 

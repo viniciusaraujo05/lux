@@ -109,7 +109,6 @@ class BibleExplanationService
                 'temperature' => 0.6,
                 'max_tokens' => 4000,
                 'presence_penalty' => 0.1,
-                // 'frequency_penalty' => 0.1,
             ];
     
             $response = Http::withHeaders([
