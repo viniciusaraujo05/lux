@@ -21,12 +21,12 @@ export default function AppearanceToggleDropdown({ className = '', ...props }: H
     return (
         <div className={className} {...props}>
             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
+                {/* <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-9 w-9 rounded-md">
                         {getCurrentIcon()}
                         <span className="sr-only">Toggle theme</span>
                     </Button>
-                </DropdownMenuTrigger>
+                </DropdownMenuTrigger> */}
                 <DropdownMenuContent align="end">
                     <DropdownMenuItem onClick={() => updateAppearance('light')}>
                         <span className="flex items-center gap-2">
