@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\BibleExplanation;
-use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -41,16 +40,25 @@ class BibleExplanationService
         if ($explanation) {
             $explanation->incrementAccessCount();
 
+            // Try to decode the text. If it fails, it's likely old HTML.
+            // In a real scenario, you might want a migration strategy for old data.
+            $decodedExplanation = json_decode($explanation->explanation_text, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // It's not valid JSON, treat as legacy HTML content or handle as an error
+                // For now, we'll pass it as a string and let the frontend decide.
+                $decodedExplanation = $explanation->explanation_text;
+            }
+
             return [
                 'id' => $explanation->id,
                 'origin' => 'cache',
-                'explanation' => $explanation->explanation_text,
+                'explanation' => $decodedExplanation,
                 'source' => $explanation->source,
             ];
         }
 
         // Otherwise, generate a new explanation
-        $explanationText = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
+        $explanationJson = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
 
         // Save to database
         $newExplanation = BibleExplanation::create([
@@ -58,16 +66,16 @@ class BibleExplanationService
             'book' => $book,
             'chapter' => $chapter,
             'verses' => $verses,
-            'explanation_text' => $explanationText,
-            'source' => 'gpt-4', // Adjust according to the API you're using
+            'explanation_text' => $explanationJson, // Storing JSON string
+            'source' => 'gpt-4-json', // New source identifier
             'access_count' => 1,
         ]);
 
         return [
             'id' => $newExplanation->id,
             'origin' => 'api',
-            'explanation' => $explanationText,
-            'source' => 'gpt-4', // Adjust according to the API you're using
+            'explanation' => json_decode($explanationJson, true), // Decode for frontend
+            'source' => 'gpt-4-json',
         ];
     }
 
@@ -82,123 +90,86 @@ class BibleExplanationService
      */
     private function generateExplanationViaAPI($testament, $book, $chapter, $verses = null)
     {
-        // Use a chave da Perplexity (configure em config/services.php)
         $apiKey = config('services.perplexity.api_key');
+        $model = config('services.perplexity.model', 'sonar-medium-online');
 
         try {
             $prompt = $this->buildPrompt($testament, $book, $chapter, $verses);
 
-            $model = config('services.perplexity.model', 'pplx-7b-online'); // Ou 'sonar-medium-online'
+            $systemMessage = 'Você é um especialista em teologia e estudos bíblicos. Sua tarefa é gerar uma explicação detalhada de uma passagem bíblica e retornar a resposta ESTRITAMENTE em formato JSON. NÃO inclua nenhuma mensagem introdutória ou texto fora do objeto JSON.';
 
-            logger('Modelo sendo usado: ' . $model);
+            $responseContent = $this->makeApiCallWithRetry($apiKey, $model, $systemMessage, $prompt);
 
-            $messages = [
-                [
-                    'role' => 'system',
-                    'content' => 'Você é um especialista em teologia e estudos bíblicos, capaz de explicar versículos e capítulos com contexto histórico, significado teológico e aplicação prática. Forneça uma explicação completa e detalhada com toda a formatação HTML necessária. NÃO responda com mensagens introdutórias, apenas comece com a explicação completa. Inclua o texto do versículo, contexto histórico, análise teológica e aplicações práticas.',
-                ],
-                [
-                    'role' => 'user',
-                    'content' => $prompt,
-                ],
-            ];
-
-            $payload = [
-                'model' => $model,
-                'messages' => $messages,
-                'temperature' => 0.6,
-                'max_tokens' => 4000,
-                'presence_penalty' => 0.1,
-            ];
-
-            $response = Http::withHeaders([
-                'Authorization' => 'Bearer ' . $apiKey,
-                'Content-Type' => 'application/json',
-            ])->timeout(120)
-                ->post('https://api.perplexity.ai/chat/completions', $payload);
-
-            if ($response->successful()) {
-                $responseData = $response->json();
-                $content = $responseData['choices'][0]['message']['content'] ?? '';
-
-                if (
-                    strlen($content) < 200 ||
-                    str_contains($content, 'permita-me') ||
-                    str_contains($content, 'vou explicar') ||
-                    str_contains($content, 'alguns instantes')
-                ) {
-
-                    Log::warning('Resposta muito curta ou apenas introdutória, tentando novamente');
-
-                    $retryMessages = [
-                        [
-                            'role' => 'system',
-                            'content' => 'Você é um especialista em teologia e estudos bíblicos. FORNEÇA IMEDIATAMENTE uma explicação COMPLETA e DETALHADA do texto bíblico, sem mensagens introdutórias. Inclua o texto do versículo, contexto histórico, análise teológica e aplicações práticas. Use formatação HTML conforme solicitado no prompt. NÃO diga que vai explicar ou que precisa de tempo, simplesmente forneça a explicação completa.',
-                        ],
-                        [
-                            'role' => 'user',
-                            'content' => 'IMPORTANTE: Forneça uma explicação completa e detalhada, não apenas uma introdução. ' . $prompt,
-                        ],
-                    ];
-
-                    $retryPayload = [
-                        'model' => $model,
-                        'messages' => $retryMessages,
-                        'temperature' => 0.5,
-                        'max_tokens' => 4000,
-                        'presence_penalty' => 0.2,
-                        'frequency_penalty' => 0.2,
-                    ];
-
-                    $retryResponse = Http::withHeaders([
-                        'Authorization' => 'Bearer ' . $apiKey,
-                        'Content-Type' => 'application/json',
-                    ])->timeout(120)
-                        ->post('https://api.perplexity.ai/chat/completions', $retryPayload);
-
-                    if ($retryResponse->successful()) {
-                        $retryData = $retryResponse->json();
-                        $retryContent = $retryData['choices'][0]['message']['content'] ?? '';
-                        $retryContent = preg_replace('/^```html[\r\n]+|```$/i', '', trim($retryContent));
-                        $retryContent = preg_replace('/^```[\r\n]+|```$/i', '', trim($retryContent));
-                        // Remove artefatos como [2][4) do final do texto
-                        $retryContent = preg_replace('/\[\d+\]\[\d+\)[\s]*$/', '', $retryContent);
-                        return trim($retryContent);
-                    }
-                }
-
-                // Remove blocos de código markdown (```html ... ```)
-                $content = preg_replace('/^```html[\r\n]+|```$/i', '', trim($content));
-                $content = preg_replace('/^```[\r\n]+|```$/i', '', trim($content));
-                // Remove blocos de código markdown (```html ... ```)
-                $content = preg_replace('/^```html[\r\n]+|```$/i', '', trim($content));
-                $content = preg_replace('/^```[\r\n]+|```$/i', '', trim($content));
-                // Remove artefatos como [2][4) do final do texto
-                $content = preg_replace('/\[\d+\]\[\d+\)[\s]*$/', '', $content);
-                return trim($content);
+            // 1. Extrair o JSON do bloco de markdown, se houver
+            if (preg_match('/```json\s*({.*?})\s*```/s', $responseContent, $matches)) {
+                $jsonString = $matches[1];
             } else {
-                if (str_contains($response->body(), 'cURL error 28')) {
-                    Log::error('Perplexity API Timeout', [
-                        'status' => $response->status(),
-                        'body' => $response->body(),
-                    ]);
-                    throw new \Exception('A requisição para a API demorou demais para responder. Tente novamente em instantes.');
-                }
-                Log::error('Perplexity API Error', [
-                    'status' => $response->status(),
-                    'body' => $response->body(),
-                ]);
-                throw new \Exception('Error calling Perplexity API: ' . $response->body());
+                $jsonString = $responseContent;
             }
+
+            // 2. Validar o JSON
+            $decodedJson = json_decode($jsonString, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::error('Invalid JSON received from API', ['json_error' => json_last_error_msg(), 'content' => $jsonString]);
+                throw new \Exception('A API retornou um JSON inválido.');
+            }
+
+            return $jsonString; // Retorna a string JSON validada
+
         } catch (\Exception $e) {
             Log::error('Exception when generating explanation', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return $this->generateFallbackExplanation($testament, $book, $chapter, $verses);
         }
     }
 
+    private function makeApiCallWithRetry($apiKey, $model, $systemMessage, $prompt, $isRetry = false)
+    {
+        $messages = [
+            ['role' => 'system', 'content' => $systemMessage],
+            ['role' => 'user', 'content' => $prompt],
+        ];
+
+        $payload = [
+            'model' => $model,
+            'messages' => $messages,
+            'temperature' => $isRetry ? 0.5 : 0.6,
+            'max_tokens' => 4000,
+            'presence_penalty' => $isRetry ? 0.2 : 0.1,
+        ];
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer '.$apiKey,
+            'Content-Type' => 'application/json',
+        ])->timeout(120)->post('https://api.perplexity.ai/chat/completions', $payload);
+
+        if (! $response->successful()) {
+            if (str_contains($response->body(), 'cURL error 28')) {
+                Log::error('Perplexity API Timeout', ['status' => $response->status(), 'body' => $response->body()]);
+                throw new \Exception('A requisição para a API demorou demais para responder.');
+            }
+            Log::error('Perplexity API Error', ['status' => $response->status(), 'body' => $response->body()]);
+            throw new \Exception('Erro ao chamar a API Perplexity: '.$response->body());
+        }
+
+        $content = $response->json('choices.0.message.content', '');
+
+        // Lógica de nova tentativa: se estiver vazia ou não for um JSON válido na primeira tentativa
+        if (! $isRetry) {
+            json_decode($content);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                Log::warning('Resposta inicial não é um JSON válido, tentando novamente.');
+                $retrySystemMessage = 'ATENÇÃO: Sua resposta anterior não foi um JSON válido. Responda ESTRITAMENTE com o objeto JSON solicitado, sem nenhum texto ou formatação adicional.';
+
+                return $this->makeApiCallWithRetry($apiKey, $model, $retrySystemMessage, $prompt, true);
+            }
+        }
+
+        return $content;
+    }
 
     /**
      * Build the prompt for the AI API.
@@ -212,128 +183,36 @@ class BibleExplanationService
     private function buildPrompt($testament, $book, $chapter, $verses = null)
     {
         $isFullChapter = $verses === null;
-
         $passageText = $isFullChapter
             ? "o capítulo {$chapter} do livro de {$book} ({$testament} Testamento)"
             : "os versículos {$verses} do capítulo {$chapter} do livro de {$book} ({$testament} Testamento)";
 
-        // Instruções específicas para diferentes casos
-        if ($isFullChapter) {
-            $specificInstructions =
-                "Resuma de forma clara e objetiva o capítulo, sem detalhar versículo por versículo. Siga as instruções:\n"
-                . "1. Diga em poucas frases sobre o que esse capítulo fala (tema central e propósito).\n"
-                . "2. Liste os principais pontos e acontecimentos do capítulo, em tópicos.\n"
-                . "3. Explique brevemente o contexto histórico do capítulo e do livro ao qual ele pertence.\n"
-                . "4. Evite repetições, rodeios ou explicações longas. Seja direto e conciso.\n"
-                . "5. NÃO inclua introduções, despedidas, nem explique versículo por versículo.\n"
-                . "6. Responda apenas com HTML simples, usando <ul> para tópicos e <p> para textos.";
-        } else {
-            // Verifica se é um único versículo
-            $isSingleVerse = preg_match('/^\d+$/', $verses);
-            $isDoubleVerse = preg_match('/^\d+-\d+$/', $verses) && (intval(explode('-', $verses)[1]) - intval(explode('-', $verses)[0]) === 1);
+        $jsonStructure = $isFullChapter
+            ? $this->getChapterSummaryJsonStructure()
+            : $this->getVerseExplanationJsonStructure();
 
-            if ($isSingleVerse) {
-                $specificInstructions =
-                    "1. Separe as principais frases ou palavras-chave do versículo e explique cada uma individualmente, de forma didática.\n"
-                    . "2. Apresente essas explicações em uma lista HTML (<ul class='key-phrases'>) com cada frase/palavra-chave como um <li>.\n"
-                    . '3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
-            } elseif ($isDoubleVerse) {
-                $specificInstructions =
-                    "1. Para cada versículo, separe as principais frases ou palavras-chave e explique cada uma individualmente, de forma didática.\n"
-                    . "2. Apresente as explicações de cada versículo em uma lista HTML (<ul class='key-phrases'>) separada para cada versículo.\n"
-                    . '3. Considere o contexto do capítulo e relacione cada parte à mensagem global.';
-            } else {
-                $specificInstructions =
-                    "1. Analise detalhadamente cada versículo listado ({$verses}), considerando o contexto do capítulo.\n"
-                    . "2. Comente TODOS os versículos individualmente, explicando significado, relevância e conexões.\n"
-                    . '3. Certifique-se de abordar cada versículo ou intervalo explicitamente, sem omitir nenhum.';
-            }
-        }
-
-        $originalTextInstruction =
-            "Se o texto original (hebraico, aramaico ou grego) e sua tradução literal estiverem disponíveis, inclua-os na secção 'Texto Original e Tradução'."
-            . ' Forneça a transliteração (se aplicável) e, opcionalmente, uma análise de palavras-chave no idioma original.'
-            . ' Se o texto original ou tradução não estiver disponível, omita completamente essa secção.';
-
-        // Não incluir instrução de texto original no resumo de capítulo
-        $originalTextInstructionForPrompt = ($isFullChapter ? '' : $originalTextInstruction);
+        $specificInstructions = $isFullChapter
+            ? 'Sua tarefa é fornecer uma análise completa do capítulo. Preencha todos os campos do JSON. Em `contexto_geral.contexto_do_livro`, forneça informações detalhadas sobre autoria, data, audiência, propósito e o cenário histórico-cultural. Em `contexto_geral.contexto_do_capitulo_no_livro`, explique como o capítulo se conecta com o restante do livro. Para as outras chaves, forneça um resumo, temas, personagens, versículos-chave e uma aplicação prática relevante.'
+            : 'Forneça uma exegese detalhada e profunda, preenchendo todas as 11 seções do JSON. Seja especialmente detalhado na análise de contexto, exegese versículo por versículo e aplicações práticas.';
 
         return <<<EOD
-    IMPORTANTE: Forneça IMEDIATAMENTE uma explicação COMPLETA e DETALHADA, sem mensagens introdutórias. Comece diretamente com a explicação, usando a estrutura HTML abaixo.
-    
-    Você é um teólogo cristão experiente, especialista em exegese bíblica, com profundo conhecimento dos textos originais, contexto histórico e aplicações práticas.
-    
-    - Escreva EXCLUSIVAMENTE em português brasileiro, num tom respeitoso, acolhedor e motivador, acessível a leigos, jovens cristãos e buscadores espirituais, sem perder profundidade teológica.
-    - Os versículos devem ser EXATAMENTE os solicitados, sem substituí-los por outros ou omiti-los, e SEMPRE em português brasileiro.
-    - Baseie-se em teólogos confiáveis (John Stott, R.C. Sproul, F.F. Bruce, Martyn Lloyd-Jones, Craig Keener, Hernandes Dias Lopes, Augustus Nicodemus).
-    - Mantenha fidelidade às Escrituras e ao contexto original, evitando interpretações subjetivas ou místicas.
-    - Explique {$passageText} para glorificar a Palavra de Deus, oferecendo exegese profunda, detalhada e acessível.
-    - Siga estas etapas:
-        1. Analise o significado original no idioma bíblico, incluindo análise etimológica de palavras-chave.
-        2. Explique o contexto histórico, cultural, geográfico e social.
-        3. Aborde o contexto literário, género, estrutura e relação com o livro.
-        4. Apresente implicações teológicas profundas, doutrinas relacionadas e temas espirituais.
-        5. Cite interpretações históricas de teólogos importantes.
-        6. Forneça aplicações práticas detalhadas e relevantes para a vida contemporânea.
-        7. Relacione com outros textos bíblicos relevantes.
-    INSTRUÇÕES RÍGIDAS:
-        - Use apenas informações de fontes acadêmicas e comentaristas bíblicos clássicos reconhecidos (Edersheim, Keener, Bruce, N.T. Wright, NICOT/NICNT, Word Biblical Commentary, etc.).
-        - NÃO utilize especulações, tradições populares, interpretações modernas não fundamentadas ou informações de blogs/sites não acadêmicos.
-        - NÃO extrapole além do texto, contexto histórico-cultural e doutrinas reconhecidas.
-        - Seja detalhista e preciso em cada ponto, justificando cada afirmação com base em contexto histórico, linguístico e teológico.
-        - Sempre que possível, explique termos originais (hebraico), costumes da época, contexto político-social e conexões com outros textos bíblicos.
-        - Não repita informações entre as seções.
-    
-    {$specificInstructions}
-    
-    {$originalTextInstructionForPrompt}
-    
-    Siga EXATAMENTE esta estrutura HTML na resposta (não altere nem adicione comentários):
-    
-    <div class='bible-explanation'>
-        <h2 class='main-title'>Explorando {$book} {$chapter}" . ($verses ? ":$verses" : '') . "</h2>
-        <h3 class='section-title'>Texto Bíblico</h3>
-        <p class='bible-text'>[Texto bíblico em português, versão fiel como Almeida Revista e Atualizada ou Nova Versão Internacional]</p>
-        <h3 class='section-title'>Análise de Expressões Importantes</h3>
-        <ul class='key-phrases'>
-            <li><strong>"[Frase ou palavra-chave 1]"</strong>: [explicação detalhada]</li>
-            <li><strong>"[Frase ou palavra-chave 2]"</strong>: [explicação detalhada]</li>
-            <li><strong>"[Frase ou palavra-chave 3]"</strong>: [explicação detalhada]</li>
-        </ul>
-        <h3 class='section-title'>Texto Original e Tradução</h3>
-        <div class='original-translation'>
-            <div class='original-text'>[Texto original]</div>
-            <div class='transliteration'>[Transliteração, se aplicável]</div>
-            <div class='translation'>[Tradução literal]</div>
-            <div class='word-analysis'>[Análise de palavras-chave, opcional]</div>
-        </div>
-        <h3 class='section-title'>Contexto Histórico e Cultural</h3>
-        <p>[Contexto histórico, cultural, geográfico e literário detalhado]</p>
-        <h3 class='section-title'>Análise Teológica Detalhada</h3>
-        <p>[Significado teológico e espiritual, com interpretações de teólogos e doutrinas relacionadas]</p>
-        <h3 class='section-title'>Aplicações Práticas</h3>
-        <ul class='applications'>
-            <li>[Aplicação prática 1]</li>
-            <li>[Aplicação prática 2]</li>
-            <li>[Aplicação prática 3]</li>
-            <li>[Aplicação prática 4]</li>
-        </ul>
-        <h3 class='section-title'>Conexões com Outros Textos Bíblicos</h3>
-        <ul class='connections'>
-            <li>[Conexão 1]</li>
-            <li>[Conexão 2]</li>
-            <li>[Conexão 3]</li>
-            <li>[Conexão 4]</li>
-        </ul>
-        <h3 class='section-title'>Perspectivas Teológicas</h3>
-        <p>[Perspectivas de diferentes tradições cristãs, mantendo ortodoxia bíblica]</p>
-        <div class='reflection'>
-            <blockquote>
-                <p><em>[Reflexão final inspiradora]</em></p>
-            </blockquote>
-        </div>
-    </div>
-    EOD;
+            Você é um teólogo cristão experiente, especialista em exegese bíblica, com profundo conhecimento dos textos originais, contexto histórico e aplicações práticas.
+            Sua tarefa é analisar a passagem bíblica solicitada e retornar uma resposta ESTRITAMENTE em formato JSON, sem nenhum texto ou comentário fora do objeto JSON.
+
+            PASSAGEM PARA ANÁLISE: {$passageText}.
+
+            INSTRUÇÕES GERAIS:
+            - Escreva EXCLUSIVAMENTE em português brasileiro, num tom respeitoso, acolhedor e profundo.
+            - Baseie-se em teólogos confiáveis (John Stott, R.C. Sproul, F.F. Bruce, Martyn Lloyd-Jones, Craig Keener, Hernandes Dias Lopes, Augustus Nicodemus) e fontes acadêmicas (NICOT/NICNT, Word Biblical Commentary).
+            - Mantenha fidelidade às Escrituras e ao contexto original.
+            - Não repita informações entre as seções do JSON.
+            - {$specificInstructions}
+
+            ESTRUTURA JSON DE RETORNO OBRIGATÓRIA:
+            Siga EXATAMENTE esta estrutura JSON. Não adicione, remova ou renomeie nenhuma chave.
+
+            {$jsonStructure}
+EOD;
     }
 
     /**
@@ -347,75 +226,66 @@ class BibleExplanationService
      */
     private function generateFallbackExplanation($testament, $book, $chapter, $verses = null)
     {
-        $versesText = $verses ? ":$verses" : '';
-        $bookLabel = ucfirst($book);
-        $testamentLabel = ucfirst($testament);
+        $isFullChapter = $verses === null;
+        $errorTitle = $isFullChapter
+            ? "Resumo de {$book} {$chapter}"
+            : "Explicação de {$book} {$chapter}:{$verses}";
 
-        return '<div class="bible-explanation">'
-            . "<h2 class='main-title'>Explorando {$bookLabel} {$chapter}{$versesText}</h2>"
+        $fallbackData = [
+            'type' => 'error',
+            'requestDetails' => [
+                'book' => $book,
+                'chapter' => $chapter,
+                'verses' => $verses,
+            ],
+            'errorDetails' => [
+                'title' => 'Serviço Indisponível no Momento',
+                'message' => 'Não foi possível gerar a explicação para '.$errorTitle.'. A API de inteligência artificial pode estar temporariamente indisponível ou sobrecarregada. Por favor, tente novamente em alguns instantes.',
+                'suggestion' => 'Se o problema persistir, entre em contato com o suporte.',
+            ],
+        ];
 
-            . "<h3 class='section-title'>Texto Bíblico</h3>"
-            . "<p class='bible-text'>Texto não disponível nesta demonstração. Em um ambiente de produção, você veria aqui o texto bíblico completo.</p>"
+        return json_encode($fallbackData);
+    }
 
-            . "<h3 class='section-title'>Texto Original e Tradução</h3>"
-            . "<div class='original-translation'>"
-            . "    <div class='original-text'>Texto original não disponível nesta demonstração. Em um ambiente de produção, você veria aqui o texto no idioma original.</div>"
-            . "    <div class='transliteration'>Transliteração não disponível nesta demonstração.</div>"
-            . "    <div class='translation'>Tradução não disponível nesta demonstração. Em um ambiente de produção, você veria aqui a tradução literal do texto.</div>"
-            . "    <div class='word-analysis'>Análise de palavras-chave não disponível nesta demonstração.</div>"
-            . '</div>'
+    private function getVerseExplanationJsonStructure()
+    {
+        return <<<'JSON'
+        {
+        "titulo_principal_e_texto_biblico": { "titulo": "string", "texto": "string" },
+        "contexto_detalhado": { "introducao": "string", "contexto_literario_do_livro": "string", "contexto_historico_do_livro": "string", "contexto_cultural_do_livro": "string", "contexto_geografico_do_livro": "string", "contexto_teologico_do_livro": "string", "contexto_literario_da_passagem": "string", "contexto_historico_da_passagem": "string", "contexto_cultural_da_passagem": "string", "contexto_geografico_da_passagem": "string", "contexto_teologico_da_passagem_anterior": "string", "contexto_teologico_da_passagem_posterior": "string", "genero_literario": "string", "autor_e_data": "string", "audiencia_original": "string", "proposito_principal": "string", "estrutura_e_esboco": "string", "palavras_chave_e_temas": "string" },
+        "analise_exegenetica": { "introducao": "string", "analises": [ { "verso": "string", "analise": "string" } ] },
+        "teologia_da_passagem": { "introducao": "string", "doutrinas": ["string"] },
+        "temas_principais": { "introducao": "string", "temas": [ { "tema": "string", "descricao": "string" } ] },
+        "pecados_e_virtudes": { "introducao": "string", "pecados": ["string"], "virtudes": ["string"] },
+        "personagens_principais": { "introducao": "string", "personagens": [ { "nome": "string", "descricao": "string" } ] },
+        "aplicacao_contemporanea": { "introducao": "string", "pontos_aplicacao": ["string"], "perguntas_reflexao": ["string"] },
+        "referencias_cruzadas": { "introducao": "string", "referencias": [ { "passagem": "string", "explicacao": "string" } ] },
+        "simbologia_biblica": { "introducao": "string", "simbolos": [ { "simbolo": "string", "significado": "string" } ] },
+        "interprete_luz_de_cristo": { "introducao": "string", "conexao": "string" }
+        }
+        JSON;
+    }
 
-            . "<h3 class='section-title'>Contexto Histórico e Cultural</h3>"
-            . "<p>Este livro faz parte do {$testamentLabel} Testamento e tem importância significativa na história bíblica. "
-            . "O capítulo {$chapter} foi escrito em um período importante da história de Israel, refletindo as realidades culturais, "
-            . 'sociais e religiosas da época. O autor aborda temas relevantes para o contexto original e para os leitores atuais, '
-            . 'estabelecendo princípios duradouros da revelação divina.</p>'
-
-            . "<h3 class='section-title'>Análise Teológica Detalhada</h3>"
-            . '<p>Este texto revela aspectos importantes da natureza de Deus, Seu plano redentor e Sua relação com a humanidade. '
-            . 'Teólogos ao longo da história da igreja têm destacado a profundidade deste texto e suas implicações para a fé cristã. '
-            . 'A passagem contém verdades fundamentais que se conectam com temas centrais das Escrituras.</p>'
-
-            . "<h3 class='section-title'>Aplicações Práticas</h3>"
-            . "<ul class='applications'>"
-            . '<li>Fé e confiança em Deus são fundamentais para uma vida espiritual plena, especialmente em momentos de incerteza</li>'
-            . '<li>A obediência aos mandamentos divinos traz bênçãos e sabedoria para nossas decisões cotidianas</li>'
-            . '<li>O relacionamento com Deus deve ser cultivado diariamente através da oração, meditação na Palavra e adoração</li>'
-            . '<li>Podemos aplicar os princípios deste texto em nossos relacionamentos, trabalho e vida comunitária</li>'
-            . '</ul>'
-
-            . "<h3 class='section-title'>Conexões com outros textos bíblicos</h3>"
-            . "<ul class='connections'>"
-            . '<li>Este texto se relaciona com os ensinamentos de Jesus em Mateus 22:37-40 sobre o amor a Deus e ao próximo, mostrando como o amor é o cumprimento da lei</li>'
-            . '<li>Há paralelos com os Salmos que exaltam a fidelidade e a misericórdia divina, especialmente o Salmo 119 que celebra a Palavra de Deus</li>'
-            . '<li>O livro de Romanos desenvolve muitos dos temas teológicos presentes nesta passagem, aprofundando seu significado</li>'
-            . '<li>Há conexões com o livro de Apocalipse, que mostra o cumprimento final dos propósitos de Deus</li>'
-            . '</ul>'
-
-            . "<h3 class='section-title'>Perspectivas Teológicas</h3>"
-            . '<p>Este texto tem sido interpretado de diversas formas ao longo da história da igreja, com diferentes ênfases '
-            . 'dependendo da tradição teológica. Mantendo a fidelidade à ortodoxia bíblica, podemos apreciar as contribuições '
-            . 'de diferentes perspectivas para uma compreensão mais rica e completa da passagem.</p>'
-
-            . "<h3 class='section-title'>Referências Bibliográficas</h3>"
-            . "<ul class='references'>"
-            . '<li>Comentário Bíblico Expositivo - Warren W. Wiersbe</li>'
-            . '<li>Manual Bíblico de Halley - Henry H. Halley</li>'
-            . '<li>Novo Comentário Bíblico - D. Guthrie, J. A. Motyer</li>'
-            . '<li>Comentário Bíblico Moody - Charles Ryrie</li>'
-            . '<li>Comentário Histórico-Cultural da Bíblia - Craig S. Keener</li>'
-            . '</ul>'
-
-            . "<div class='reflection'>"
-            . '<blockquote>'
-            . '<p><em>Que possamos refletir sobre estas palavras sagradas e aplicá-las em nossa vida diária, '
-            . 'crescendo em sabedoria e na graça de nosso Senhor.</em></p>'
-            . '</blockquote>'
-            . '</div>'
-
-            . "<p class='bible-explanation-note'><em>Nota: Esta é uma explicação genérica. "
-            . 'Para uma análise mais profunda e personalizada, por favor configure uma chave de API válida do OpenAI no sistema.</em></p>'
-
-            . '</div>';
+    private function getChapterSummaryJsonStructure()
+    {
+        return <<<'JSON'
+        {
+          "contexto_geral": {
+            "contexto_do_livro": {
+              "autor_e_data": "string (Quem escreveu o livro e aproximadamente quando)",
+              "audiencia_original": "string (Para quem o livro foi originalmente escrito)",
+              "proposito_do_livro": "string (Qual o objetivo principal do livro)",
+              "contexto_historico_cultural": "string (Qual era a situação histórica e cultural da época)"
+            },
+            "contexto_do_capitulo_no_livro": "string (Como este capítulo se encaixa na estrutura e nos temas gerais do livro)"
+          },
+          "resumo_do_capitulo": "string (Um resumo claro e objetivo dos principais eventos e ensinamentos do capítulo)",
+          "temas_principais": ["string (Liste os temas centrais abordados no capítulo)"],
+          "personagens_importantes": ["string (Liste os personagens principais que aparecem ou são mencionados e sua importância)"],
+          "versiculos_chave": ["string (Cite 2-3 versículos que são fundamentais para o entendimento do capítulo)"],
+          "aplicacao_pratica": "string (Que lições práticas e relevantes podemos tirar para os dias de hoje)"
+        }
+        JSON;
     }
 }
