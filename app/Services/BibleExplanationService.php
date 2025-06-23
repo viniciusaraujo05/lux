@@ -193,16 +193,17 @@ class BibleExplanationService
 
         $specificInstructions = $isFullChapter
             ? 'Sua tarefa é fornecer uma análise completa do capítulo. Preencha todos os campos do JSON. Em `contexto_geral.contexto_do_livro`, forneça informações detalhadas sobre autoria, data, audiência, propósito e o cenário histórico-cultural. Em `contexto_geral.contexto_do_capitulo_no_livro`, explique como o capítulo se conecta com o restante do livro. Para as outras chaves, forneça um resumo, temas, personagens, versículos-chave e uma aplicação prática relevante.'
-            : 'Forneça uma exegese detalhada e profunda, preenchendo todas as 11 seções do JSON. Seja especialmente detalhado na análise de contexto, exegese versículo por versículo e aplicações práticas.';
+            : 'Forneça uma exegese detalhada e profunda, preenchendo todas as 11 seções do JSON. Seja especialmente detalhado na análise de contexto, exegese versículo por versículo e na explicação do versículo. Na seção "explicacao_do_versiculo", ofereça uma análise profunda do significado do versículo, seu contexto original, palavras-chave importantes e sua interpretação teológica.';
 
         return <<<EOD
             Você é um teólogo cristão experiente, especialista em exegese bíblica, com profundo conhecimento dos textos originais, contexto histórico e aplicações práticas.
             Sua tarefa é analisar a passagem bíblica solicitada e retornar uma resposta ESTRITAMENTE em formato JSON, sem nenhum texto ou comentário fora do objeto JSON.
 
-            PASSAGEM PARA ANÁLISE: {$passageText}.
+            PASSAGEM BÍBLICA EM PORTUGUES BRASILEIRO PARA ANÁLISE: {$passageText}.
 
             INSTRUÇÕES GERAIS:
             - Escreva EXCLUSIVAMENTE em português brasileiro, num tom respeitoso, acolhedor e profundo.
+            - Use uma linguagem acessível e compreensível para todos os leitores.
             - Baseie-se em teólogos confiáveis (John Stott, R.C. Sproul, F.F. Bruce, Martyn Lloyd-Jones, Craig Keener, Hernandes Dias Lopes, Augustus Nicodemus) e fontes acadêmicas (NICOT/NICNT, Word Biblical Commentary).
             - Mantenha fidelidade às Escrituras e ao contexto original.
             - Não repita informações entre as seções do JSON.
@@ -257,7 +258,7 @@ EOD;
         "analise_exegenetica": { "introducao": "string", "analises": [ { "verso": "string", "analise": "string" } ] },
         "teologia_da_passagem": { "introducao": "string", "doutrinas": ["string"] },
         "temas_principais": { "introducao": "string", "temas": [ { "tema": "string", "descricao": "string" } ] },
-        "pecados_e_virtudes": { "introducao": "string", "pecados": ["string"], "virtudes": ["string"] },
+        "explicacao_do_versiculo": { "introducao": "string", "significado_profundo": "string", "contexto_original": "string", "palavras_chave": ["string"], "interpretacao_teologica": "string" },
         "personagens_principais": { "introducao": "string", "personagens": [ { "nome": "string", "descricao": "string" } ] },
         "aplicacao_contemporanea": { "introducao": "string", "pontos_aplicacao": ["string"], "perguntas_reflexao": ["string"] },
         "referencias_cruzadas": { "introducao": "string", "referencias": [ { "passagem": "string", "explicacao": "string" } ] },

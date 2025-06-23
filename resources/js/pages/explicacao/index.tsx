@@ -24,7 +24,7 @@ interface VerseExplanation {
   analise_exegenetica: { introducao: string; analises: { verso: string; analise: string }[] };
   teologia_da_passagem: { introducao: string; doutrinas: string[] };
   temas_principais: { introducao: string; temas: { tema: string; descricao: string }[] };
-  pecados_e_virtudes: { introducao: string; pecados: string[]; virtudes: string[] };
+  explicacao_do_versiculo: { introducao: string; significado_profundo: string; contexto_original: string; palavras_chave: string[]; interpretacao_teologica: string };
   personagens_principais: { introducao: string; personagens: { nome: string; descricao: string }[] };
   aplicacao_contemporanea: { introducao: string; pontos_aplicacao: string[]; perguntas_reflexao: string[] };
   referencias_cruzadas: { introducao: string; referencias: { passagem: string; explicacao: string }[] };
@@ -115,7 +115,7 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
       </ul>
     </Section>
 
-    <Section title="Análise Exegética Versículo por Versículo" icon={<Microscope size={22} />}>
+    <Section title="Análise do versículo" icon={<Microscope size={22} />}>
       <p>{explanation.analise_exegenetica.introducao}</p>
       {explanation.analise_exegenetica.analises.map((item, index) => (
         <div key={index} className="mt-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
@@ -135,16 +135,28 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
       <ul>{explanation.temas_principais.temas.map((item, i) => <ListItem key={i}><strong>{item.tema}:</strong> {item.descricao}</ListItem>)}</ul>
     </Section>
 
-    <Section title="Pecados a Evitar e Virtudes a Imitar" icon={<Scale size={22} />}>
-      <p>{explanation.pecados_e_virtudes.introducao}</p>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-        <div>
-          <h4 className="font-semibold text-red-600 dark:text-red-400">Pecados a Evitar</h4>
-          <ul>{explanation.pecados_e_virtudes.pecados.map((item, i) => <ListItem key={i} icon={<ThumbsDown size={18} />}>{item}</ListItem>)}</ul>
+    <Section title="Explicação do Versículo" icon={<Book size={22} />}>
+      <p>{explanation.explicacao_do_versiculo.introducao}</p>
+      <div className="mt-4 space-y-4">
+        <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-md">
+          <h4 className="font-semibold text-indigo-700 dark:text-indigo-300">Significado Profundo</h4>
+          <p className="mt-2">{explanation.explicacao_do_versiculo.significado_profundo}</p>
+        </div>
+        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md">
+          <h4 className="font-semibold text-blue-700 dark:text-blue-300">Contexto Original</h4>
+          <p className="mt-2">{explanation.explicacao_do_versiculo.contexto_original}</p>
         </div>
         <div>
-          <h4 className="font-semibold text-green-600 dark:text-green-400">Virtudes a Imitar</h4>
-          <ul>{explanation.pecados_e_virtudes.virtudes.map((item, i) => <ListItem key={i} icon={<ThumbsUp size={18} />}>{item}</ListItem>)}</ul>
+          <h4 className="font-semibold text-slate-700 dark:text-slate-300">Palavras-Chave</h4>
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {explanation.explicacao_do_versiculo.palavras_chave.map((palavra, i) => (
+              <li key={i} className="px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded-full text-sm">{palavra}</li>
+            ))}
+          </ul>
+        </div>
+        <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-md">
+          <h4 className="font-semibold text-purple-700 dark:text-purple-300">Interpretação Teológica</h4>
+          <p className="mt-2">{explanation.explicacao_do_versiculo.interpretacao_teologica}</p>
         </div>
       </div>
     </Section>
@@ -156,7 +168,7 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
       </Section>
     )}
 
-    <Section title="Aplicação Contemporânea e Pastoral" icon={<Target size={22} />}>
+    <Section title="Aplicação Contemporânea" icon={<Target size={22} />}>
       <p>{explanation.aplicacao_contemporanea.introducao}</p>
       <h4 className="font-semibold mt-4">Pontos de Aplicação</h4>
       <ul>{explanation.aplicacao_contemporanea.pontos_aplicacao.map((item, i) => <ListItem key={i}>{item}</ListItem>)}</ul>
