@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\BibleExplanation;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class BibleExplanationService
 {
@@ -28,50 +29,55 @@ class BibleExplanationService
             $verses = implode(',', $versesArray);
         }
 
-        // Find in database
-        $explanation = BibleExplanation::where([
-            'testament' => $testament,
-            'book' => $book,
-            'chapter' => $chapter,
-            'verses' => $verses,
-        ])->first();
+        $cacheKey = "bible_explanation:{$testament}:{$book}:{$chapter}:" . ($verses ?? 'all');
+        $ttl = 60 * 60 * 24; // 24h
 
-        if ($explanation) {
-            $explanation->incrementAccessCount();
+        return Cache::remember($cacheKey, $ttl, function () use ($testament, $book, $chapter, $verses) {
+            // Find in database
+            $explanation = BibleExplanation::where([
+                'testament' => $testament,
+                'book' => $book,
+                'chapter' => $chapter,
+                'verses' => $verses,
+            ])->first();
 
-            $decodedExplanation = json_decode($explanation->explanation_text, true);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                $decodedExplanation = $explanation->explanation_text;
+            if ($explanation) {
+                $explanation->incrementAccessCount();
+
+                $decodedExplanation = json_decode($explanation->explanation_text, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    $decodedExplanation = $explanation->explanation_text;
+                }
+
+                return [
+                    'id' => $explanation->id,
+                    'origin' => 'cache',
+                    'explanation' => $decodedExplanation,
+                    'source' => $explanation->source,
+                ];
             }
 
+            // Otherwise, generate a new explanation
+            $explanationJson = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
+
+            // Save to database
+            $newExplanation = BibleExplanation::create([
+                'testament' => $testament,
+                'book' => $book,
+                'chapter' => $chapter,
+                'verses' => $verses,
+                'explanation_text' => $explanationJson, // Storing JSON string
+                'source' => 'gpt-4-json', // New source identifier
+                'access_count' => 1,
+            ]);
+
             return [
-                'id' => $explanation->id,
-                'origin' => 'cache',
-                'explanation' => $decodedExplanation,
-                'source' => $explanation->source,
+                'id' => $newExplanation->id,
+                'origin' => 'api',
+                'explanation' => json_decode($explanationJson, true), // Decode for frontend
+                'source' => 'gpt-4-json',
             ];
-        }
-
-        // Otherwise, generate a new explanation
-        $explanationJson = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
-
-        // Save to database
-        $newExplanation = BibleExplanation::create([
-            'testament' => $testament,
-            'book' => $book,
-            'chapter' => $chapter,
-            'verses' => $verses,
-            'explanation_text' => $explanationJson, // Storing JSON string
-            'source' => 'gpt-4-json', // New source identifier
-            'access_count' => 1,
-        ]);
-
-        return [
-            'id' => $newExplanation->id,
-            'origin' => 'api',
-            'explanation' => json_decode($explanationJson, true), // Decode for frontend
-            'source' => 'gpt-4-json',
-        ];
+        });
     }
 
     /**

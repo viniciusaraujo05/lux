@@ -6,6 +6,7 @@ use App\Models\BibleExplanation;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Cache;
 
 class SeoController extends Controller
 {
@@ -14,7 +15,9 @@ class SeoController extends Controller
      */
     public function sitemap()
     {
-        $livros = [
+        $ttl = 60 * 60 * 24; // 24h
+        $xml = Cache::remember('sitemap_xml', $ttl, function () {
+            $livros = [
             'antigo' => [
                 'genesis', 'exodo', 'levitico', 'numeros', 'deuteronomio', 'josue', 'juizes', 'rute', 
                 '1samuel', '2samuel', '1reis', '2reis', '1cronicas', '2cronicas', 'esdras', 'neemias',
@@ -137,11 +140,12 @@ class SeoController extends Controller
         }
         
         $xml = view('seo.sitemap', ['urls' => $urls])->render();
-        
+        return $xml;
+        });
         return Response::make($xml, 200, [
             'Content-Type' => 'application/xml'
         ]);
-    }
+    
     
     /**
      * Gera arquivo robots.txt
