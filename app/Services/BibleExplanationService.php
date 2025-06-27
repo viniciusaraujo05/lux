@@ -36,16 +36,11 @@ class BibleExplanationService
             'verses' => $verses,
         ])->first();
 
-        // If found, increment the access counter and return
         if ($explanation) {
             $explanation->incrementAccessCount();
 
-            // Try to decode the text. If it fails, it's likely old HTML.
-            // In a real scenario, you might want a migration strategy for old data.
             $decodedExplanation = json_decode($explanation->explanation_text, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
-                // It's not valid JSON, treat as legacy HTML content or handle as an error
-                // For now, we'll pass it as a string and let the frontend decide.
                 $decodedExplanation = $explanation->explanation_text;
             }
 
@@ -90,15 +85,19 @@ class BibleExplanationService
      */
     private function generateExplanationViaAPI($testament, $book, $chapter, $verses = null)
     {
-        $apiKey = config('services.perplexity.api_key');
-        $model = config('services.perplexity.model', 'sonar-medium-online');
+        $client = \App\Services\Ai\AiClientFactory::make();
 
         try {
             $prompt = $this->buildPrompt($testament, $book, $chapter, $verses);
 
             $systemMessage = 'Você é um especialista em teologia e estudos bíblicos. Sua tarefa é gerar uma explicação detalhada de uma passagem bíblica e retornar a resposta ESTRITAMENTE em formato JSON. NÃO inclua nenhuma mensagem introdutória ou texto fora do objeto JSON.';
 
-            $responseContent = $this->makeApiCallWithRetry($apiKey, $model, $systemMessage, $prompt);
+            $messages = [
+                ['role' => 'system', 'content' => $systemMessage],
+                ['role' => 'user', 'content' => $prompt],
+            ];
+
+            $responseContent = $client->chat($messages, 4000);
 
             // 1. Extrair o JSON do bloco de markdown, se houver
             if (preg_match('/```json\s*({.*?})\s*```/s', $responseContent, $matches)) {
@@ -124,51 +123,6 @@ class BibleExplanationService
 
             return $this->generateFallbackExplanation($testament, $book, $chapter, $verses);
         }
-    }
-
-    private function makeApiCallWithRetry($apiKey, $model, $systemMessage, $prompt, $isRetry = false)
-    {
-        $messages = [
-            ['role' => 'system', 'content' => $systemMessage],
-            ['role' => 'user', 'content' => $prompt],
-        ];
-
-        $payload = [
-            'model' => $model,
-            'messages' => $messages,
-            'temperature' => $isRetry ? 0.5 : 0.6,
-            'max_tokens' => 4000,
-            'presence_penalty' => $isRetry ? 0.2 : 0.1,
-        ];
-
-        $response = Http::withHeaders([
-            'Authorization' => 'Bearer '.$apiKey,
-            'Content-Type' => 'application/json',
-        ])->timeout(120)->post('https://api.perplexity.ai/chat/completions', $payload);
-
-        if (! $response->successful()) {
-            if (str_contains($response->body(), 'cURL error 28')) {
-                Log::error('Perplexity API Timeout', ['status' => $response->status(), 'body' => $response->body()]);
-                throw new \Exception('A requisição para a API demorou demais para responder.');
-            }
-            Log::error('Perplexity API Error', ['status' => $response->status(), 'body' => $response->body()]);
-            throw new \Exception('Erro ao chamar a API Perplexity: '.$response->body());
-        }
-
-        $content = $response->json('choices.0.message.content', '');
-
-        // Lógica de nova tentativa: se estiver vazia ou não for um JSON válido na primeira tentativa
-        if (! $isRetry) {
-            json_decode($content);
-            if (json_last_error() !== JSON_ERROR_NONE) {
-                Log::warning('Resposta inicial não é um JSON válido, tentando novamente.');
-                $retrySystemMessage = 'ATENÇÃO: Sua resposta anterior não foi um JSON válido. Responda ESTRITAMENTE com o objeto JSON solicitado, sem nenhum texto ou formatação adicional.';
-
-                return $this->makeApiCallWithRetry($apiKey, $model, $retrySystemMessage, $prompt, true);
-            }
-        }
-
-        return $content;
     }
 
     /**

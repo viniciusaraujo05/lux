@@ -30,15 +30,7 @@ class BibleExplanationController extends Controller
 
         // Converte o slug do livro para o nome correto em português
         $bookName = $this->slugToBookName($book);
-
-        \Log::debug('getExplanation', [
-            'testament' => $testament,
-            'book_slug' => $book,
-            'bookName' => $bookName,
-            'chapter' => $chapter,
-            'verses' => $verses,
-        ]);
-
+        
         $result = $this->explanationService->getExplanation(
             $testament,
             $bookName,

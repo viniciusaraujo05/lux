@@ -491,8 +491,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
                 onClick={() => {
-                  // Navegar para a página de explicação
-                  window.location.href = `/explicacao/${activeTestament}/${selectedBook}/${selectedChapter}`;
+                  const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
+window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedChapter}`;
                 }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
@@ -574,9 +574,6 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                     }}
                   >
                     {verse}
-                    {isSelected && (
-                      <span className="absolute -top-1 -right-1 bg-primary-foreground text-primary w-4 h-4 flex items-center justify-center rounded-full text-xs border border-primary">✓</span>
-                    )}
                   </motion.button>
                 );
               })}
