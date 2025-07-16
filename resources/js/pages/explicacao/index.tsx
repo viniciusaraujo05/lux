@@ -2,13 +2,46 @@ import React, { useState, useEffect, FC, ReactNode } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import {
-  ChevronLeft, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, Heart,
+  ChevronLeft, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, Heart, User, Loader2,
   BookOpen, Scale, Landmark, Users, Microscope, Cross, Target, Link, Gem,
-  AlertTriangle, FileText, CheckCircle, User, Key, Book, HelpCircle
+  AlertTriangle, FileText, CheckCircle, Key, Book, HelpCircle
 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import Footer from '@/components/footer';
 import DonateButton from '@/components/donate-button';
+// Removed Lottie Player to use Lucide Bird icon
+// import { Player } from '@lottiefiles/react-lottie-player';
+
+const DynamicLoading: FC = () => {
+  const messages = [
+    "Buscando as melhores informações...",
+    "Analisando contexto histórico...",
+    "Interpretando versos...",
+    "Gerando insights teológicos...",
+    "Quase lá, só um instante..."
+  ];
+  const [index, setIndex] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIndex((i) => (i + 1) % messages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+  return (
+    <Card className="w-full max-w-4xl mt-16 items-center py-10">
+      <CardContent className="flex flex-col items-center gap-4 px-8">
+        <Loader2 className="h-10 w-10 text-primary animate-spin" />
+        <p className="text-base font-medium text-center text-muted-foreground">{messages[index]}</p>
+        <Skeleton className="w-3/4 h-2" />
+        <p className="text-xs text-center text-muted-foreground italic max-w-md">
+        "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
+        </p>
+      </CardContent>
+    </Card>
+  );
+};
 
 // --- TypeScript Interfaces ---
 interface BibleExplanationProps {
@@ -60,13 +93,13 @@ type ExplanationData = VerseExplanation | ChapterSummary | ErrorExplanation;
 const Section: FC<{ title: string; children: ReactNode; icon?: ReactNode; defaultOpen?: boolean }> = ({ title, children, icon, defaultOpen = true }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   return (
-    <section className="mb-6 bg-white dark:bg-slate-800/50 rounded-lg shadow-md border border-slate-200 dark:border-slate-700 transition-all duration-300 hover:shadow-lg overflow-hidden">
+    <section className="mb-6 bg-card text-card-foreground rounded-lg shadow-sm border border-border transition-all duration-300 hover:shadow-lg overflow-hidden">
       <button
         className="w-full flex items-center justify-between p-4 text-left"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
       >
-        <h2 className="flex items-center gap-3 text-lg sm:text-xl font-bold text-indigo-700 dark:text-indigo-400">
+        <h2 className="flex items-center gap-3 text-lg sm:text-xl font-bold text-foreground">
           {icon}{title}
         </h2>
         <ChevronLeft className={`transform transition-transform duration-300 ${isOpen ? '-rotate-90' : 'rotate-0'}`} size={20} />
@@ -78,7 +111,7 @@ const Section: FC<{ title: string; children: ReactNode; icon?: ReactNode; defaul
 
 const ListItem: FC<{ children: ReactNode; icon?: ReactNode }> = ({ children, icon }) => (
   <li className="flex items-start gap-3 my-2">
-    <span className="text-indigo-500 dark:text-indigo-400 mt-1">{icon || <CheckCircle size={18} />}</span>
+    <span className="text-primary mt-1">{icon || <CheckCircle size={18} />}</span>
     <div>{children}</div>
   </li>
 );
@@ -98,11 +131,19 @@ const ErrorComponent: FC<{ message: string }> = ({ message }) => (
 // --- Explanation Renderer Components ---
 const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ explanation }) => (
   <div style={{ animation: 'fadeIn 0.8s ease-in-out' }}>
-    <header className="mb-8 text-center p-6 bg-gradient-to-br from-indigo-50 to-blue-50 dark:from-slate-800 dark:to-slate-900 rounded-lg shadow-inner">
-      <h1 className="text-2xl sm:text-3xl font-extrabold text-indigo-800 dark:text-indigo-300 mb-2">{explanation.titulo_principal_e_texto_biblico.titulo}</h1>
-      <blockquote className="text-base sm:text-lg italic text-slate-700 dark:text-slate-300 border-l-4 border-indigo-300 dark:border-indigo-600 pl-4">
-        {explanation.titulo_principal_e_texto_biblico.texto}
-      </blockquote>
+    <header className="mb-8">
+      <Card className="text-center">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-3xl sm:text-4xl">
+            {explanation.titulo_principal_e_texto_biblico.titulo}
+          </CardTitle>
+          <CardDescription>
+            <blockquote className="italic text-muted-foreground">
+              {explanation.titulo_principal_e_texto_biblico.texto}
+            </blockquote>
+          </CardDescription>
+        </CardHeader>
+      </Card>
     </header>
 
     <Section title="Contexto Detalhado" icon={<BookOpen size={22} />} defaultOpen={false}>
@@ -443,11 +484,10 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       <Head>
         <title>{seoMetadata.title || `${book} ${chapter}${verses ? ':' + verses : ''} - Explicação Bíblica`}</title>
         <meta name="description" content={seoMetadata.description || `Explicação detalhada de ${book} ${chapter}${verses ? ':' + verses : ''}.`} />
-        {/* ... other meta tags ... */}
       </Head>
       <AppLayout>
         <div className="container max-w-4xl mx-auto p-2 sm:p-4">
-          <header className="mb-3 sm:mb-6 flex items-center justify-between bg-white dark:bg-slate-900 shadow-sm rounded-lg p-2 sm:p-4 sticky top-2 z-10">
+          <header className="mb-3 sm:mb-6 flex items-center justify-between bg-card text-card-foreground shadow-sm rounded-lg p-2 sm:p-4 sticky top-2 z-10">
             <div className="flex items-center gap-4">
               <button onClick={() => window.location.href = `/biblia/${testamento}/${book}/${chapter}`} className="text-indigo-600 hover:text-indigo-800" aria-label="Voltar">
                 <ChevronLeft size={isMobile ? 18 : 22} />
@@ -468,17 +508,9 @@ function BibleExplanationContent(props: BibleExplanationProps) {
             )}
           </header>
           {loading ? (
-            <div className="flex flex-col justify-center items-center p-6 bg-white dark:bg-slate-900 rounded-xl shadow-md border border-slate-100 dark:border-slate-800 mt-6">
-              <div className="relative mb-4">
-                <div className="absolute inset-0 flex items-center justify-center"><Heart className="h-8 w-8 text-blue-600 dark:text-blue-400 animate-pulse" /></div>
-                <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900/30 animate-ping opacity-75"></div>
-              </div>
-              <p className="text-lg font-medium text-slate-800 dark:text-slate-200 mb-2">Preparando explicação...</p>
-              <div className="w-16 h-1 bg-gradient-to-r from-blue-500 to-blue-700 rounded mb-4"></div>
-              <p className="text-sm text-center text-slate-600 dark:text-slate-400 italic max-w-xs">"A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105</p>
-            </div>
+            <DynamicLoading />
           ) : (
-            <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-slate-200 dark:border-slate-800">
+            <div className="bg-card text-card-foreground rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border">
               <ExplanationRenderer data={explanation} isChapterMode={isChapterMode} />
             </div>
           )}
