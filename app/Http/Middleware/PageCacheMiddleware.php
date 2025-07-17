@@ -19,6 +19,14 @@ class PageCacheMiddleware
      */
     public function handle(Request $request, Closure $next): Response
     {
+        // If this is a hashed asset (vite) falling through to Laravel, serve with long cache headers
+        $path = public_path($request->path());
+        if (is_file($path) && preg_match('/\.(css|js|svg|woff2?|ttf|otf)$/', $path)) {
+            return response()->file($path, [
+                'Cache-Control' => 'public, max-age=31536000, immutable',
+            ]);
+        }
+
         // Only cache GET requests that are not to /api or have query param no_cache
         if (
             $request->method() !== 'GET' ||
@@ -29,16 +37,17 @@ class PageCacheMiddleware
             return $this->compressResponse($next($request), $request);
         }
 
-        $vary = $request->header('Accept', '');
-        $cacheKey = 'page_cache:' . sha1($request->fullUrl() . '|' . $vary);
+        $cacheKey = 'page_cache:' . sha1($request->fullUrl());
 
         if (Cache::has($cacheKey)) {
             $cached = Cache::get($cacheKey);
             $response = new Response($cached['content'], 200, $cached['headers']);
+            $response->headers->set('X-Cache', 'HIT');
             return $this->compressResponse($response, $request);
         }
 
         $response = $next($request);
+        $response->headers->set('X-Cache', 'MISS');
 
         if ($response->getStatusCode() === 200) {
             // Store both content and headers to keep things like content-type
