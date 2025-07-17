@@ -1,4 +1,5 @@
 import React from 'react';
+import { SITE_NAME, SITE_TAGLINE } from '@/lib/siteMetadata';
 import { Head } from '@inertiajs/react';
 import BibleBooksGrid from '@/components/BibleBooksGrid';
 import { motion } from 'framer-motion';
@@ -28,7 +29,7 @@ interface WelcomeProps {
 export default function Welcome(props: WelcomeProps) {
   return (
     <>
-      <Head title="Verbum - Bíblia Explicada">
+      <Head title={`${SITE_NAME} - ${SITE_TAGLINE}`}>
         <link rel="preconnect" href="https://fonts.bunny.net" />
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
       </Head>
@@ -42,7 +43,7 @@ export default function Welcome(props: WelcomeProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
-              Verbum - Bíblia Explicada
+              {SITE_NAME} - {SITE_TAGLINE}
             </motion.h1>
             <motion.p
               className="text-lg text-muted-foreground text-center"

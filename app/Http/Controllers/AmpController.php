@@ -45,7 +45,7 @@ class AmpController extends Controller
         if ($verses) {
             $title .= ':' . $verses;
         }
-        $title .= ' - Explicação Bíblica | Verbum';
+        $title .= ' - Explicação Bíblica | Verso a verso';
         
         $description = 'Estudo detalhado de ' . ucfirst($book) . ' ' . $chapter;
         if ($verses) {

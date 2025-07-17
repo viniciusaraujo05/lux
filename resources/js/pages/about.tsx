@@ -7,27 +7,27 @@ export default function About() {
   return (
     <>
       <Head>
-        <title>Sobre o Verbum - Bíblia Explicada | Nossa Missão e Valores</title>
-        <meta name="description" content="Conheça a história e a missão do Verbum - Bíblia Explicada. Criamos explicações bíblicas detalhadas e acessíveis para aproximar as pessoas da Palavra de Deus." />
-        <meta name="keywords" content="Verbum, Bíblia explicada, projeto bíblico, estudo bíblico, explicações bíblicas, análise teológica" />
+        <title>Sobre o Verso a verso | Nossa Missão e Valores</title>
+        <meta name="description" content="Conheça a história e a missão do Verso a verso. Criamos explicações bíblicas detalhadas e acessíveis para aproximar as pessoas da Palavra de Deus." />
+        <meta name="keywords" content="Verso a verso, Bíblia explicada, projeto bíblico, estudo bíblico, explicações bíblicas, análise teológica" />
         
         {/* Open Graph / Facebook */}
         <meta property="og:type" content="website" />
         <meta property="og:url" content={window.location.href} />
-        <meta property="og:title" content="Sobre o Verbum - Bíblia Explicada | Nossa Missão e Valores" />
-        <meta property="og:description" content="Conheça a história e a missão do Verbum - Bíblia Explicada. Criamos explicações bíblicas detalhadas e acessíveis para aproximar as pessoas da Palavra de Deus." />
+        <meta property="og:title" content="Sobre o Verso a verso | Nossa Missão e Valores" />
+        <meta property="og:description" content="Conheça a história e a missão do Verso a verso. Criamos explicações bíblicas detalhadas e acessíveis para aproximar as pessoas da Palavra de Deus." />
         
         {/* Twitter */}
         <meta property="twitter:card" content="summary_large_image" />
         <meta property="twitter:url" content={window.location.href} />
-        <meta property="twitter:title" content="Sobre o Verbum - Bíblia Explicada | Nossa Missão e Valores" />
-        <meta property="twitter:description" content="Conheça a história e a missão do Verbum - Bíblia Explicada. Criamos explicações bíblicas detalhadas e acessíveis para aproximar as pessoas da Palavra de Deus." />
+        <meta property="twitter:title" content="Sobre o Verso a verso | Nossa Missão e Valores" />
+        <meta property="twitter:description" content="Conheça a história e a missão do Verso a verso. Criamos explicações bíblicas detalhadas e acessíveis para aproximar as pessoas da Palavra de Deus." />
       </Head>
       
       <main className="container max-w-4xl mx-auto px-4 py-8">
         <section className="mb-12">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-primary mb-4">Sobre o Verbum - Bíblia Explicada</h1>
+            <h1 className="text-3xl font-bold text-primary mb-4">Sobre o Verso a verso</h1>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
               Tornando a Bíblia acessível, compreensível e aplicável para todos
             </p>
@@ -35,7 +35,7 @@ export default function About() {
           
           <div className="prose prose-lg max-w-none">
             <p>
-              <strong>Verbum - Bíblia Explicada</strong> nasceu da visão de utilizar a tecnologia moderna com inteligência 
+              <strong>Verso a verso</strong> nasceu da visão de utilizar a tecnologia moderna com inteligência 
               artificial para tornar as Escrituras acessíveis a todos. Nossa missão é oferecer explicações 
               bíblicas detalhadas e bem fundamentadas, geradas com o auxílio de IA avançada, mas sempre com 
               supervisão teológica adequada.
@@ -96,7 +96,7 @@ export default function About() {
             </div>
             <div className="space-y-4">
               <p>
-                O Verbum foi criado para servir a diversos perfis de leitores:
+                O Verso a verso foi criado para servir a diversos perfis de leitores:
               </p>
               <ul className="space-y-2">
                 <li className="flex items-start">
@@ -161,7 +161,7 @@ export default function About() {
             <h2 className="text-2xl font-bold text-primary mb-4">Nosso Compromisso</h2>
             <div className="prose prose-lg max-w-none">
               <p>
-                O Verbum é um recurso gratuito e acessível a todos que buscam entender melhor as Escrituras.
+                O Verso a verso é um recurso gratuito e acessível a todos que buscam entender melhor as Escrituras.
                 Nos comprometemos com:
               </p>
               

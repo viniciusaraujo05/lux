@@ -25,7 +25,7 @@ class ThematicStudyController extends Controller
         
         return Inertia::render('temas/index', [
             'themes' => $themes,
-            'title' => 'Temas Bíblicos - Estudos Temáticos Aprofundados | Verbum',
+            'title' => 'Temas Bíblicos - Estudos Temáticos Aprofundados | Verso a verso',
             'description' => 'Explore os principais temas da Bíblia com explicações detalhadas, contexto histórico e aplicações práticas. Estudos bíblicos temáticos para aprofundar sua fé.',
             'keywords' => 'temas bíblicos, estudos temáticos, estudos bíblicos, teologia bíblica, doutrinas bíblicas'
         ]);
@@ -52,11 +52,11 @@ class ThematicStudyController extends Controller
             'description' => $theme['description'],
             'author' => [
                 '@type' => 'Organization',
-                'name' => 'Verbum - Bíblia Explicada'
+                'name' => 'Verso a verso - Bíblia Explicada'
             ],
             'publisher' => [
                 '@type' => 'Organization',
-                'name' => 'Verbum - Bíblia Explicada'
+                'name' => 'Verso a verso - Bíblia Explicada'
             ],
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
@@ -73,7 +73,7 @@ class ThematicStudyController extends Controller
             'theme' => $theme,
             'passages' => $passages,
             'schemaJson' => $schemaJson,
-            'title' => $theme['title'] . ' - Estudo Bíblico Temático | Verbum',
+            'title' => $theme['title'] . ' - Estudo Bíblico Temático | Verso a verso',
             'description' => $theme['description'],
             'keywords' => $theme['keywords']
         ]);

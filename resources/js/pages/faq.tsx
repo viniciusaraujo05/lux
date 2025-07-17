@@ -15,29 +15,29 @@ export default function FAQ() {
   
   const faqItems: FaqItem[] = [
     {
-      question: "O que faz o Verbum - Bíblia Explicada diferente de outros sites bíblicos?",
-      answer: "O Verbum oferece explicações detalhadas e contextualizadas de cada passagem bíblica, combinando rigor teológico com linguagem acessível. Diferente de muitos sites que oferecem apenas o texto bíblico ou comentários superficiais, proporcionamos uma análise aprofundada que inclui contexto histórico, análise linguística original, implicações teológicas e aplicações práticas contemporâneas para cada capítulo e versículo.",
-      category: "Sobre o Verbum"
+      question: "O que faz o Verso a verso diferente de outros sites bíblicos?",
+      answer: "O Verso a verso oferece explicações detalhadas e contextualizadas de cada passagem bíblica, combinando rigor teológico com linguagem acessível. Diferente de muitos sites que oferecem apenas o texto bíblico ou comentários superficiais, proporcionamos uma análise aprofundada que inclui contexto histórico, análise linguística original, implicações teológicas e aplicações práticas contemporâneas para cada capítulo e versículo.",
+      category: "Sobre o Verso a verso"
     },
     {
       question: "Como as explicações bíblicas são criadas?",
       answer: "Nossas explicações são geradas utilizando inteligência artificial avançada, mas passam por um rigoroso processo de validação teológica e editorial. Combinamos a eficiência da IA com a supervisão de especialistas em teologia, garantindo que as informações sejam precisas, contextualizadas e fiéis aos textos originais. Cada explicação é revisada para assegurar consistência doutrinária e precisão acadêmica antes de ser publicada.",
-      category: "Sobre o Verbum"
+      category: "Sobre o Verso a verso"
     },
     {
-      question: "Como o Verbum garante a qualidade e precisão das explicações?",
+      question: "Como o Verso a verso garante a qualidade e precisão das explicações?",
       answer: "Garantimos a qualidade através de um processo de três etapas: 1) Geração inicial do conteúdo com IA treinada em fontes teológicas respeitáveis; 2) Revisão humana por especialistas em teologia, história bíblica e línguas originais; 3) Sistema de feedback dos usuários que permite reportar qualquer imprecisão. Cada página de explicação conta com uma função para o usuário indicar problemas ou inconsistências, o que nos ajuda a melhorar continuamente o conteúdo.",
-      category: "Sobre o Verbum"
+      category: "Sobre o Verso a verso"
     },
     {
-      question: "Por que o Verbum é gratuito?",
-      answer: "O Verbum é gratuito porque acreditamos que o conhecimento bíblico de qualidade deve ser acessível a todos. Nossa missão é espalhar o melhor conteúdo bíblico possível sem barreiras financeiras, permitindo que pessoas de todas as condições socioeconômicas possam aprofundar seu conhecimento das Escrituras. Sustentamos o projeto através de doações voluntárias e parcerias, sem comprometer nosso compromisso com a acessibilidade universal.",
-      category: "Sobre o Verbum"
+      question: "Por que o Verso a verso é gratuito?",
+      answer: "O Verso a verso é gratuito porque acreditamos que o conhecimento bíblico de qualidade deve ser acessível a todos. Nossa missão é espalhar o melhor conteúdo bíblico possível sem barreiras financeiras, permitindo que pessoas de todas as condições socioeconômicas possam aprofundar seu conhecimento das Escrituras. Sustentamos o projeto através de doações voluntárias e parcerias, sem comprometer nosso compromisso com a acessibilidade universal.",
+      category: "Sobre o Verso a verso"
     },
     {
       question: "Por que algumas passagens têm explicações mais longas que outras?",
       answer: "A extensão das explicações varia de acordo com a complexidade teológica, a profundidade histórica e a riqueza de aplicações da passagem. Versículos que contêm conceitos teológicos fundamentais, referências culturais específicas da época, ou que são frequentemente mal interpretados geralmente recebem explicações mais detalhadas para garantir uma compreensão completa.",
-      category: "Sobre o Verbum"
+      category: "Sobre o Verso a verso"
     },
     {
       question: "Por que devo estudar a Bíblia com explicações detalhadas?",
@@ -46,7 +46,7 @@ export default function FAQ() {
     },
     {
       question: "Como posso começar meu estudo bíblico se sou iniciante?",
-      answer: "Para iniciantes, recomendamos: 1) Comece com os Evangelhos (Mateus, Marcos, Lucas ou João) para conhecer a vida e os ensinamentos de Jesus; 2) Use nossas explicações para entender o contexto e o significado de cada passagem; 3) Estabeleça uma rotina regular de leitura, mesmo que seja apenas alguns versículos por dia; 4) Anote dúvidas e insights; 5) Se possível, compartilhe seu estudo com outras pessoas para enriquecer a experiência. O Verbum foi projetado para ajudar leitores de todos os níveis, oferecendo explicações que tornam os textos mais acessíveis para iniciantes.",
+      answer: "Para iniciantes, recomendamos: 1) Comece com os Evangelhos (Mateus, Marcos, Lucas ou João) para conhecer a vida e os ensinamentos de Jesus; 2) Use nossas explicações para entender o contexto e o significado de cada passagem; 3) Estabeleça uma rotina regular de leitura, mesmo que seja apenas alguns versículos por dia; 4) Anote dúvidas e insights; 5) Se possível, compartilhe seu estudo com outras pessoas para enriquecer a experiência. O Verso a verso foi projetado para ajudar leitores de todos os níveis, oferecendo explicações que tornam os textos mais acessíveis para iniciantes.",
       category: "Estudo Bíblico"
     },
     {
@@ -61,22 +61,22 @@ export default function FAQ() {
     },
     {
       question: "Como posso saber se uma explicação bíblica é confiável?",
-      answer: "Para avaliar a confiabilidade de uma explicação bíblica, considere: 1) Se está fundamentada no texto original, não apenas em traduções; 2) Se considera o contexto histórico, literário e cultural; 3) Se está alinhada com os princípios interpretativos estabelecidos e aceitos por estudiosos respeitados; 4) Se reconhece diferentes perspectivas quando apropriado; 5) Se está em harmonia com o conjunto das Escrituras; 6) Se é transparente sobre suas fontes e métodos. No Verbum, nos comprometemos com esses princípios de confiabilidade e rigor acadêmico em todas as nossas explicações.",
+      answer: "Para avaliar a confiabilidade de uma explicação bíblica, considere: 1) Se está fundamentada no texto original, não apenas em traduções; 2) Se considera o contexto histórico, literário e cultural; 3) Se está alinhada com os princípios interpretativos estabelecidos e aceitos por estudiosos respeitados; 4) Se reconhece diferentes perspectivas quando apropriado; 5) Se está em harmonia com o conjunto das Escrituras; 6) Se é transparente sobre suas fontes e métodos. No Verso a Verso, nos comprometemos com esses princípios de confiabilidade e rigor acadêmico em todas as nossas explicações.",
       category: "Teologia"
     },
     {
       question: "O que significa interpretar a Bíblia 'literalmente'?",
-      answer: "Interpretar a Bíblia 'literalmente' não significa interpretar tudo ao pé da letra, mas sim respeitar o gênero literário e a intenção comunicativa de cada passagem. Uma interpretação literal adequada: 1) Reconhece quando o texto usa linguagem poética, metafórica, hiperbólica ou apocalíptica; 2) Considera as convenções literárias da época; 3) Busca entender o que o autor pretendia comunicar aos destinatários originais; 4) Diferencia entre descrições narrativas e prescrições normativas. No Verbum, buscamos honrar a intenção original dos textos, interpretando cada passagem de acordo com seu gênero literário e contexto histórico.",
+      answer: "Interpretar a Bíblia 'literalmente' não significa interpretar tudo ao pé da letra, mas sim respeitar o gênero literário e a intenção comunicativa de cada passagem. Uma interpretação literal adequada: 1) Reconhece quando o texto usa linguagem poética, metafórica, hiperbólica ou apocalíptica; 2) Considera as convenções literárias da época; 3) Busca entender o que o autor pretendia comunicar aos destinatários originais; 4) Diferencia entre descrições narrativas e prescrições normativas. No Verso a Verso, buscamos honrar a intenção original dos textos, interpretando cada passagem de acordo com seu gênero literário e contexto histórico.",
       category: "Teologia"
     },
     {
       question: "Como posso aplicar ensinamentos de textos antigos à minha vida hoje?",
-      answer: "Para aplicar os ensinamentos bíblicos ao contexto contemporâneo: 1) Compreenda primeiro o significado original no contexto histórico e cultural; 2) Identifique os princípios espirituais, éticos e teológicos permanentes; 3) Diferencie entre aplicações culturalmente específicas e princípios universais; 4) Considere como esses princípios se aplicam a situações análogas em nosso tempo; 5) Busque sabedoria através de oração e reflexão sobre como viver esses princípios em seu contexto específico. Nossas explicações no Verbum sempre incluem sugestões de aplicações práticas para ajudar a fazer essa ponte entre o texto antigo e a vida contemporânea.",
+      answer: "Para aplicar os ensinamentos bíblicos ao contexto contemporâneo: 1) Compreenda primeiro o significado original no contexto histórico e cultural; 2) Identifique os princípios espirituais, éticos e teológicos permanentes; 3) Diferencie entre aplicações culturalmente específicas e princípios universais; 4) Considere como esses princípios se aplicam a situações análogas em nosso tempo; 5) Busque sabedoria através de oração e reflexão sobre como viver esses princípios em seu contexto específico. Nossas explicações no Verso a Verso sempre incluem sugestões de aplicações práticas para ajudar a fazer essa ponte entre o texto antigo e a vida contemporânea.",
       category: "Aplicação Prática"
     },
     {
-      question: "Como o Verbum pode ajudar em grupos de estudo bíblico?",
-      answer: "O Verbum é um excelente recurso para grupos de estudo bíblico porque: 1) Fornece contexto histórico e cultural que enriquece as discussões; 2) Esclarece passagens difíceis ou potencialmente confusas; 3) Oferece perguntas reflexivas que podem estimular conversas significativas; 4) Sugere aplicações práticas que podem ser discutidas em grupo; 5) Ajuda a manter o estudo focado no significado real do texto, evitando interpretações descontextualizadas. Incentivamos líderes de grupos a usar nossas explicações como base para preparar seus estudos, adaptando-as às necessidades específicas de seu grupo.",
+      question: "Como o Verso a Verso pode ajudar em grupos de estudo bíblico?",
+      answer: "O Verso a Verso é um excelente recurso para grupos de estudo bíblico porque: 1) Fornece contexto histórico e cultural que enriquece as discussões; 2) Esclarece passagens difíceis ou potencialmente confusas; 3) Oferece perguntas reflexivas que podem estimular conversas significativas; 4) Sugere aplicações práticas que podem ser discutidas em grupo; 5) Ajuda a manter o estudo focado no significado real do texto, evitando interpretações descontextualizadas. Incentivamos líderes de grupos a usar nossas explicações como base para preparar seus estudos, adaptando-as às necessidades específicas de seu grupo.",
       category: "Aplicação Prática"
     }
   ];
@@ -124,8 +124,8 @@ export default function FAQ() {
   return (
     <>
       <Head>
-        <title>Perguntas Frequentes | Verbum - Bíblia Explicada</title>
-        <meta name="description" content="Encontre respostas para perguntas comuns sobre estudo bíblico, interpretação de passagens e como aproveitar ao máximo o Verbum - Bíblia Explicada." />
+        <title>Perguntas Frequentes | Verso a Verso - Bíblia Explicada</title>
+        <meta name="description" content="Encontre respostas para perguntas comuns sobre estudo bíblico, interpretação de passagens e como aproveitar ao máximo o Verso a Verso - Bíblia Explicada." />
         <meta name="keywords" content="FAQ bíblia, perguntas sobre a bíblia, como estudar a bíblia, interpretação bíblica, dúvidas bíblicas" />
         <script type="application/ld+json">{generateFaqSchema()}</script>
       </Head>
@@ -134,7 +134,7 @@ export default function FAQ() {
         <section className="mb-10">
           <h1 className="text-3xl font-bold text-primary mb-4 text-center">Perguntas Frequentes</h1>
           <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Encontre respostas para as dúvidas mais comuns sobre estudo bíblico e sobre como usar o Verbum - Bíblia Explicada.
+            Encontre respostas para as dúvidas mais comuns sobre estudo bíblico e sobre como usar o Verso a Verso - Bíblia Explicada.
           </p>
           
           <div className="relative mb-8">
@@ -210,7 +210,7 @@ export default function FAQ() {
             <p
               className="text-center"
             >
-contato@verbumbiblia.com            </p>
+contato@versoaverso.site        </p>
           </div>
         </section>
       </main>

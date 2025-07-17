@@ -1,6 +1,6 @@
 <article class="featured-verses" itemscope itemtype="https://schema.org/Article">
-    <meta itemprop="headline" content="Versículos em Destaque - {{ $titulo ?? 'Verbum' }}">
-    <meta itemprop="author" content="Verbum - Bíblia Explicada">
+    <meta itemprop="headline" content="Versículos em Destaque - {{ $titulo ?? 'Verso a Verso' }}">
+    <meta itemprop="author" content="Verso a Verso - Bíblia Explicada">
     <meta itemprop="datePublished" content="{{ now()->toIso8601String() }}">
     
     <h2 class="section-title">Versículos em Destaque</h2>

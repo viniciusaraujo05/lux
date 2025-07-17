@@ -3,30 +3,30 @@
 <head>
     <meta charset="utf-8">
     <script async src="https://cdn.ampproject.org/v0.js"></script>
-    <title>{{ $title ?? 'Verbum - Bíblia Explicada' }}</title>
+    <title>{{ $title ?? 'Verso a verso - Bíblia Explicada' }}</title>
     <link rel="canonical" href="{{ $canonicalUrl }}">
     <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
-    <meta name="description" content="{{ $description ?? 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
-    <meta name="keywords" content="{{ $keywords ?? 'bíblia, explicação bíblica, estudo bíblico, versículos da bíblia, verbum, comentário bíblico' }}">
+    <meta name="description" content="{{ $description ?? 'Verso a verso - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
+    <meta name="keywords" content="{{ $keywords ?? 'bíblia, explicação bíblica, estudo bíblico, versículos da bíblia, verso a verso, comentário bíblico' }}">
     
     <!-- Schema.org markup para Google -->
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "Article",
-        "headline": "{{ $title ?? 'Verbum - Bíblia Explicada' }}",
-        "description": "{{ $description ?? 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas' }}",
+        "headline": "{{ $title ?? 'Verso a verso - Bíblia Explicada' }}",
+        "description": "{{ $description ?? 'Verso a verso - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas' }}",
         "author": {
             "@type": "Organization",
-            "name": "Verbum - Bíblia Explicada"
+            "name": "Verso a verso - Bíblia Explicada"
         },
         "publisher": {
             "@type": "Organization",
-            "name": "Verbum - Bíblia Explicada",
+            "name": "Verso a verso - Bíblia Explicada",
             "logo": {
                 "@type": "ImageObject",
                 "url": "{{ url('/images/logo.png') }}"
-            }
+            }   
         },
         "mainEntityOfPage": {
             "@type": "WebPage",
@@ -255,7 +255,7 @@
         </main>
         
         <footer>
-            &copy; {{ date('Y') }} Verbum - Bíblia Explicada. Todos os direitos reservados.
+            &copy; {{ date('Y') }} Verso a Verso - Bíblia Explicada. Todos os direitos reservados.
         </footer>
     </div>
 </body>

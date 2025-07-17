@@ -18,7 +18,7 @@ class SchemaService
             'dateModified' => date('c'),
             'publisher' => [
                 '@type' => 'Organization',
-                'name' => 'Verbum - Bíblia Explicada',
+                'name' => 'Verso a verso - Bíblia Explicada',
                 'logo' => [
                     '@type' => 'ImageObject',
                     'url' => url('/images/logo.png'),

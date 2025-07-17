@@ -31,25 +31,25 @@
             }
         </style>
 
-        <title inertia>{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'Verbum - Bíblia Explicada') }}</title>
+        <title inertia>{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}</title>
         
         <!-- Meta tags para SEO -->
-        <meta name="description" content="{{ isset($description) ? $description : 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
-        <meta name="keywords" content="{{ isset($keywords) ? $keywords : 'bíblia, explicação bíblica, estudo bíblico, versículos da bíblia, verbum, comentário bíblico' }}">
-        <meta name="author" content="Verbum">
+        <meta name="description" content="{{ isset($description) ? $description : 'Verso a Verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
+        <meta name="keywords" content="{{ isset($keywords) ? $keywords : 'bíblia, explicação bíblica, estudo bíblico, versículos da bíblia, verso a verso, comentário bíblico' }}">
+        <meta name="author" content="Verso a verso">
         
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="website">
         <meta property="og:url" content="{{ url()->current() }}">
-        <meta property="og:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'Verbum - Bíblia Explicada') }}">
-        <meta property="og:description" content="{{ isset($description) ? $description : 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
+        <meta property="og:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}">
+        <meta property="og:description" content="{{ isset($description) ? $description : 'Verso a verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta property="og:image" content="{{ asset('images/verbum-og-image.jpg') }}">
         
         <!-- Twitter -->
         <meta property="twitter:card" content="summary_large_image">
         <meta property="twitter:url" content="{{ url()->current() }}">
-        <meta property="twitter:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'Verbum - Bíblia Explicada') }}">
-        <meta property="twitter:description" content="{{ isset($description) ? $description : 'Verbum - Bíblia Explicada oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
+        <meta property="twitter:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}">
+        <meta property="twitter:description" content="{{ isset($description) ? $description : 'Verso a verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta property="twitter:image" content="{{ asset('images/verbum-og-image.jpg') }}">
         
         <!-- Canonical URL -->

@@ -8,8 +8,8 @@ use App\Http\Controllers\SeoController;
 Route::get('/', function () {
     // Adicionar metadados de SEO específicos para a página inicial
     $seoData = [
-        'title' => 'Verbum - Bíblia Explicada | Estudos Bíblicos Detalhados e Acessíveis',
-        'description' => 'Verbum oferece explicações bíblicas detalhadas com análise teológica profunda, contexto histórico e aplicações práticas para cada capítulo e versículo da Bíblia.',
+        'title' => 'Verso a verso - Bíblia Explicada | Estudos Bíblicos Detalhados e Acessíveis',
+        'description' => 'Verso a verso oferece explicações bíblicas detalhadas com análise teológica profunda, contexto histórico e aplicações práticas para cada capítulo e versículo da Bíblia.',
         'keywords' => 'Bíblia, estudo bíblico, explicação bíblica, teologia, versículos, análise, contexto histórico'
     ];
     
@@ -43,7 +43,7 @@ Route::get('/api/seo/{testament}/{book}/{chapter}', function (string $testament,
     if ($verses) {
         $title .= ':' . $verses;
     }
-    $title .= ' - Explicação Bíblica | Verbum';
+    $title .= ' - Explicação Bíblica | Verso a verso';
     
     $description = 'Estudo detalhado de ' . ucfirst($bookOriginal) . ' ' . $chapter;
     if ($verses) {
