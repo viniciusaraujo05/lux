@@ -20,11 +20,17 @@ class PageCacheMiddleware
     public function handle(Request $request, Closure $next): Response
     {
         // Only cache GET requests that are not to /api or have query param no_cache
-        if ($request->method() !== 'GET' || $request->is('api/*') || $request->query('no_cache')) {
+        if (
+            $request->method() !== 'GET' ||
+            $request->is('api/*') ||
+            $request->header('X-Inertia') ||
+            $request->query('no_cache')
+        ) {
             return $this->compressResponse($next($request), $request);
         }
 
-        $cacheKey = 'page_cache:' . sha1($request->fullUrl());
+        $vary = $request->header('Accept', '');
+        $cacheKey = 'page_cache:' . sha1($request->fullUrl() . '|' . $vary);
 
         if (Cache::has($cacheKey)) {
             $cached = Cache::get($cacheKey);
