@@ -29,7 +29,7 @@ class PageCacheMiddleware
         if (Cache::has($cacheKey)) {
             $cached = Cache::get($cacheKey);
             $response = new Response($cached['content'], 200, $cached['headers']);
-            return $this->compressResponse($response, $request, false); // already cached (possibly compressed)
+            return $this->compressResponse($response, $request);
         }
 
         $response = $next($request);
@@ -48,7 +48,7 @@ class PageCacheMiddleware
     /**
      * Compress response with gzip if the client supports it.
      */
-    private function compressResponse(Response $response, Request $request, bool $encode = true): Response
+    private function compressResponse(Response $response, Request $request): Response
     {
         if ($response->headers->has('Content-Encoding')) {
             return $response; // already encoded
@@ -58,10 +58,8 @@ class PageCacheMiddleware
             return $response; // client does not accept gzip
         }
 
-        if ($encode) {
-            $response->setContent(gzencode($response->getContent(), 6));
-        }
-
+        // Always encode here to ensure header matches body
+        $response->setContent(gzencode($response->getContent(), 6));
         $response->headers->set('Content-Encoding', 'gzip');
         $response->headers->set('Vary', 'Accept-Encoding');
         $response->headers->set('Cache-Control', 'public, max-age=' . $this->ttl);
