@@ -4,7 +4,7 @@ import { Head } from '@inertiajs/react';
 import {
   ChevronLeft, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, Heart, User, Loader2,
   BookOpen, Scale, Landmark, Users, Microscope, Cross, Target, Link, Gem,
-  AlertTriangle, FileText, CheckCircle, Key, Book, HelpCircle
+  AlertTriangle, FileText, CheckCircle, Key, Book, HelpCircle, Share2
 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -23,11 +23,16 @@ const DynamicLoading: FC = () => {
     "Quase lá, só um instante..."
   ];
   const [index, setIndex] = useState(0);
+  const [showFirstUserMsg, setShowFirstUserMsg] = useState(false);
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((i) => (i + 1) % messages.length);
     }, 4000);
-    return () => clearInterval(interval);
+    const timeout = setTimeout(() => setShowFirstUserMsg(true), 20000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
   }, []);
   return (
     <Card className="w-full max-w-4xl mt-16 items-center py-10">
@@ -38,6 +43,12 @@ const DynamicLoading: FC = () => {
         <p className="text-xs text-center text-muted-foreground italic max-w-md">
         "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
         </p>
+        {showFirstUserMsg && (
+          <p className="text-xs text-center text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 rounded-md px-3 py-2 mt-2">
+            Você está prestes a ser a primeira pessoa a acessar a explicação deste versículo! Isso pode demorar um pouco mais.<br />
+            Nas próximas visitas, tudo será instantâneo 😊
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -605,6 +616,163 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                     </div>
                   )}
                 </div>
+              </div>
+
+              {/* Share & PDF */}
+              <div className="mt-8 flex flex-col sm:flex-row sm:justify-center gap-3">
+                <button
+                  onClick={() => {
+                    const shareData = {
+                      title: `${book} ${chapter}${verses ? ':' + verses : ''} | Verso a Verso`,
+                      text: 'Confira esta explicação bíblica!',
+                      url: window.location.href,
+                    } as ShareData;
+                    if (navigator.share) {
+                      navigator.share(shareData).catch(() => {/* cancelled */});
+                    } else {
+                      navigator.clipboard.writeText(window.location.href).then(() => {
+                        alert('Link copiado para a área de transferência!');
+                      });
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/80 transition-colors text-sm font-medium shadow-sm"
+                >
+                  <Share2 size={18} />
+                  Compartilhar
+                </button>
+
+                <button
+                  onClick={async () => {
+                    // 1. Primeiro expandimos todas as seções
+                    const sections = document.querySelectorAll('[aria-expanded]');
+                    sections.forEach(btn => {
+                      if (btn.getAttribute('aria-expanded') === 'false') {
+                        (btn as HTMLElement).click();
+                      }
+                    });
+
+                    // 2. Aguardamos um momento para as seções expandirem
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                    // 3. Capturamos o conteúdo da explicação
+                    const explanation = document.querySelector('.bg-card.rounded-lg.shadow-sm.border');
+                    if (!explanation) return;
+
+                    // 4. Criamos uma nova janela para impressão
+                    const printWindow = window.open('', '_blank');
+                    if (!printWindow) return;
+
+                    // 5. Preparamos o HTML para impressão
+                    const printContent = `
+                      <!DOCTYPE html>
+                      <html>
+                      <head>
+                        <title>Explicação Bíblica - PDF</title>
+                        <meta charset="utf-8">
+                        <style>
+                          @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+                          
+                          body {
+                            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+                            line-height: 1.5;
+                            max-width: 800px;
+                            margin: 0 auto;
+                            padding: 40px 20px;
+                            color: #1a1a1a;
+                          }
+
+                          /* Estilos gerais */
+                          .section {
+                            margin-bottom: 24px;
+                            padding: 20px;
+                            border: 1px solid #e5e7eb;
+                            border-radius: 8px;
+                            background-color: white;
+                          }
+
+                          .section-content {
+                            display: block !important;
+                            max-height: none !important;
+                            opacity: 1 !important;
+                          }
+
+                          /* Tipografia */
+                          h1, h2, h3 { color: #111827; }
+                          h2 { 
+                            font-size: 1.4rem; 
+                            margin: 1.5rem 0 1rem;
+                            font-weight: 600;
+                            color: #1e293b;
+                          }
+                          p { margin: 0.8em 0; }
+
+                          /* Listas */
+                          ul, ol { padding-left: 1.5em; margin: 0.8em 0; }
+                          li { margin: 0.5em 0; }
+
+                          /* Citações */
+                          blockquote {
+                            margin: 1.5em 0;
+                            padding: 1em;
+                            border-left: 4px solid #e0e7ef;
+                            color: #64748b;
+                            font-style: italic;
+                            background-color: #f8fafc;
+                          }
+
+                          /* Cores específicas da explicação */
+                          .bg-slate-50 { background-color: #f8fafc !important; }
+                          .bg-indigo-50 { background-color: #eef2ff !important; }
+                          .bg-blue-50 { background-color: #eff6ff !important; }
+                          .bg-purple-50 { background-color: #f5f3ff !important; }
+                          
+                          .text-indigo-600 { color: #4f46e5 !important; }
+                          .text-blue-600 { color: #2563eb !important; }
+                          .text-purple-600 { color: #9333ea !important; }
+                          
+                          .dark\:bg-slate-700\/50 { background-color: #f8fafc !important; }
+                          .dark\:bg-indigo-900\/30 { background-color: #eef2ff !important; }
+                          .dark\:bg-blue-900\/30 { background-color: #eff6ff !important; }
+                          .dark\:bg-purple-900\/30 { background-color: #f5f3ff !important; }
+                          
+                          .font-bold { font-weight: 700 !important; }
+                          .font-semibold { font-weight: 600 !important; }
+                          
+                          /* Remover elementos desnecessários */
+                          button, .feedback, .DonateButton, [aria-expanded], .lucide { display: none !important; }
+
+                          /* Ajustes para impressão */
+                          @media print {
+                            body { padding: 0; }
+                            .section { page-break-inside: avoid; }
+                            a { text-decoration: none; }
+                            @page { margin: 2cm; }
+                          }
+                        </style>
+                      </head>
+                      <body>
+                        ${explanation.innerHTML}
+                      </body>
+                      </html>
+                    `;
+
+                    // 6. Escrevemos o conteúdo na nova janela
+                    printWindow.document.write(printContent);
+                    printWindow.document.close();
+
+                    // 7. Aguardamos o carregamento e imprimimos
+                    printWindow.onload = () => {
+                      setTimeout(() => {
+                        printWindow.print();
+                        printWindow.close();
+                      }, 500);
+                    };
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium shadow-sm"
+                >
+                  <FileText size={18} />
+                  Salvar PDF
+                </button>
               </div>
 
               {/* Navigation */}
