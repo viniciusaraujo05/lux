@@ -11,6 +11,13 @@ export default function Welcome() {
             <div className="min-h-screen bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900 px-4 py-8 md:px-8 md:py-12">
                 <div className="mx-auto max-w-7xl">
                     <header className="mb-12 text-center">
+                        <div className="flex justify-center mb-4">
+                            <img 
+                                src="/logo.svg" 
+                                alt="Verso a Verso" 
+                                className="h-16 w-auto"
+                            />
+                        </div>
                         <h1 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-slate-50 mb-3">Verso a verso</h1>
                         <p className="text-xl text-slate-600 dark:text-slate-400">Bíblia Sagrada</p>
                     </header>

@@ -132,6 +132,13 @@ export default function FAQ() {
       
       <main className="container max-w-4xl mx-auto px-4 py-8">
         <section className="mb-10">
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/logo.svg" 
+              alt="Verso a Verso" 
+              className="h-16 w-auto"
+            />
+          </div>
           <h1 className="text-3xl font-bold text-primary mb-4 text-center">Perguntas Frequentes</h1>
           <p className="text-center text-muted-foreground mb-8 max-w-2xl mx-auto">
             Encontre respostas para as dúvidas mais comuns sobre estudo bíblico e sobre como usar o Verso a Verso - Bíblia Explicada.

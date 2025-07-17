@@ -125,7 +125,7 @@ class SeoController extends Controller
             
             // URL normal
             $urls[] = [
-                'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}?verses={$versiculos}"),
+                'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}?versiculos={$versiculos}"),
                 'priority' => '0.8',
                 'changefreq' => 'monthly'
             ];
@@ -145,6 +145,7 @@ class SeoController extends Controller
         return Response::make($xml, 200, [
             'Content-Type' => 'application/xml'
         ]);
+    }
     
     
     /**
