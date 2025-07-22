@@ -76,6 +76,15 @@
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N5X2XHKS"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     <!-- End Google Tag Manager (noscript) -->
+    <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-QEEJB2L42W"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-QEEJB2L42W');
+</script>
 <body class="font-sans antialiased">
         @inertia
         @include('partials.cookie-consent')
