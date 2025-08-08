@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Book, Bookmark, Copy, Share } from "lucide-react";
 import { motion, AnimatePresence } from 'framer-motion';
 import BibleService from "@/services/BibleService";
+import SlugService from "@/services/SlugService";
 import ThemeToggleButton from '@/components/ThemeToggleButton';
 
 // Aplica o tema imediatamente ao carregar a página (evita flash/reset)
@@ -36,6 +37,25 @@ function BibleExplanationContent() {
   }>();
   const [searchParams] = useSearchParams();
 
+  // Normalize book input: accept either slug or encoded name, always derive slug and display name
+  const slugService = SlugService.getInstance();
+  const rawBook = book || '';
+  const decodedBook = decodeURIComponent(rawBook);
+  const bookSlug = slugService.livroParaSlug(decodedBook);
+  const bookName = slugService.slugParaLivro(bookSlug);
+
+  // Ensure URL uses canonical slug (avoid encoded names)
+  useEffect(() => {
+    try {
+      if (!book || !bookSlug) return;
+      if (book !== bookSlug) {
+        const search = window.location.search || '';
+        const newUrl = `/explicacao/${testament}/${bookSlug}/${chapter}${search}`;
+        window.history.replaceState({}, '', newUrl);
+      }
+    } catch {}
+  }, [book, bookSlug, testament, chapter]);
+
   // Extract verses from query string if they exist
   const versesParam = searchParams.get('verses');
   const selectedVerses = versesParam ? versesParam.split(',').map(Number) : [];
@@ -51,7 +71,7 @@ function BibleExplanationContent() {
     // Function to load original Bible verse texts
     const loadOriginalVerses = async () => {
       try {
-        if (!testament || !book || !chapter) return;
+        if (!testament || !bookSlug || !chapter) return;
         
         const bibleService = BibleService.getInstance();
         
@@ -63,13 +83,13 @@ function BibleExplanationContent() {
         if (selectedVerses.length > 0) {
           for (const verseNumber of selectedVerses) {
             // Simulation - replace with real API or service call
-            verseTexts[verseNumber] = `Original text for verse ${verseNumber} of ${book} ${chapter}.`;
+            verseTexts[verseNumber] = `Original text for verse ${verseNumber} of ${bookName} ${chapter}.`;
           }
         } else {
           // Simulate loading all verses from the chapter
           const verseCount = 30; // Placeholder - get real number from BibleService
           for (let i = 1; i <= verseCount; i++) {
-            verseTexts[i] = `Original text for verse ${i} of ${book} ${chapter}.`;
+            verseTexts[i] = `Original text for verse ${i} of ${bookName} ${chapter}.`;
           }
         }
         
@@ -92,7 +112,7 @@ function BibleExplanationContent() {
         
         // API call to backend with correct parameter names for Laravel
         const response = await fetch(
-          `/api/explanation/${testament}/${book}/${chapter}?${params.toString()}`
+          `/api/explanation/${testament}/${bookSlug}/${chapter}?${params.toString()}`
         );
         
         if (!response.ok) {
@@ -132,16 +152,16 @@ function BibleExplanationContent() {
 
     loadOriginalVerses();
     generateExplanations();
-  }, [testament, book, chapter, selectedVerses]);
+  }, [testament, bookSlug, chapter, selectedVerses]);
 
   const copyContent = () => {
     let textToCopy = "";
     
     if (chapterExplanation) {
-      textToCopy = `Explanation of ${book} ${chapter}\n\n${chapterExplanation}`;
+      textToCopy = `Explanation of ${bookName} ${chapter}\n\n${chapterExplanation}`;
     } else {
       for (const verse of selectedVerses) {
-        textToCopy += `${book} ${chapter}:${verse}\n`;
+        textToCopy += `${bookName} ${chapter}:${verse}\n`;
         textToCopy += `${originalVerses[verse] || ''}\n\n`;
         textToCopy += `Explanation:\n${verseExplanations[verse] || ''}\n\n`;
       }
@@ -159,10 +179,10 @@ function BibleExplanationContent() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Explanation of ${book} ${chapter}`,
+          title: `Explanation of ${bookName} ${chapter}`,
           text: selectedVerses.length > 0 
-            ? `Explanation of verses ${selectedVerses.join(', ')} from ${book} ${chapter}`
-            : `Complete explanation of ${book} ${chapter}`,
+            ? `Explanation of verses ${selectedVerses.join(', ')} from ${bookName} ${chapter}`
+            : `Complete explanation of ${bookName} ${chapter}`,
           url: window.location.href,
         });
       } catch (error) {
@@ -190,7 +210,7 @@ function BibleExplanationContent() {
         
         <h1 className="text-2xl font-bold flex items-center">
           <Book className="mr-2 text-primary" size={24} />
-          {book} {chapter}
+          {bookName} {chapter}
           {selectedVerses.length > 0 && (
             <span className="ml-2 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
               Verse{selectedVerses.length > 1 ? 's' : ''} {selectedVerses.join(', ')}
@@ -244,7 +264,7 @@ function BibleExplanationContent() {
           <>
             {chapterExplanation ? (
               <FullChapterExplanation 
-                book={book || ''} 
+                book={bookName || ''} 
                 chapter={chapter || ''} 
                 explanation={chapterExplanation}
                 explanationSource={explanationSource}
@@ -254,7 +274,7 @@ function BibleExplanationContent() {
                 verses={selectedVerses} 
                 explanations={verseExplanations}
                 originalVerses={originalVerses}
-                book={book || ''}
+                book={bookName || ''}
                 chapter={chapter || ''}
                 explanationSource={explanationSource}
               />

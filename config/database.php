@@ -94,7 +94,8 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
             'search_path' => 'public',
-            'sslmode' => 'require',
+            // Allow configuring SSL mode via .env. For local Sail, set DB_SSLMODE=disable or prefer.
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
             'options' => extension_loaded('pdo_pgsql') ? array_filter([
                 PDO::ATTR_EMULATE_PREPARES => true,
             ]) : [],

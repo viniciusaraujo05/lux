@@ -1,5 +1,6 @@
 import React from 'react';
 import { Gift, Heart } from 'lucide-react';
+import { Link } from '@inertiajs/react';
 
 interface DonateButtonProps {
   size?: 'sm' | 'md' | 'lg';
@@ -28,44 +29,38 @@ const DonateButton: React.FC<DonateButtonProps> = ({
   // Renderizar botão baseado na variante
   if (variant === 'icon') {
     return (
-      <a 
-        href="https://buymeacoffee.com/viniciusaraujo" 
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link 
+        href="/ofertar"
         className={`text-blue-400 hover:text-blue-300 transition-colors ${className}`}
         aria-label="Ofertar"
         title="Ofertar e Contribuir com a Obra"
       >
         <Gift className={iconSizes[size]} />
-      </a>
+      </Link>
     );
   }
   
   if (variant === 'text') {
     return (
-      <a 
-        href="https://buymeacoffee.com/viniciusaraujo" 
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link 
+        href="/ofertar"
         className={`text-blue-400 hover:text-blue-300 font-medium transition-colors ${className}`}
         aria-label="Ofertar"
       >
         Ofertar
-      </a>
+      </Link>
     );
   }
   
   // Variante padrão: full
   return (
-    <a 
-      href="https://buymeacoffee.com/viniciusaraujo" 
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link 
+      href="/ofertar"
       className={`flex items-center justify-center bg-blue-700 hover:bg-blue-800 text-white rounded-md transition-colors font-semibold ${buttonSizes[size]} ${className}`}
     >
       <Gift className={`${iconSizes[size]} mr-2`} />
       Ofertar Agora
-    </a>
+    </Link>
   );
 };
 

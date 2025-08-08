@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Models\BibleExplanation;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Cache;
 
 class SeoController extends Controller
@@ -76,7 +76,7 @@ class SeoController extends Controller
             
             foreach ($livrosTestamento as $livro) {
                 $urls[] = [
-                    'loc' => url("/biblia/{$testamento}/{$livro}"),
+                    'loc' => url("/biblia/{$testamento}/" . Str::slug($livro, '-')),
                     'priority' => '0.8',
                     'changefreq' => 'monthly'
                 ];
@@ -85,7 +85,7 @@ class SeoController extends Controller
                 
                 for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
                     $urls[] = [
-                        'loc' => url("/biblia/{$testamento}/{$livro}/{$capitulo}"),
+                        'loc' => url("/biblia/{$testamento}/" . Str::slug($livro, '-') . "/{$capitulo}"),
                         'priority' => '0.7',
                         'changefreq' => 'monthly'
                     ];

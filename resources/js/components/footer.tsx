@@ -47,6 +47,14 @@ const Footer: React.FC = () => {
                   Perguntas Frequentes
                 </Link>
               </li>
+              <li>
+                <Link 
+                  href="/ofertar" 
+                  className="text-sm text-gray-600 dark:text-gray-300 hover:text-primary transition-colors"
+                >
+                  Ofertar
+                </Link>
+              </li>
             </ul>
           </div>
 

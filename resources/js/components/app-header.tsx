@@ -11,7 +11,7 @@ import { useInitials } from '@/hooks/use-initials';
 import { cn } from '@/lib/utils';
 import { type BreadcrumbItem, type NavItem, type SharedData } from '@/types';
 import { Link, usePage } from '@inertiajs/react';
-import { BookOpen, Folder, LayoutGrid, Menu, Search, Info, HelpCircle } from 'lucide-react';
+import { BookOpen, Folder, LayoutGrid, Menu, Search, Info, HelpCircle, Gift } from 'lucide-react';
 import AppLogo from './app-logo';
 import AppLogoIcon from './app-logo-icon';
 import ThemeToggleButton from './ThemeToggleButton';
@@ -31,6 +31,11 @@ const mainNavItems: NavItem[] = [
         title: 'FAQ',
         href: '/faq',
         icon: HelpCircle,
+    },
+    {
+        title: 'Ofertar',
+        href: '/ofertar',
+        icon: Gift,
     },
 ];
 

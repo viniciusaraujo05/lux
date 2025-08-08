@@ -2,6 +2,8 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Str;
+
 class SchemaService
 {
     /**
@@ -89,6 +91,7 @@ class SchemaService
     {
         $testimonyLabel = $testament == 'antigo' ? 'Antigo Testamento' : 'Novo Testamento';
         $bookLabel = ucfirst($book);
+        $bookSlug = Str::slug($book, '-');
         
         $items = [
             [
@@ -107,13 +110,13 @@ class SchemaService
                 '@type' => 'ListItem',
                 'position' => 3,
                 'name' => $bookLabel,
-                'item' => url("/biblia/{$testament}/{$book}")
+                'item' => url("/biblia/{$testament}/{$bookSlug}")
             ],
             [
                 '@type' => 'ListItem',
                 'position' => 4,
                 'name' => "Capítulo {$chapter}",
-                'item' => url("/biblia/{$testament}/{$book}/{$chapter}")
+                'item' => url("/biblia/{$testament}/{$bookSlug}/{$chapter}")
             ]
         ];
         
@@ -122,7 +125,7 @@ class SchemaService
                 '@type' => 'ListItem',
                 'position' => 5,
                 'name' => "Versículos {$verses}",
-                'item' => url("/explicacao/{$testament}/{$book}/{$chapter}?verses={$verses}")
+                'item' => url("/explicacao/{$testament}/{$bookSlug}/{$chapter}?verses={$verses}")
             ];
         }
         

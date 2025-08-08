@@ -13,13 +13,14 @@ import Footer from '@/components/footer';
 import DonateButton from '@/components/donate-button';
 // Removed Lottie Player to use Lucide Bird icon
 // import { Player } from '@lottiefiles/react-lottie-player';
+import SlugService from '@/services/SlugService';
 
 const DynamicLoading: FC = () => {
   const messages = [
     "Buscando as melhores informações...",
     "Analisando contexto histórico...",
     "Interpretando versos...",
-    "Gerando insights teológicos...",
+    "Buscando comentarios bíblicos...",
     "Quase lá, só um instante..."
   ];
   const [index, setIndex] = useState(0);
@@ -346,6 +347,8 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   const isMobile = useMediaQuery('(max-width: 640px)');
   const { testamento, livro: book, capitulo: chapter } = props;
+  const slugService = SlugService.getInstance();
+  const bookSlug = slugService.livroParaSlug(book);
 
   function extractVerses() {
     if (typeof window === 'undefined') return props.versos || null;
@@ -369,7 +372,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     async function fetchExplanation() {
       setLoading(true);
       try {
-        let apiUrl = `/api/explanation/${testamento}/${book}/${chapter}`;
+        let apiUrl = `/api/explanation/${testamento}/${bookSlug}/${chapter}`;
         if (verses) {
           apiUrl += `?verses=${verses}`;
         }
@@ -402,7 +405,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
         if (data.id) fetchFeedbackStats(data.id);
 
         if (verses) {
-          const slugifiedBook = encodeURIComponent(book);
+          const slugifiedBook = bookSlug;
           const slug = verses + '-explicacao-biblica';
           const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}/${slug}`;
           if (window.location.pathname !== expectedPath) {
@@ -417,16 +420,16 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       }
     }
     fetchExplanation();
-  }, [testamento, book, chapter, verses]);
+  }, [testamento, bookSlug, chapter, verses]);
 
   // SEO and other side effects
   useEffect(() => {
     // ... (fetchSeoMetadata, fetchRelatedLinks can be called here)
-  }, [testamento, book, chapter, verses]);
+  }, [testamento, bookSlug, chapter, verses]);
 
   const navigateToVerse = (verseNumber: number) => {
     if (verseNumber < 1 || verseNumber > maxVerses) return;
-    window.location.href = `/explicacao/${testamento}/${book}/${chapter}?versiculos=${verseNumber}`;
+    window.location.href = `/explicacao/${testamento}/${bookSlug}/${chapter}?verses=${verseNumber}`;
   };
 
   const navigateToNextVerse = () => {
@@ -500,7 +503,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
         <div className="container max-w-4xl mx-auto p-2 sm:p-4">
           <header className="mb-3 sm:mb-6 flex items-center justify-between bg-card text-card-foreground shadow-sm rounded-lg p-2 sm:p-4 sticky top-2 z-10">
             <div className="flex items-center gap-4">
-              <button onClick={() => window.location.href = `/biblia/${testamento}/${book}/${chapter}`} className="text-indigo-600 hover:text-indigo-800" aria-label="Voltar">
+              <button onClick={() => window.history.back()} className="text-indigo-600 hover:text-indigo-800" aria-label="Voltar">
                 <ChevronLeft size={isMobile ? 18 : 22} />
               </button>
               <h1 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200 truncate max-w-[150px] sm:max-w-full">

@@ -67,7 +67,7 @@ class BibleExplanationService
                 'chapter' => $chapter,
                 'verses' => $verses,
                 'explanation_text' => $explanationJson, // Storing JSON string
-                'source' => 'gpt-4-json', // New source identifier
+                'source' => config('ai.openai.model', 'openai') . '-json', // Source identifier from configured model
                 'access_count' => 1,
             ]);
 
@@ -75,7 +75,7 @@ class BibleExplanationService
                 'id' => $newExplanation->id,
                 'origin' => 'api',
                 'explanation' => json_decode($explanationJson, true), // Decode for frontend
-                'source' => 'gpt-4-json',
+                'source' => config('ai.openai.model', 'openai') . '-json',
             ];
         });
     }
@@ -96,14 +96,14 @@ class BibleExplanationService
         try {
             $prompt = $this->buildPrompt($testament, $book, $chapter, $verses);
 
-            $systemMessage = 'Você é um especialista em teologia e estudos bíblicos. Sua tarefa é gerar uma explicação detalhada de uma passagem bíblica e retornar a resposta ESTRITAMENTE em formato JSON. NÃO inclua nenhuma mensagem introdutória ou texto fora do objeto JSON.';
+            $systemMessage = 'Você é um especialista em teologia e estudos bíblicos. Responda ESTRITAMENTE com um único objeto JSON válido. NÃO use markdown, NÃO use cercas de código (```), NÃO inclua texto antes ou depois do JSON. O retorno deve ser apenas o objeto JSON.';
 
             $messages = [
                 ['role' => 'system', 'content' => $systemMessage],
                 ['role' => 'user', 'content' => $prompt],
             ];
 
-            $responseContent = $client->chat($messages, 4000);
+            $responseContent = $client->chat($messages, 7000);
 
             // 1. Extrair o JSON do bloco de markdown, se houver
             if (preg_match('/```json\s*({.*?})\s*```/s', $responseContent, $matches)) {
@@ -112,8 +112,16 @@ class BibleExplanationService
                 $jsonString = $responseContent;
             }
 
-            // 2. Validar o JSON
+            // 2. Validar o JSON (com tentativa de reparo em caso de truncamento)
             $decodedJson = json_decode($jsonString, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                // Tentar reparar extraindo o maior prefixo JSON balanceado
+                $repaired = $this->tryRepairJson($jsonString);
+                if ($repaired !== null) {
+                    $jsonString = $repaired;
+                    $decodedJson = json_decode($jsonString, true);
+                }
+            }
             if (json_last_error() !== JSON_ERROR_NONE) {
                 Log::error('Invalid JSON received from API', ['json_error' => json_last_error_msg(), 'content' => $jsonString]);
                 throw new \Exception('A API retornou um JSON inválido.');
@@ -167,6 +175,8 @@ class BibleExplanationService
             - Baseie-se em teólogos confiáveis (John Stott, R.C. Sproul, F.F. Bruce, Martyn Lloyd-Jones, Craig Keener, Hernandes Dias Lopes, Augustus Nicodemus) e fontes acadêmicas (NICOT/NICNT, Word Biblical Commentary).
             - Mantenha fidelidade às Escrituras e ao contexto original.
             - Não repita informações entre as seções do JSON.
+            - NÃO use markdown e NÃO use cercas de código (```); retorne apenas um ÚNICO objeto JSON válido.
+            - Seja conciso: limite cada campo textual a 2-3 frases no máximo; listas/arrays devem ter no máximo 3 itens; em "analises", inclua no máximo 3 objetos.
             - {$specificInstructions}
 
             ESTRUTURA JSON DE RETORNO OBRIGATÓRIA:
@@ -226,6 +236,58 @@ EOD;
         "interprete_luz_de_cristo": { "introducao": "string", "conexao": "string" }
         }
         JSON;
+    }
+
+    /**
+     * Tenta reparar um JSON possivelmente truncado, retornando o maior prefixo
+     * com chaves balanceadas. Ignora chaves dentro de strings com escaping básico.
+     * Retorna null se não for possível reparar.
+     */
+    private function tryRepairJson(string $text): ?string
+    {
+        $start = strpos($text, '{');
+        if ($start === false) {
+            return null;
+        }
+        $inString = false;
+        $escape = false;
+        $depth = 0;
+        $lastBalanced = null;
+        $len = strlen($text);
+        for ($i = $start; $i < $len; $i++) {
+            $ch = $text[$i];
+            if ($inString) {
+                if ($escape) {
+                    $escape = false;
+                } elseif ($ch === '\\') {
+                    $escape = true;
+                } elseif ($ch === '"') {
+                    $inString = false;
+                }
+                continue;
+            }
+            if ($ch === '"') {
+                $inString = true;
+                continue;
+            }
+            if ($ch === '{') {
+                $depth++;
+            } elseif ($ch === '}') {
+                $depth--;
+                if ($depth === 0) {
+                    $lastBalanced = $i;
+                    // Poderia haver mais objetos depois; continue para pegar o maior
+                }
+            }
+        }
+        if ($lastBalanced !== null) {
+            $candidate = substr($text, $start, $lastBalanced - $start + 1);
+            $decoded = json_decode($candidate, true);
+            if (json_last_error() === JSON_ERROR_NONE) {
+                return $candidate;
+            }
+        }
+        return null;
     }
 
     private function getChapterSummaryJsonStructure()

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\BibleExplanation;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class RelatedContentService
 {
@@ -96,7 +97,7 @@ class RelatedContentService
         
         foreach ($relatedBooks as $relatedBook) {
             $relatedLinks[] = [
-                'url' => "/biblia/{$testament}/{$relatedBook['book']}",
+                'url' => "/biblia/{$testament}/" . Str::slug($relatedBook['book'], '-'),
                 'title' => ucfirst($relatedBook['book']) . " - {$relatedBook['description']}",
                 'type' => 'book',
                 'relation' => $relatedBook['relation'] ?? 'context'

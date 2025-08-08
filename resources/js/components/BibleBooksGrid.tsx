@@ -41,6 +41,9 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   // Verificar se é dispositivo móvel
   const isMobile = useMediaQuery('(max-width: 640px)');
 
+  // Normaliza o testamento para as rotas de explicação (backend usa 'antigo' | 'novo')
+  const toExplanationTestament = (t: 'velho' | 'novo'): 'antigo' | 'novo' => (t === 'velho' ? 'antigo' : 'novo');
+
   // Carrega os livros quando o componente é montado
   useEffect(() => {
     const loadBooks = async () => {
@@ -195,8 +198,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       
       // Atualizar a URL do navegador
       window.history.pushState(
-        { testament: activeTestament, book: selectedBook, chapter }, 
-        '', 
+        { testament: activeTestament, book: selectedBook, chapter },
+        '',
         `/biblia/${activeTestament}/${bookSlug}/${chapter}`
       );
       
@@ -224,10 +227,11 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       setSelectionMode(false);
       
       // Atualizar a URL do navegador
+      const backBookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
       window.history.pushState(
-        { testament: activeTestament, book: selectedBook }, 
-        '', 
-        `/biblia/${activeTestament}/${selectedBook}`
+        { testament: activeTestament, book: selectedBook },
+        '',
+        `/biblia/${activeTestament}/${backBookSlug}`
       );
     } else if (selectedBook !== null) {
       // Voltar para a seleção de livros
@@ -491,8 +495,10 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
                 onClick={() => {
+                  setLoading(true);
                   const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
-window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedChapter}`;
+                  const expTestament = toExplanationTestament(activeTestament);
+                  window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}`;
                 }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
@@ -534,8 +540,8 @@ window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedCha
                       const versiculosParam = selectedVerses.join(',');
                       
                       const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
-                      
-                      window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedChapter}?versiculos=${versiculosParam}`;
+                      const expTestament = toExplanationTestament(activeTestament);
+                      window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}?versiculos=${versiculosParam}`;
                     }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -561,15 +567,17 @@ window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedCha
                     onClick={() => {
                       if (selectionMode) {
                         // Modo de seleção: toggle de versículos selecionados
-                        setSelectedVerses(prev => 
-                          isSelected 
-                            ? prev.filter(v => v !== verse) 
+                        setSelectedVerses(prev =>
+                          isSelected
+                            ? prev.filter(v => v !== verse)
                             : [...prev, verse].sort((a, b) => a - b)
                         );
                       } else {
                         // Modo normal: navegar para explicação de versículo único
+                        setLoading(true);
                         const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
-                        window.location.href = `/explicacao/${activeTestament}/${bookSlug}/${selectedChapter}?versiculos=${verse}`;
+                        const expTestament = toExplanationTestament(activeTestament);
+                        window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}?verses=${verse}`;
                       }
                     }}
                   >

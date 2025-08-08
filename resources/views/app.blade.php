@@ -43,14 +43,25 @@
         <!-- Meta tags para SEO -->
         <meta name="description" content="{{ isset($description) ? $description : 'Verso a Verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta name="keywords" content="{{ isset($keywords) ? $keywords : 'bíblia, explicação bíblica, estudo bíblico, versículos da bíblia, verso a verso, comentário bíblico' }}">
+        <meta name="robots" content="{{ $robots ?? 'index, follow' }}">
         <meta name="author" content="Verso a verso">
+        <link rel="canonical" href="{{ $canonicalUrl ?? url()->current() }}" />
+        <link rel="alternate" hreflang="pt-br" href="{{ $canonicalUrl ?? url()->current() }}" />
+        @if(isset($ampUrl))
+            <link rel="amphtml" href="{{ $ampUrl }}" />
+        @endif
         
         <!-- Open Graph / Facebook -->
-        <meta property="og:type" content="website">
+        <meta property="og:type" content="{{ $ogType ?? 'website' }}">
+        <meta property="og:locale" content="pt_BR">
         <meta property="og:url" content="{{ url()->current() }}">
         <meta property="og:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}">
         <meta property="og:description" content="{{ isset($description) ? $description : 'Verso a verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta property="og:image" content="{{ asset('logo.svg') }}">
+        @if(($ogType ?? null) === 'article')
+            <meta property="article:published_time" content="{{ now()->toIso8601String() }}">
+            <meta property="article:modified_time" content="{{ now()->toIso8601String() }}">
+        @endif
         
         <!-- Twitter -->
         <meta property="twitter:card" content="summary_large_image">
@@ -65,6 +76,10 @@
         
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
+
+        @if(isset($jsonLd))
+            <script type="application/ld+json">{!! $jsonLd !!}</script>
+        @endif
 
         @routes
         @viteReactRefresh
