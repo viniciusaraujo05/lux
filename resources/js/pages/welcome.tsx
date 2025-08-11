@@ -1,24 +1,38 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { SITE_NAME, SITE_TAGLINE } from '@/lib/siteMetadata';
 import { Head } from '@inertiajs/react';
-import BibleBooksGrid from '@/components/BibleBooksGrid';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
 import Footer from '@/components/footer';
 import DonateButton from '@/components/donate-button';
-import { Gift, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
+
+// Lazy-load the heavy grid to reduce initial bundle size
+const BibleBooksGrid = React.lazy(() => import('@/components/BibleBooksGrid'));
+
+// Lightweight skeleton while the grid loads
+const GridSkeleton: React.FC = () => (
+  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+    {Array.from({ length: 12 }).map((_, i) => (
+      <div key={i} className="h-10 rounded-md bg-muted/60 animate-pulse" />
+    ))}
+  </div>
+);
 
 // Frase de orientação
-const CTA = () => (
-  <motion.p
-    className="text-base md:text-lg text-primary font-medium text-center mb-6"
-    initial={{ opacity: 0, y: 10 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ delay: 0.7, duration: 0.6 }}
-  >
-    Escolha um livro para começar os seus estudos
-  </motion.p>
-);
+const CTA: React.FC = () => {
+  const reduce = useReducedMotion();
+  return (
+    <motion.p
+      className="text-base md:text-lg text-primary font-medium text-center mb-6"
+      initial={reduce ? false : { opacity: 0, y: 10 }}
+      animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
+      transition={{ delay: 0.7, duration: 0.6 }}
+    >
+      Escolha um livro para começar os seus estudos
+    </motion.p>
+  );
+};
 
 interface WelcomeProps {
   testamento?: string;
@@ -27,10 +41,13 @@ interface WelcomeProps {
 }
 
 export default function Welcome(props: WelcomeProps) {
+  const reduce = useReducedMotion();
   return (
     <>
       <Head title={`${SITE_NAME} - ${SITE_TAGLINE}`}>
         <link rel="preconnect" href="https://fonts.bunny.net" />
+        <link rel="preconnect" href="https://fonts.bunny.net" crossOrigin="anonymous" />
+        <meta name="description" content="Estudos bíblicos claros e profundos. Explore livros, capítulos e versículos com explicações organizadas e práticas." />
         <link href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600" rel="stylesheet" />
       </Head>
       <ThemeToggleButton />
@@ -39,23 +56,23 @@ export default function Welcome(props: WelcomeProps) {
           <header className="mb-8 md:mb-12">
             <motion.h1
               className="text-3xl md:text-4xl font-bold tracking-tight mb-2 text-center"
-              initial={{ opacity: 0, y: -30 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={reduce ? false : { opacity: 0, y: -30 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
             >
               {SITE_NAME} - {SITE_TAGLINE}
             </motion.h1>
             <motion.p
               className="text-lg text-muted-foreground text-center"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={reduce ? false : { opacity: 0, y: -10 }}
+              animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0 }}
               transition={{ delay: 0.3, duration: 0.6 }}
             >
             </motion.p>
             
             <motion.div
               className="flex justify-center mt-4"
-              initial={{ opacity: 0 }}
+              initial={reduce ? false : { opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.9, duration: 0.6 }}
             >
@@ -71,15 +88,17 @@ export default function Welcome(props: WelcomeProps) {
           <CTA />
           <motion.main
             className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 md:p-6 lg:p-8"
-            initial={{ opacity: 0, scale: 0.97 }}
+            initial={reduce ? false : { opacity: 0, scale: 0.97 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 1, duration: 0.7 }}
           >
-            <BibleBooksGrid 
-              initialTestament={props.testamento as 'velho' | 'novo' | undefined}
-              initialBook={props.livro}
-              initialChapter={props.capitulo ? parseInt(props.capitulo) : undefined}
-            />
+            <Suspense fallback={<GridSkeleton />}>
+              <BibleBooksGrid 
+                initialTestament={props.testamento as 'velho' | 'novo' | undefined}
+                initialBook={props.livro}
+                initialChapter={props.capitulo ? parseInt(props.capitulo) : undefined}
+              />
+            </Suspense>
           </motion.main>
         </div>
         <Footer />

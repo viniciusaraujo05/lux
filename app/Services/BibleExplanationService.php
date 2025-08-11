@@ -18,7 +18,7 @@ class BibleExplanationService
      * @param  string|null  $verses
      * @return array
      */
-    public function getExplanation($testament, $book, $chapter, $verses = null)
+    public function getExplanation($testestament, $book, $chapter, $verses = null)
     {
         // Normalize the verses string (sort and remove duplicates)
         if ($verses) {
@@ -29,55 +29,75 @@ class BibleExplanationService
             $verses = implode(',', $versesArray);
         }
 
+        $testament = $testestament; // keep original param name but normalize variable usage
         $cacheKey = "bible_explanation:{$testament}:{$book}:{$chapter}:" . ($verses ?? 'all');
         $ttl = 60 * 60 * 24; // 24h
 
-        return Cache::remember($cacheKey, $ttl, function () use ($testament, $book, $chapter, $verses) {
-            // Find in database
-            $explanation = BibleExplanation::where([
-                'testament' => $testament,
-                'book' => $book,
-                'chapter' => $chapter,
-                'verses' => $verses,
-            ])->first();
+        // 1) Cache first
+        $cached = Cache::get($cacheKey);
+        if (is_array($cached)) {
+            return $cached;
+        }
 
-            if ($explanation) {
-                $explanation->incrementAccessCount();
+        // 2) Database lookup
+        $explanation = BibleExplanation::where([
+            'testament' => $testament,
+            'book' => $book,
+            'chapter' => $chapter,
+            'verses' => $verses,
+        ])->first();
 
-                $decodedExplanation = json_decode($explanation->explanation_text, true);
-                if (json_last_error() !== JSON_ERROR_NONE) {
-                    $decodedExplanation = $explanation->explanation_text;
-                }
+        if ($explanation) {
+            $explanation->incrementAccessCount();
 
-                return [
-                    'id' => $explanation->id,
-                    'origin' => 'cache',
-                    'explanation' => $decodedExplanation,
-                    'source' => $explanation->source,
-                ];
+            $decodedExplanation = json_decode($explanation->explanation_text, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $decodedExplanation = $explanation->explanation_text;
             }
 
-            // Otherwise, generate a new explanation
-            $explanationJson = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
-
-            // Save to database
-            $newExplanation = BibleExplanation::create([
-                'testament' => $testament,
-                'book' => $book,
-                'chapter' => $chapter,
-                'verses' => $verses,
-                'explanation_text' => $explanationJson, // Storing JSON string
-                'source' => config('ai.openai.model', 'openai') . '-json', // Source identifier from configured model
-                'access_count' => 1,
-            ]);
-
-            return [
-                'id' => $newExplanation->id,
-                'origin' => 'api',
-                'explanation' => json_decode($explanationJson, true), // Decode for frontend
-                'source' => config('ai.openai.model', 'openai') . '-json',
+            $result = [
+                'id' => $explanation->id,
+                'origin' => 'cache',
+                'explanation' => $decodedExplanation,
+                'source' => $explanation->source,
             ];
-        });
+            Cache::put($cacheKey, $result, $ttl);
+            return $result;
+        }
+
+        // 3) Generate via AI
+        $explanationJson = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
+
+        $decoded = json_decode($explanationJson, true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && ($decoded['type'] ?? null) === 'error') {
+            // Fallback content: do NOT persist or cache
+            return [
+                'id' => null,
+                'origin' => 'fallback',
+                'explanation' => $decoded,
+                'source' => 'fallback',
+            ];
+        }
+
+        // 4) Persist successful explanation and cache it
+        $newExplanation = BibleExplanation::create([
+            'testament' => $testament,
+            'book' => $book,
+            'chapter' => $chapter,
+            'verses' => $verses,
+            'explanation_text' => $explanationJson, // Storing JSON string
+            'source' => config('ai.openai.model', 'openai') . '-json', // Source identifier from configured model
+            'access_count' => 1,
+        ]);
+
+        $result = [
+            'id' => $newExplanation->id,
+            'origin' => 'api',
+            'explanation' => json_decode($explanationJson, true), // Decode for frontend
+            'source' => config('ai.openai.model', 'openai') . '-json',
+        ];
+        Cache::put($cacheKey, $result, $ttl);
+        return $result;
     }
 
     /**

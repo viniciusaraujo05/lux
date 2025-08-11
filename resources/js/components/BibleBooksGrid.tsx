@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import BibleService from "@/services/BibleService";
 import SlugService from "@/services/SlugService";
 import { ChevronLeft, Home, Book, Bookmark, Search } from "lucide-react";
 import { motion } from 'framer-motion';
-import { useMediaQuery } from "@/hooks/useMediaQuery";
 
 // Definindo os estados de navegação possíveis
 type NavigationState = 'testamentos' | 'livros' | 'capitulos' | 'versiculos';
@@ -14,6 +13,14 @@ interface BibleBooksGridProps {
   initialBook?: string;
   initialChapter?: number;
 }
+
+const NAV_STATE_KEY = 'verbum:bible_nav_state';
+type SavedNavState = {
+  testament: 'velho' | 'novo';
+  book: string | null;
+  chapter: number | null;
+  selectedVerses: number[];
+};
 
 export default function BibleBooksGrid({ initialTestament, initialBook, initialChapter }: BibleBooksGridProps) {
   // Estados para armazenar os dados da Bíblia
@@ -31,18 +38,28 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]); // Versículos selecionados para explicação
   const [selectionMode, setSelectionMode] = useState<boolean>(false); // Modo de seleção de versículos
   
-  // Estado para controlar animações
-  const [animationDirection, setAnimationDirection] = useState<'forward' | 'backward'>('forward');
-  
   // Instâncias dos serviços
   const bibleService = BibleService.getInstance();
   const slugService = SlugService.getInstance();
   
-  // Verificar se é dispositivo móvel
-  const isMobile = useMediaQuery('(max-width: 640px)');
-
   // Normaliza o testamento para as rotas de explicação (backend usa 'antigo' | 'novo')
   const toExplanationTestament = (t: 'velho' | 'novo'): 'antigo' | 'novo' => (t === 'velho' ? 'antigo' : 'novo');
+
+  // Helper para persistir o estado atual no localStorage (com possibilidade de override)
+  const persistNavState = (overrides?: Partial<SavedNavState>) => {
+    try {
+      const payload: SavedNavState = {
+        testament: activeTestament,
+        book: selectedBook,
+        chapter: selectedChapter,
+        selectedVerses,
+        ...(overrides || {}),
+      } as SavedNavState;
+      localStorage.setItem(NAV_STATE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      void e;
+    }
+  };
 
   // Carrega os livros quando o componente é montado
   useEffect(() => {
@@ -76,6 +93,49 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             // Definir o estado de navegação como 'capitulos'
             setNavState('capitulos');
           }
+        } else {
+          // Restaurar estado salvo do localStorage, se existir
+          try {
+            const savedRaw = localStorage.getItem(NAV_STATE_KEY);
+            if (savedRaw) {
+              const saved: SavedNavState = JSON.parse(savedRaw);
+              if (saved.testament) setActiveTestament(saved.testament);
+              if (saved.book) {
+                setSelectedBook(saved.book);
+                const chs = await bibleService.getCapitulos(saved.book, saved.testament);
+                setChapters(chs);
+                if (saved.chapter !== null && saved.chapter !== undefined) {
+                  setSelectedChapter(saved.chapter);
+                  const vs = await bibleService.getVersiculos(saved.book, saved.chapter, saved.testament);
+                  setVerses(vs);
+                  setNavState('versiculos');
+                } else {
+                  setNavState('capitulos');
+                }
+              } else {
+                setNavState('livros');
+              }
+              // Sincroniza URL com o estado salvo
+              const bookSlug = saved.book ? slugService.livroParaSlug(saved.book) : '';
+              if (saved.book && saved.chapter !== null && saved.chapter !== undefined) {
+                window.history.replaceState(
+                  { testament: saved.testament, book: saved.book, chapter: saved.chapter },
+                  '',
+                  `/biblia/${saved.testament}/${bookSlug}/${saved.chapter}`
+                );
+              } else if (saved.book) {
+                window.history.replaceState(
+                  { testament: saved.testament, book: saved.book },
+                  '',
+                  `/biblia/${saved.testament}/${bookSlug}`
+                );
+              } else {
+                window.history.replaceState({}, '', `/biblia`);
+              }
+            }
+          } catch (e) {
+            void e; // Silencia erros de localStorage
+          }
         }
         
         setLoading(false);
@@ -87,7 +147,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     };
 
     loadBooks();
-  }, [initialTestament, initialBook, initialChapter]);
+  }, [initialTestament, initialBook, initialChapter, bibleService, slugService]);
 
   // Carrega os capítulos quando um livro é selecionado
   useEffect(() => {
@@ -111,7 +171,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     };
 
     loadChapters();
-  }, [selectedBook, activeTestament]);
+  }, [selectedBook, activeTestament, bibleService]);
 
   // Carrega os versículos quando um capítulo é selecionado
   useEffect(() => {
@@ -133,23 +193,78 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     };
 
     loadVerses();
-  }, [selectedBook, selectedChapter, activeTestament]);
+  }, [selectedBook, selectedChapter, activeTestament, bibleService]);
 
-  // Funções de navegação simplificadas sem animações problemáticas
-  const navigateToBooks = (testament: 'velho' | 'novo') => {
-    // Defina o estado primeiro, depois mude a navegação
-    setActiveTestament(testament);
-    setSelectedBook(null);
-    setSelectedChapter(null);
-    setVerses([]);
-    setTimeout(() => {
-      setNavState('livros');
-    }, 10); // Pequeno delay para garantir que a mudança de estado seja processada
-  };
+  // Persiste o estado de navegação no localStorage
+  useEffect(() => {
+    const saved: SavedNavState = {
+      testament: activeTestament,
+      book: selectedBook,
+      chapter: selectedChapter,
+      selectedVerses,
+    };
+    try {
+      localStorage.setItem(NAV_STATE_KEY, JSON.stringify(saved));
+    } catch (e) {
+      void e; // ignore quota or serialization errors
+    }
+  }, [activeTestament, selectedBook, selectedChapter, selectedVerses]);
+
+  // Sincroniza com o botão de voltar/avançar do navegador
+  useEffect(() => {
+    const applyRoute = async (path: string) => {
+      if (!path.startsWith('/biblia')) return;
+      const parts = path.split('/').filter(Boolean);
+      // '/biblia'
+      if (parts.length === 1) {
+        setSelectedBook(null);
+        setSelectedChapter(null);
+        setChapters([]);
+        setVerses([]);
+        setNavState('livros');
+        return;
+      }
+      // '/biblia/{testamento}/{livro}' ou '/biblia/{testamento}/{livro}/{capitulo}'
+      if (parts.length >= 3) {
+        const testament = (parts[1] === 'velho' ? 'velho' : 'novo') as 'velho' | 'novo';
+        const bookSlug = parts[2];
+        const book = slugService.slugParaLivro(bookSlug);
+        setActiveTestament(testament);
+        setSelectedBook(book);
+        try {
+          setLoading(true);
+          const chs = await bibleService.getCapitulos(book, testament);
+          setChapters(chs);
+          if (parts.length >= 4) {
+            const chapter = parseInt(parts[3], 10);
+            setSelectedChapter(chapter);
+            const vs = await bibleService.getVersiculos(book, chapter, testament);
+            setVerses(vs);
+            setNavState('versiculos');
+          } else {
+            setSelectedChapter(null);
+            setVerses([]);
+            setNavState('capitulos');
+          }
+        } catch (e) {
+          console.error('Erro ao sincronizar URL:', e);
+          setError('Não foi possível sincronizar a navegação.');
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    const onPop = () => applyRoute(window.location.pathname);
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [bibleService, slugService]);
+
+  // Funções de navegação (simplificadas após redesign)
+  // (removido) navigateToBooks não é necessário na UI atual
 
   // Função para navegar para os capítulos de um livro
   const navigateToChapters = async (book: string) => {
-    setAnimationDirection('forward');
     setLoading(true);
     setSelectedBook(book);
     setSelectedChapter(null);
@@ -184,7 +299,6 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
   // Função para navegar para os versículos de um capítulo
   const navigateToVerses = async (chapter: number) => {
-    setAnimationDirection('forward');
     setLoading(true);
     setSelectedChapter(chapter);
     setSelectedVerses([]);
@@ -217,33 +331,30 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
   // Função para voltar para a visualização anterior
   const navigateBack = () => {
-    setAnimationDirection('backward');
-    
+    // Preferir histórico do navegador para uma navegação natural
+    if (window.history.length > 1) {
+      window.history.back();
+      return;
+    }
+
+    // Fallback se não houver histórico
     if (selectedChapter !== null) {
-      // Voltar para a seleção de capítulos
+      const backBookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
       setSelectedChapter(null);
       setVerses([]);
       setSelectedVerses([]);
       setSelectionMode(false);
-      
-      // Atualizar a URL do navegador
-      const backBookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
-      window.history.pushState(
+      window.history.replaceState(
         { testament: activeTestament, book: selectedBook },
         '',
         `/biblia/${activeTestament}/${backBookSlug}`
       );
+      setNavState('capitulos');
     } else if (selectedBook !== null) {
-      // Voltar para a seleção de livros
       setSelectedBook(null);
       setChapters([]);
-      
-      // Atualizar a URL do navegador
-      window.history.pushState(
-        {}, 
-        '', 
-        `/biblia`
-      );
+      window.history.replaceState({}, '', `/biblia`);
+      setNavState('livros');
     }
   };
 
@@ -259,22 +370,18 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     // Sempre voltamos para 'livros' como estado base
   }, [selectedBook, selectedChapter]);
 
+  // Memoizações básicas para filtrar livros
+  const allBooks = useMemo(() => [...livrosVelhoTestamento, ...livrosNovoTestamento], [livrosVelhoTestamento, livrosNovoTestamento]);
+  const filteredBooks = useMemo(() => allBooks.filter(book => book.toLowerCase().includes(searchTerm.toLowerCase())), [allBooks, searchTerm]);
+  const filteredVT = useMemo(() => filteredBooks.filter(book => livrosVelhoTestamento.includes(book)), [filteredBooks, livrosVelhoTestamento]);
+  const filteredNT = useMemo(() => filteredBooks.filter(book => livrosNovoTestamento.includes(book)), [filteredBooks, livrosNovoTestamento]);
+
   // Renderiza todos os livros com barra de pesquisa e separados por testamento
   const renderAllBooks = () => {
     // Determina qual testamento contém o livro
     const getTestament = (book: string) => {
       return livrosVelhoTestamento.includes(book) ? 'velho' : 'novo';
     };
-    
-    // Filtra todos os livros conforme pesquisa
-    const allBooks = [...livrosVelhoTestamento, ...livrosNovoTestamento];
-    const filteredBooks = allBooks.filter(book => 
-      book.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-    
-    // Separa os livros filtrados por testamento
-    const filteredVT = filteredBooks.filter(book => livrosVelhoTestamento.includes(book));
-    const filteredNT = filteredBooks.filter(book => livrosNovoTestamento.includes(book));
     
     // Renderiza um card de livro
     const renderBookCard = (book: string) => (
@@ -363,81 +470,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     </div>
   );
 
-  // Componente de navegação
-  const NavigationHeader = () => {
-    const showBackButton = navState !== 'livros';
-    const navTitle = () => {
-      switch (navState) {
-        case 'testamentos': return 'Bíblia Sagrada';
-        case 'livros': return 'Bíblia Sagrada';
-        case 'capitulos': return selectedBook || '';
-        case 'versiculos': return selectedBook && selectedChapter ? `${selectedBook} ${selectedChapter}` : '';
-        default: return 'Bíblia';
-      }
-    };
-
-    const navIcon = () => {
-      switch (navState) {
-        case 'testamentos': return <Book className="mr-2" size={18} />;
-        case 'livros': return <Book className="mr-2" size={18} />;
-        case 'capitulos': return <Bookmark className="mr-2" size={18} />;
-        case 'versiculos': return <Bookmark className="mr-2" size={18} />;
-        default: return <Book className="mr-2" size={18} />;
-      }
-    };
-
-    return (
-      <div className="flex items-center justify-between bg-card shadow-sm rounded-md p-3 mb-4">
-        {showBackButton ? (
-          <button 
-            onClick={navigateBack}
-            className="p-2 rounded-full hover:bg-muted transition-all"
-            aria-label="Voltar"
-          >
-            <ChevronLeft size={20} />
-          </button>
-        ) : (
-          <div className="w-10">{/* Espaçador */}</div>
-        )}
-        
-        <button 
-          onClick={navigateBack}
-          className="p-2 rounded-full hover:bg-muted transition-all"
-          aria-label="Voltar"
-        >
-          <ChevronLeft size={20} />
-        </button>
-      ) : (
-        <div className="w-10">{/* Espaçador */}</div>
-  
-      </div>
-    );
-  };
-
-  // Componente de Testamentos (tela inicial) - Mantido para compatibilidade
-  const TestamentosView = () => (
-    <div className="grid grid-cols-1 gap-6 always-visible">
-      <Card 
-        className="bible-card overflow-hidden shadow-md transition-all mb-12"
-        onClick={() => navigateToBooks('velho')}
-      >
-        <CardContent className="p-8 flex flex-col items-center justify-center text-center cursor-pointer always-visible">
-          <h3 className="text-xl font-semibold mb-2 always-visible">Velho Testamento</h3>
-          <p className="text-muted-foreground always-visible">39 Livros</p>
-        </CardContent>
-      </Card>
-
-      <Card 
-        className="bible-card overflow-hidden shadow-md transition-all"
-        onClick={() => navigateToBooks('novo')}
-      >
-        <CardContent className="p-8 flex flex-col items-center justify-center text-center cursor-pointer always-visible">
-          <h3 className="text-xl font-semibold mb-2 always-visible">Novo Testamento</h3>
-          <p className="text-muted-foreground always-visible">27 Livros</p>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  // Removidos componentes não utilizados (NavigationHeader, TestamentosView)
   
   // Renderiza a view com base no estado atual
   const renderCurrentView = () => {
@@ -498,6 +531,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                   setLoading(true);
                   const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
                   const expTestament = toExplanationTestament(activeTestament);
+                  // Persistir estado antes de navegar para explicação
+                  persistNavState();
                   window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}`;
                 }}
               >
@@ -541,7 +576,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                       
                       const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
                       const expTestament = toExplanationTestament(activeTestament);
-                      window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}?versiculos=${versiculosParam}`;
+                      window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}?verses=${versiculosParam}`;
                     }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -577,7 +612,10 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                         setLoading(true);
                         const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
                         const expTestament = toExplanationTestament(activeTestament);
-                        window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}?verses=${verse}`;
+                        // Persistir estado com o versículo selecionado
+                        persistNavState({ selectedVerses: [verse] });
+                        const verseSlug = `${verse}-explicacao-biblica`;
+                        window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}/${verseSlug}`;
                       }
                     }}
                   >
@@ -594,10 +632,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     }
   };
 
-  // Efeito para iniciar na tela de livros ao carregar
-  useEffect(() => {
-    setNavState('livros');
-  }, []);
+  // Removido efeito que forçava navState('livros') no mount para evitar sobrescrever restauração
 
   return (
     <div className="flex flex-col space-y-4">

@@ -2,7 +2,7 @@ import '../../../../../css/app.css';
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ChevronLeft, Book, Bookmark, Copy, Share } from "lucide-react";
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import BibleService from "@/services/BibleService";
 import SlugService from "@/services/SlugService";
 import ThemeToggleButton from '@/components/ThemeToggleButton';
@@ -16,7 +16,9 @@ if (typeof window !== 'undefined') {
     } else {
       document.documentElement.classList.remove('dark');
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error('Error applying theme:', e);
+  }
 }
 
 export default function BibleExplanation() {
@@ -43,6 +45,10 @@ function BibleExplanationContent() {
   const decodedBook = decodeURIComponent(rawBook);
   const bookSlug = slugService.livroParaSlug(decodedBook);
   const bookName = slugService.slugParaLivro(bookSlug);
+  // Normalize testament for backend API: map 'velho' -> 'antigo'
+  const explanationTestament = testament === 'velho' ? 'antigo' : testament;
+  // Parse chapter number from SEO slug (e.g., '45-explicacao-biblica' => 45)
+  const chapterNumber = parseInt(String(chapter || ''), 10);
 
   // Ensure URL uses canonical slug (avoid encoded names)
   useEffect(() => {
@@ -53,7 +59,9 @@ function BibleExplanationContent() {
         const newUrl = `/explicacao/${testament}/${bookSlug}/${chapter}${search}`;
         window.history.replaceState({}, '', newUrl);
       }
-    } catch {}
+    } catch {
+      console.error('Error normalizing book name');
+    }
   }, [book, bookSlug, testament, chapter]);
 
   // Extract verses from query string if they exist
@@ -71,23 +79,43 @@ function BibleExplanationContent() {
     // Function to load original Bible verse texts
     const loadOriginalVerses = async () => {
       try {
-        if (!testament || !bookSlug || !chapter) return;
+        if (!testament || !bookSlug || !chapterNumber) return;
         
         const bibleService = BibleService.getInstance();
         
-        // Here you would implement a method in BibleService to get the verse texts
-        // This is a placeholder - replace with the real implementation
+        // Map route 'testament' param to BibleService expected values
+        const testamentoSrv: 'velho' | 'novo' = explanationTestament === 'antigo' ? 'velho' : 'novo';
+        
+        // This object will hold the original verse texts (placeholder content for now)
         const verseTexts: Record<number, string> = {};
         
         // If we have specific verses selected
         if (selectedVerses.length > 0) {
-          for (const verseNumber of selectedVerses) {
-            // Simulation - replace with real API or service call
-            verseTexts[verseNumber] = `Original text for verse ${verseNumber} of ${bookName} ${chapter}.`;
+          // Try to fetch stored JSON explanation and extract original text from DB
+          const params = new URLSearchParams();
+          params.append('verses', selectedVerses.join(','));
+          const resp = await fetch(`/api/explanation/${explanationTestament}/${bookSlug}/${chapterNumber}?${params.toString()}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            const explanation = data?.explanation;
+            // Try known path where original text might be stored
+            const originalText: string | undefined = explanation?.titulo_principal_e_texto_biblico?.texto;
+            for (const verseNumber of selectedVerses) {
+              verseTexts[verseNumber] = originalText || `Original text for verse ${verseNumber} of ${bookName} ${chapter}.`;
+            }
+          } else {
+            // Fallback to placeholder if API fails
+            for (const verseNumber of selectedVerses) {
+              verseTexts[verseNumber] = `Original text for verse ${verseNumber} of ${bookName} ${chapter}.`;
+            }
           }
         } else {
-          // Simulate loading all verses from the chapter
-          const verseCount = 30; // Placeholder - get real number from BibleService
+          // Load the real number of verses from BibleService and iterate
+          const verseCount = await bibleService.getNumeroVersiculos(
+            bookName,
+            chapterNumber,
+            testamentoSrv
+          );
           for (let i = 1; i <= verseCount; i++) {
             verseTexts[i] = `Original text for verse ${i} of ${bookName} ${chapter}.`;
           }
@@ -112,7 +140,7 @@ function BibleExplanationContent() {
         
         // API call to backend with correct parameter names for Laravel
         const response = await fetch(
-          `/api/explanation/${testament}/${bookSlug}/${chapter}?${params.toString()}`
+          `/api/explanation/${explanationTestament}/${bookSlug}/${chapterNumber}?${params.toString()}`
         );
         
         if (!response.ok) {
@@ -152,7 +180,7 @@ function BibleExplanationContent() {
 
     loadOriginalVerses();
     generateExplanations();
-  }, [testament, bookSlug, chapter, selectedVerses]);
+  }, [testament, explanationTestament, bookSlug, bookName, chapter, chapterNumber, selectedVerses]);
 
   const copyContent = () => {
     let textToCopy = "";
@@ -210,7 +238,7 @@ function BibleExplanationContent() {
         
         <h1 className="text-2xl font-bold flex items-center">
           <Book className="mr-2 text-primary" size={24} />
-          {bookName} {chapter}
+          {bookName} {chapterNumber}
           {selectedVerses.length > 0 && (
             <span className="ml-2 text-sm bg-primary/10 text-primary px-2 py-1 rounded-full">
               Verse{selectedVerses.length > 1 ? 's' : ''} {selectedVerses.join(', ')}
@@ -264,8 +292,6 @@ function BibleExplanationContent() {
           <>
             {chapterExplanation ? (
               <FullChapterExplanation 
-                book={bookName || ''} 
-                chapter={chapter || ''} 
                 explanation={chapterExplanation}
                 explanationSource={explanationSource}
               />
@@ -275,7 +301,7 @@ function BibleExplanationContent() {
                 explanations={verseExplanations}
                 originalVerses={originalVerses}
                 book={bookName || ''}
-                chapter={chapter || ''}
+                chapter={String(chapterNumber) || ''}
                 explanationSource={explanationSource}
               />
             )}
@@ -288,13 +314,9 @@ function BibleExplanationContent() {
 
 // Component to show complete chapter explanation
 const FullChapterExplanation = ({ 
-  book, 
-  chapter, 
   explanation,
   explanationSource
 }: { 
-  book: string; 
-  chapter: string; 
   explanation: string;
   explanationSource: 'cache' | 'api' | null;
 }) => {

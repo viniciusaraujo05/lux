@@ -503,7 +503,35 @@ function BibleExplanationContent(props: BibleExplanationProps) {
         <div className="container max-w-4xl mx-auto p-2 sm:p-4">
           <header className="mb-3 sm:mb-6 flex items-center justify-between bg-card text-card-foreground shadow-sm rounded-lg p-2 sm:p-4 sticky top-2 z-10">
             <div className="flex items-center gap-4">
-              <button onClick={() => window.history.back()} className="text-indigo-600 hover:text-indigo-800" aria-label="Voltar">
+              <button onClick={() => {
+                try {
+                  const NAV_STATE_KEY = 'verbum:bible_nav_state';
+                  const savedRaw = localStorage.getItem(NAV_STATE_KEY);
+                  let fallbackUrl = '/biblia';
+                  if (savedRaw) {
+                    const saved = JSON.parse(savedRaw) as { testament: 'velho' | 'novo'; book: string | null; chapter: number | null };
+                    if (saved && saved.book) {
+                      const slugService = SlugService.getInstance();
+                      const bSlug = slugService.livroParaSlug(saved.book);
+                      if (saved.chapter !== null && saved.chapter !== undefined) {
+                        fallbackUrl = `/biblia/${saved.testament}/${bSlug}/${saved.chapter}`;
+                      } else {
+                        fallbackUrl = `/biblia/${saved.testament}/${bSlug}`;
+                      }
+                    }
+                  }
+                  // Preferir voltar pelo histórico quando possível e seguro
+                  const hasHistory = window.history.length > 1;
+                  const sameOriginRef = document.referrer && document.referrer.startsWith(window.location.origin);
+                  if (hasHistory && sameOriginRef) {
+                    window.history.back();
+                  } else {
+                    window.location.href = fallbackUrl;
+                  }
+                } catch {
+                  window.history.back();
+                }
+              }} className="text-indigo-600 hover:text-indigo-800" aria-label="Voltar">
                 <ChevronLeft size={isMobile ? 18 : 22} />
               </button>
               <h1 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200 truncate max-w-[150px] sm:max-w-full">
