@@ -1,18 +1,18 @@
 <?php
 
+use App\Http\Controllers\SeoController;
+use App\Services\SlugService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Services\SlugService;
-use App\Http\Controllers\SeoController;
 
 Route::get('/', function () {
     // Adicionar metadados de SEO específicos para a página inicial
     $seoData = [
         'title' => 'Verso a verso - Bíblia Explicada | Estudos Bíblicos Detalhados e Acessíveis',
         'description' => 'Verso a verso oferece explicações bíblicas detalhadas com análise teológica profunda, contexto histórico e aplicações práticas para cada capítulo e versículo da Bíblia.',
-        'keywords' => 'Bíblia, estudo bíblico, explicação bíblica, teologia, versículos, análise, contexto histórico'
+        'keywords' => 'Bíblia, estudo bíblico, explicação bíblica, teologia, versículos, análise, contexto histórico',
     ];
-    
+
     return Inertia::render('welcome', $seoData);
 })->name('home');
 
@@ -26,7 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::get('/api/explanation/{testament}/{book}/{chapter}', function (string $testament, string $book, string $chapter, \Illuminate\Http\Request $request) {
     // Converter o slug para o nome original do livro
     $bookOriginal = SlugService::slugParaLivro($book);
-    
+
     // Encaminhar para o controlador com o nome original do livro
     return app()->make(\App\Http\Controllers\BibleExplanationController::class)
         ->getExplanation($request, $testament, $bookOriginal, $chapter);
@@ -37,30 +37,30 @@ Route::get('/api/seo/{testament}/{book}/{chapter}', function (string $testament,
     // Converter o slug para o nome original do livro
     $bookOriginal = SlugService::slugParaLivro($book);
     $verses = $request->query('verses');
-    
+
     // Gerar metadados SEO para esta página
-    $title = ucfirst($bookOriginal) . ' ' . $chapter;
+    $title = ucfirst($bookOriginal).' '.$chapter;
     if ($verses) {
-        $title .= ':' . $verses;
+        $title .= ':'.$verses;
     }
     $title .= ' - Explicação Bíblica | Verso a verso';
-    
-    $description = 'Estudo detalhado de ' . ucfirst($bookOriginal) . ' ' . $chapter;
+
+    $description = 'Estudo detalhado de '.ucfirst($bookOriginal).' '.$chapter;
     if ($verses) {
-        $description .= ':' . $verses;
+        $description .= ':'.$verses;
     }
     $description .= ' com contexto histórico, análise teológica e aplicações práticas. Entenda a Bíblia profundamente.';
-    
-    $keywords = 'Bíblia, ' . ucfirst($bookOriginal) . ', ' . $chapter;
+
+    $keywords = 'Bíblia, '.ucfirst($bookOriginal).', '.$chapter;
     if ($verses) {
-        $keywords .= ', versículo ' . str_replace(',', ', versículo ', $verses);
+        $keywords .= ', versículo '.str_replace(',', ', versículo ', $verses);
     }
     $keywords .= ', explicação bíblica, estudo bíblico, teologia, contexto histórico';
-    
+
     return response()->json([
         'title' => $title,
         'description' => $description,
-        'keywords' => $keywords
+        'keywords' => $keywords,
     ]);
 });
 
@@ -76,21 +76,21 @@ Route::get('/biblia', function () {
 Route::get('/biblia/{testamento}/{livro}', function (string $testamento, string $livro) {
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
-    
+
     return Inertia::render('welcome', [
         'testamento' => $testamento,
-        'livro' => $livroOriginal
+        'livro' => $livroOriginal,
     ]);
 });
 
 Route::get('/biblia/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
-    
+
     return Inertia::render('welcome', [
         'testamento' => $testamento,
         'livro' => $livroOriginal,
-        'capitulo' => $capitulo
+        'capitulo' => $capitulo,
     ]);
 });
 
@@ -106,15 +106,15 @@ Route::get('/amp/explicacao/{testament}/{book}/{chapter}/{slug}', [\App\Http\Con
 Route::get('/api/related/{testament}/{book}/{chapter}', function (string $testament, string $book, string $chapter, \Illuminate\Http\Request $request) {
     $bookOriginal = \App\Services\SlugService::slugParaLivro($book);
     $verses = $request->query('verses');
-    
+
     // Instanciar o serviço de conteúdo relacionado
     $relatedContentService = app()->make(\App\Services\RelatedContentService::class);
-    
+
     // Obter links relacionados
     $relatedLinks = $relatedContentService->getRelatedContent($testament, $bookOriginal, $chapter, $verses);
-    
+
     return response()->json([
-        'relatedLinks' => $relatedLinks
+        'relatedLinks' => $relatedLinks,
     ]);
 });
 
@@ -138,13 +138,13 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
     $livroOriginal = SlugService::slugParaLivro($livro);
 
     // SEO meta dinâmico (capítulo)
-    $titleBase = ucfirst($livroOriginal) . ' ' . $capitulo;
-    $title = $titleBase . ' - Explicação Bíblica | Verso a verso';
-    $description = 'Explicação bíblica de ' . $titleBase . ' com contexto histórico, análise teológica, referências cruzadas e aplicação prática.';
+    $titleBase = ucfirst($livroOriginal).' '.$capitulo;
+    $title = $titleBase.' - Explicação Bíblica | Verso a verso';
+    $description = 'Explicação bíblica de '.$titleBase.' com contexto histórico, análise teológica, referências cruzadas e aplicação prática.';
     $keywords = implode(', ', [
         'explicação bíblica',
         $titleBase,
-        'comentário ' . $titleBase,
+        'comentário '.$titleBase,
         'estudo bíblico',
         'contexto histórico',
         'teologia',
@@ -159,13 +159,13 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
             ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
             ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
             ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
-            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo ' . $capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
+            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
         ],
     ];
     $article = [
         '@context' => 'https://schema.org',
         '@type' => 'Article',
-        'headline' => 'Explicação de ' . $titleBase,
+        'headline' => 'Explicação de '.$titleBase,
         'mainEntityOfPage' => $canonicalUrl,
         'inLanguage' => 'pt-BR',
         'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
@@ -182,7 +182,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
     return Inertia::render('explicacao/index', [
         'testamento' => $testamento,
         'livro' => $livroOriginal,
-        'capitulo' => $capitulo
+        'capitulo' => $capitulo,
     ])->withViewData([
         'title' => $title,
         'description' => $description,
@@ -199,20 +199,20 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
 Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (string $testamento, string $livro, string $capitulo, string $slug) {
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
-    
+
     // Extrair os versículos do slug (normalmente o primeiro segmento antes do primeiro hífen)
     // Normalizar slug para capturar formatos como "5:5", "5-5", "5"
     $normalizedSlug = str_replace(['%3A', ':', '%2F', '/'], '-', $slug);
     if (preg_match('/^(\d+)(?:[-](\d+))?/', $normalizedSlug, $versesMatch)) {
-        $verses = isset($versesMatch[2]) ? ($versesMatch[1] . '-' . $versesMatch[2]) : $versesMatch[1];
+        $verses = isset($versesMatch[2]) ? ($versesMatch[1].'-'.$versesMatch[2]) : $versesMatch[1];
         // SEO meta dinâmico (versículo)
-        $titleBase = ucfirst($livroOriginal) . ' ' . $capitulo . ':' . $verses;
-        $title = $titleBase . ' - Explicação Bíblica | Verso a verso';
-        $description = 'Explicação bíblica de ' . $titleBase . ' com análise do contexto, exegese e aplicação prática.';
+        $titleBase = ucfirst($livroOriginal).' '.$capitulo.':'.$verses;
+        $title = $titleBase.' - Explicação Bíblica | Verso a verso';
+        $description = 'Explicação bíblica de '.$titleBase.' com análise do contexto, exegese e aplicação prática.';
         $keywords = implode(', ', [
             'explicação bíblica',
             $titleBase,
-            'comentário ' . $titleBase,
+            'comentário '.$titleBase,
             'estudo bíblico',
             'contexto histórico',
             'teologia',
@@ -227,14 +227,14 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
                 ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
                 ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
                 ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
-                ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo ' . $capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
-                ['@type' => 'ListItem', 'position' => 6, 'name' => 'Verso(s) ' . $verses, 'item' => $canonicalUrl],
+                ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
+                ['@type' => 'ListItem', 'position' => 6, 'name' => 'Verso(s) '.$verses, 'item' => $canonicalUrl],
             ],
         ];
         $article = [
             '@context' => 'https://schema.org',
             '@type' => 'Article',
-            'headline' => 'Explicação de ' . $titleBase,
+            'headline' => 'Explicação de '.$titleBase,
             'mainEntityOfPage' => $canonicalUrl,
             'inLanguage' => 'pt-BR',
             'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
@@ -252,7 +252,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'testamento' => $testamento,
             'livro' => $livroOriginal,
             'capitulo' => $capitulo,
-            'versos' => $verses
+            'versos' => $verses,
         ])->withViewData([
             'title' => $title,
             'description' => $description,
@@ -262,15 +262,15 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'jsonLd' => $jsonLd,
         ]);
     }
-    
+
     // Se não houver versículos no slug, é uma explicação de capítulo completo
-    $titleBase = ucfirst($livroOriginal) . ' ' . $capitulo;
-    $title = $titleBase . ' - Explicação Bíblica | Verso a verso';
-    $description = 'Explicação bíblica de ' . $titleBase . ' com contexto histórico, análise teológica, referências cruzadas e aplicação prática.';
+    $titleBase = ucfirst($livroOriginal).' '.$capitulo;
+    $title = $titleBase.' - Explicação Bíblica | Verso a verso';
+    $description = 'Explicação bíblica de '.$titleBase.' com contexto histórico, análise teológica, referências cruzadas e aplicação prática.';
     $keywords = implode(', ', [
         'explicação bíblica',
         $titleBase,
-        'comentário ' . $titleBase,
+        'comentário '.$titleBase,
         'estudo bíblico',
         'contexto histórico',
         'teologia',
@@ -285,13 +285,13 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
             ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
             ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
-            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo ' . $capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
+            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
         ],
     ];
     $article = [
         '@context' => 'https://schema.org',
         '@type' => 'Article',
-        'headline' => 'Explicação de ' . $titleBase,
+        'headline' => 'Explicação de '.$titleBase,
         'mainEntityOfPage' => $canonicalUrl,
         'inLanguage' => 'pt-BR',
         'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
@@ -308,7 +308,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
     return Inertia::render('explicacao/index', [
         'testamento' => $testamento,
         'livro' => $livroOriginal,
-        'capitulo' => $capitulo
+        'capitulo' => $capitulo,
     ])->withViewData([
         'title' => $title,
         'description' => $description,
@@ -323,14 +323,15 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
 Route::get('/explicacao/{livro}/{capitulo}/{slug?}', function (string $livro, string $capitulo, ?string $slug = null) {
     $lower = strtolower($livro);
     $nt = [
-        'mateus','marcos','lucas','joao','atos','romanos','1corintios','2corintios','galatas','efesios','filipenses','colossenses','1tessalonicenses','2tessalonicenses','1timoteo','2timoteo','tito','filemom','hebreus','tiago','1pedro','2pedro','1joao','2joao','3joao','judas','apocalipse'
+        'mateus', 'marcos', 'lucas', 'joao', 'atos', 'romanos', '1corintios', '2corintios', 'galatas', 'efesios', 'filipenses', 'colossenses', '1tessalonicenses', '2tessalonicenses', '1timoteo', '2timoteo', 'tito', 'filemom', 'hebreus', 'tiago', '1pedro', '2pedro', '1joao', '2joao', '3joao', 'judas', 'apocalipse',
     ];
     $testamento = in_array($lower, $nt) ? 'novo' : 'antigo';
-    $target = "/explicacao/{$testamento}/{$livro}/{$capitulo}" . ($slug ? "/{$slug}" : '');
+    $target = "/explicacao/{$testamento}/{$livro}/{$capitulo}".($slug ? "/{$slug}" : '');
+
     return redirect($target, 301);
 })->where([
     'livro' => '^(?!antigo$|novo$).+',
-    'capitulo' => '[0-9]+'
+    'capitulo' => '[0-9]+',
 ]);
 
 require __DIR__.'/settings.php';

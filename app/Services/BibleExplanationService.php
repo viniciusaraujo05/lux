@@ -3,9 +3,9 @@
 namespace App\Services;
 
 use App\Models\BibleExplanation;
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class BibleExplanationService
 {
@@ -18,19 +18,24 @@ class BibleExplanationService
      * @param  string|null  $verses
      * @return array
      */
-    public function getExplanation($testestament, $book, $chapter, $verses = null)
+    public function getExplanation($testament, $book, $chapter, $verses = null)
     {
-        // Normalize the verses string (sort and remove duplicates)
-        if ($verses) {
-            $versesArray = explode(',', $verses);
+        // Normalize verses: treat empty as null; otherwise sort & dedupe
+        if (is_string($verses)) {
+            $verses = trim($verses);
+        }
+        if ($verses === '' || $verses === null) {
+            $verses = null;
+        } elseif ($verses) {
+            $versesArray = preg_split('/\s*,\s*/', (string) $verses, -1, PREG_SPLIT_NO_EMPTY);
             $versesArray = array_map('intval', $versesArray);
             sort($versesArray);
             $versesArray = array_unique($versesArray);
             $verses = implode(',', $versesArray);
         }
 
-        $testament = $testestament; // keep original param name but normalize variable usage
-        $cacheKey = "bible_explanation:{$testament}:{$book}:{$chapter}:" . ($verses ?? 'all');
+        // $testament is already provided by method argument; no reassignment needed
+        $cacheKey = "bible_explanation:{$testament}:{$book}:{$chapter}:".($verses ?? 'all');
         $ttl = 60 * 60 * 24; // 24h
 
         // 1) Cache first
@@ -39,13 +44,20 @@ class BibleExplanationService
             return $cached;
         }
 
-        // 2) Database lookup
-        $explanation = BibleExplanation::where([
+        // 2) Database lookup (tolerant to NULL/empty verses)
+        $query = BibleExplanation::where([
             'testament' => $testament,
             'book' => $book,
             'chapter' => $chapter,
-            'verses' => $verses,
-        ])->first();
+        ]);
+        if ($verses === null) {
+            $query->where(function ($q) {
+                $q->whereNull('verses')->orWhere('verses', '');
+            });
+        } else {
+            $query->where('verses', $verses);
+        }
+        $explanation = $query->first();
 
         if ($explanation) {
             $explanation->incrementAccessCount();
@@ -57,19 +69,39 @@ class BibleExplanationService
 
             $result = [
                 'id' => $explanation->id,
-                'origin' => 'cache',
+                'origin' => 'db',
                 'explanation' => $decodedExplanation,
                 'source' => $explanation->source,
             ];
             Cache::put($cacheKey, $result, $ttl);
+
             return $result;
         }
 
         // 3) Generate via AI
         $explanationJson = $this->generateExplanationViaAPI($testament, $book, $chapter, $verses);
 
+        // 3.1) Strictly validate JSON before persisting
         $decoded = json_decode($explanationJson, true);
-        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded) && ($decoded['type'] ?? null) === 'error') {
+        if (json_last_error() !== JSON_ERROR_NONE || ! is_array($decoded)) {
+            // Never persist malformed JSON
+            Log::error('AI returned invalid JSON, not persisting', [
+                'json_error' => json_last_error_msg(),
+                'book' => $book,
+                'chapter' => $chapter,
+                'verses' => $verses,
+            ]);
+            $fallback = json_decode($this->generateFallbackExplanation($testament, $book, $chapter, $verses), true);
+
+            return [
+                'id' => null,
+                'origin' => 'fallback',
+                'explanation' => $fallback,
+                'source' => 'fallback',
+            ];
+        }
+
+        if (($decoded['type'] ?? null) === 'error') {
             // Fallback content: do NOT persist or cache
             return [
                 'id' => null,
@@ -79,25 +111,111 @@ class BibleExplanationService
             ];
         }
 
-        // 4) Persist successful explanation and cache it
-        $newExplanation = BibleExplanation::create([
+        // 3.2) Validate minimal schema to avoid persisting wrong-shaped content
+        $isFullChapter = ($verses === null);
+        if (! $this->validateExplanationSchema($decoded, $isFullChapter)) {
+            Log::error('AI returned JSON with invalid schema, not persisting', [
+                'book' => $book,
+                'chapter' => $chapter,
+                'verses' => $verses,
+            ]);
+            $fallback = json_decode($this->generateFallbackExplanation($testament, $book, $chapter, $verses), true);
+
+            return [
+                'id' => null,
+                'origin' => 'fallback',
+                'explanation' => $fallback,
+                'source' => 'fallback',
+            ];
+        }
+
+        // 3.3) Double-check DB before insert (in case another process saved it while we generated)
+        $existingQuery = BibleExplanation::where([
             'testament' => $testament,
             'book' => $book,
             'chapter' => $chapter,
-            'verses' => $verses,
-            'explanation_text' => $explanationJson, // Storing JSON string
-            'source' => config('ai.openai.model', 'openai') . '-json', // Source identifier from configured model
-            'access_count' => 1,
         ]);
+        if ($verses === null) {
+            $existingQuery->where(function ($q) {
+                $q->whereNull('verses')->orWhere('verses', '');
+            });
+        } else {
+            $existingQuery->where('verses', $verses);
+        }
+        $existing = $existingQuery->first();
+        if ($existing) {
+            $existing->incrementAccessCount();
+            $decodedExplanation = json_decode($existing->explanation_text, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $decodedExplanation = $existing->explanation_text;
+            }
+            $result = [
+                'id' => $existing->id,
+                'origin' => 'db',
+                'explanation' => $decodedExplanation,
+                'source' => $existing->source,
+            ];
+            Cache::put($cacheKey, $result, $ttl);
 
-        $result = [
-            'id' => $newExplanation->id,
-            'origin' => 'api',
-            'explanation' => json_decode($explanationJson, true), // Decode for frontend
-            'source' => config('ai.openai.model', 'openai') . '-json',
-        ];
-        Cache::put($cacheKey, $result, $ttl);
-        return $result;
+            return $result;
+        }
+
+        // 4) Persist successful explanation and cache it (handle unique constraint race)
+        try {
+            $newExplanation = BibleExplanation::create([
+                'testament' => $testament,
+                'book' => $book,
+                'chapter' => $chapter,
+                'verses' => $verses,
+                'explanation_text' => $explanationJson, // Storing JSON string
+                'source' => config('ai.openai.model', 'openai').'-json', // Source identifier from configured model
+                'access_count' => 1,
+            ]);
+
+            $result = [
+                'id' => $newExplanation->id,
+                'origin' => 'api',
+                'explanation' => json_decode($explanationJson, true), // Decode for frontend
+                'source' => config('ai.openai.model', 'openai').'-json',
+            ];
+            Cache::put($cacheKey, $result, $ttl);
+
+            return $result;
+        } catch (QueryException $e) {
+            $code = (string) $e->getCode();
+            $sqlState = is_array($e->errorInfo ?? null) ? (string) ($e->errorInfo[0] ?? '') : '';
+            if ($code === '23505' || $sqlState === '23505') { // Postgres unique violation
+                Log::info('Duplicate explanation insert avoided via unique constraint', [
+                    'testament' => $testament,
+                    'book' => $book,
+                    'chapter' => $chapter,
+                    'verses' => $verses,
+                ]);
+                $existing = BibleExplanation::where([
+                    'testament' => $testament,
+                    'book' => $book,
+                    'chapter' => $chapter,
+                    'verses' => $verses,
+                ])->first();
+                if ($existing) {
+                    $existing->incrementAccessCount();
+                    $decodedExplanation = json_decode($existing->explanation_text, true);
+                    if (json_last_error() !== JSON_ERROR_NONE) {
+                        $decodedExplanation = $existing->explanation_text;
+                    }
+                    $result = [
+                        'id' => $existing->id,
+                        'origin' => 'db',
+                        'explanation' => $decodedExplanation,
+                        'source' => $existing->source,
+                    ];
+                    Cache::put($cacheKey, $result, $ttl);
+
+                    return $result;
+                }
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -123,7 +241,9 @@ class BibleExplanationService
                 ['role' => 'user', 'content' => $prompt],
             ];
 
-            $responseContent = $client->chat($messages, 7000);
+            // Dynamic output budgets to reduce truncation
+            $maxTokens = $verses === null ? 3000 : 1500;
+            $responseContent = $client->chat($messages, $maxTokens);
 
             // 1. Extrair o JSON do bloco de markdown, se houver
             if (preg_match('/```json\s*({.*?})\s*```/s', $responseContent, $matches)) {
@@ -284,10 +404,12 @@ EOD;
                 } elseif ($ch === '"') {
                     $inString = false;
                 }
+
                 continue;
             }
             if ($ch === '"') {
                 $inString = true;
+
                 continue;
             }
             if ($ch === '{') {
@@ -307,6 +429,7 @@ EOD;
                 return $candidate;
             }
         }
+
         return null;
     }
 
@@ -330,5 +453,83 @@ EOD;
           "aplicacao_pratica": "string (Que lições práticas e relevantes podemos tirar para os dias de hoje)"
         }
         JSON;
+    }
+
+    /**
+     * Minimal schema validation to ensure expected keys and basic types exist.
+     * Prevents persisting malformed or wrong-shaped JSON.
+     */
+    private function validateExplanationSchema(array $data, bool $isFullChapter): bool
+    {
+        if ($isFullChapter) {
+            $required = [
+                'contexto_geral',
+                'resumo_do_capitulo',
+                'temas_principais',
+                'personagens_importantes',
+                'versiculos_chave',
+                'aplicacao_pratica',
+            ];
+            foreach ($required as $k) {
+                if (! array_key_exists($k, $data)) {
+                    return false;
+                }
+            }
+            if (! is_array($data['temas_principais'])) {
+                return false;
+            }
+            if (! is_array($data['personagens_importantes'])) {
+                return false;
+            }
+            if (! is_array($data['versiculos_chave'])) {
+                return false;
+            }
+
+            return true;
+        }
+
+        // Verse-level explanation required keys
+        $required = [
+            'titulo_principal_e_texto_biblico',
+            'contexto_detalhado',
+            'analise_exegenetica',
+            'teologia_da_passagem',
+            'temas_principais',
+            'explicacao_do_versiculo',
+            'personagens_principais',
+            'aplicacao_contemporanea',
+            'referencias_cruzadas',
+            'simbologia_biblica',
+            'interprete_luz_de_cristo',
+        ];
+        foreach ($required as $k) {
+            if (! array_key_exists($k, $data)) {
+                return false;
+            }
+        }
+        // Check some nested array types when present
+        if (isset($data['analise_exegenetica']['analises']) && ! is_array($data['analise_exegenetica']['analises'])) {
+            return false;
+        }
+        if (isset($data['temas_principais']['temas']) && ! is_array($data['temas_principais']['temas'])) {
+            return false;
+        }
+        if (isset($data['explicacao_do_versiculo']['palavras_chave']) && ! is_array($data['explicacao_do_versiculo']['palavras_chave'])) {
+            return false;
+        }
+        if (isset($data['personagens_principais']['personagens']) && ! is_array($data['personagens_principais']['personagens'])) {
+            return false;
+        }
+        if (isset($data['aplicacao_contemporanea']['pontos_aplicacao']) && ! is_array($data['aplicacao_contemporanea']['pontos_aplicacao'])) {
+            return false;
+        }
+        if (isset($data['aplicacao_contemporanea']['perguntas_reflexao']) && ! is_array($data['aplicacao_contemporanea']['perguntas_reflexao'])) {
+            return false;
+        }
+        if (isset($data['referencias_cruzadas']['referencias']) && ! is_array($data['referencias_cruzadas']['referencias'])) {
+            return false;
+        }
+
+        return true;
     }
 }

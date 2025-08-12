@@ -30,7 +30,7 @@ class BibleExplanation extends Model
         'source',
         'access_count',
         'positive_feedback_count',
-        'negative_feedback_count'
+        'negative_feedback_count',
     ];
 
     /**
@@ -53,6 +53,7 @@ class BibleExplanation extends Model
     public function incrementAccessCount()
     {
         $this->access_count++;
+
         return $this->save();
     }
 
@@ -72,6 +73,7 @@ class BibleExplanation extends Model
     public function incrementPositiveFeedback()
     {
         $this->positive_feedback_count++;
+
         return $this->save();
     }
 
@@ -83,6 +85,7 @@ class BibleExplanation extends Model
     public function incrementNegativeFeedback()
     {
         $this->negative_feedback_count++;
+
         return $this->save();
     }
 }

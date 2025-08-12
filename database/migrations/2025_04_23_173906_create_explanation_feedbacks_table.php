@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('user_ip', 45)->nullable();
             $table->string('user_agent', 255)->nullable();
             $table->timestamps();
-            
+
             // Index for fast queries
             $table->index(['testament', 'book', 'chapter', 'verses'], 'idx_feedback_search');
         });

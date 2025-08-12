@@ -2,18 +2,19 @@
 
 namespace App\Services\Ai;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Http;
 
 class PerplexityClient implements AiClientInterface
 {
     private string $apiKey;
+
     private string $model;
 
     public function __construct()
     {
         $this->apiKey = config('ai.perplexity.api_key');
-        $this->model  = config('ai.perplexity.model');
+        $this->model = config('ai.perplexity.model');
     }
 
     public function chat(array $messages, int $maxTokens = 4000): string

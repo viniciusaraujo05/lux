@@ -3,6 +3,22 @@
 <head>
     <meta charset="utf-8">
     <script async src="https://cdn.ampproject.org/v0.js"></script>
+    @php
+        // Normalize inputs early to avoid Array to string conversion anywhere in the template
+        $versesStr = isset($verses) ? (is_array($verses) ? implode(',', $verses) : $verses) : null;
+        if (isset($verseTexts) && is_array($verseTexts)) {
+            $verseTexts = implode(' ', $verseTexts);
+        }
+        if (isset($keywords) && is_array($keywords)) {
+            $keywords = implode(', ', $keywords);
+        }
+        if (isset($title) && is_array($title)) {
+            $title = implode(' ', $title);
+        }
+        if (isset($description) && is_array($description)) {
+            $description = implode(' ', $description);
+        }
+    @endphp
     <title>{{ $title ?? 'Verso a verso - Bíblia Explicada' }}</title>
     <link rel="canonical" href="{{ $canonicalUrl }}">
     <meta name="viewport" content="width=device-width,minimum-scale=1,initial-scale=1">
@@ -211,31 +227,31 @@
             color: var(--muted-color);
         }
     </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>
-                <a href="{{ url('/') }}" class="back-button">
-                    ←
-                </a>
-                {{ $book }} {{ $chapter }}{{ isset($verses) ? ':'.$verses : '' }}
-            </h1>
-            <div>AMP</div>
-        </header>
-        
-        <main>
-            <div class="section">
-                <h2>Explicação Bíblica</h2>
-                
-                @if(isset($verses))
-                    <div class="bible-text">
-                        {{ $verseTexts ?? 'Versículo ' . $verses . ' do capítulo ' . $chapter . ' de ' . $book }}
-                    </div>
-                @endif
-                
-                {!! $explanation ?? 'Carregando explicação...' !!}
-            </div>
+ </head>
+ <body>
+     <div class="container">
+         <header>
+             <h1>
+                 <a href="{{ url('/') }}" class="back-button">
+                     ←
+                 </a>
+                 {{ $book }} {{ $chapter }}{{ !empty($versesStr) ? ':'.$versesStr : '' }}
+             </h1>
+             <div>AMP</div>
+         </header>
+ 
+         <main>
+             <div class="section">
+                 <h2>Explicação Bíblica</h2>
+                 
+                 @if(!empty($versesStr))
+                     <div class="bible-text">
+                         {{ $verseTexts ?? ('Versículo ' . $versesStr . ' do capítulo ' . $chapter . ' de ' . $book) }}
+                     </div>
+                 @endif
+                 
+                 {!! $explanation ?? 'Carregando explicação...' !!}
+             </div>
             
             <!-- Seção de links relacionados -->
             <div class="related-content">

@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Symfony\Component\HttpFoundation\Response;
 
 class PageCacheMiddleware
@@ -37,12 +37,13 @@ class PageCacheMiddleware
             return $this->compressResponse($next($request), $request);
         }
 
-        $cacheKey = 'page_cache:' . sha1($request->fullUrl());
+        $cacheKey = 'page_cache:'.sha1($request->fullUrl());
 
         if (Cache::has($cacheKey)) {
             $cached = Cache::get($cacheKey);
             $response = new Response($cached['content'], 200, $cached['headers']);
             $response->headers->set('X-Cache', 'HIT');
+
             return $this->compressResponse($response, $request);
         }
 
@@ -69,7 +70,7 @@ class PageCacheMiddleware
             return $response; // already encoded
         }
 
-        if (!str_contains($request->header('Accept-Encoding', ''), 'gzip')) {
+        if (! str_contains($request->header('Accept-Encoding', ''), 'gzip')) {
             return $response; // client does not accept gzip
         }
 
@@ -77,7 +78,7 @@ class PageCacheMiddleware
         $response->setContent(gzencode($response->getContent(), 6));
         $response->headers->set('Content-Encoding', 'gzip');
         $response->headers->set('Vary', 'Accept-Encoding');
-        $response->headers->set('Cache-Control', 'public, max-age=' . $this->ttl);
+        $response->headers->set('Cache-Control', 'public, max-age='.$this->ttl);
 
         return $response;
     }

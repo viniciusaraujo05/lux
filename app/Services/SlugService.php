@@ -46,7 +46,7 @@ class SlugService
         'Ageu' => 'ageu',
         'Zacarias' => 'zacarias',
         'Malaquias' => 'malaquias',
-        
+
         // Novo Testamento
         'Mateus' => 'mateus',
         'Marcos' => 'marcos',
@@ -74,7 +74,7 @@ class SlugService
         '2 João' => '2-joao',
         '3 João' => '3-joao',
         'Judas' => 'judas',
-        'Apocalipse' => 'apocalipse'
+        'Apocalipse' => 'apocalipse',
     ];
 
     // Mapeamento inverso de slugs para nomes de livros
@@ -106,6 +106,7 @@ class SlugService
     public static function slugParaLivro(string $slug): string
     {
         self::init();
+
         return self::$slugsParaLivros[$slug] ?? self::formatarSlug($slug);
     }
 
@@ -120,6 +121,7 @@ class SlugService
         $slug = preg_replace('/[^a-z0-9\s-]/', '', $slug);
         $slug = preg_replace('/\s+/', '-', $slug);
         $slug = preg_replace('/-+/', '-', $slug);
+
         return trim($slug, '-');
     }
 
@@ -130,6 +132,7 @@ class SlugService
     private static function formatarSlug(string $slug): string
     {
         $texto = str_replace('-', ' ', $slug);
+
         return ucwords($texto);
     }
 }

@@ -32,19 +32,20 @@ class WarmPages extends Command
         ];
 
         foreach ($paths as $path) {
-            $url = $base . $path;
+            $url = $base.$path;
             try {
                 $start = microtime(true);
                 $resp = Http::timeout(30)->get($url);
                 $ms = (microtime(true) - $start) * 1000;
                 $this->line(sprintf('%s => %d (%0.1f ms)', $url, $resp->status(), $ms));
             } catch (\Throwable $e) {
-                $this->error("Failed warming {$url}: " . $e->getMessage());
+                $this->error("Failed warming {$url}: ".$e->getMessage());
                 Log::warning('warm:pages error', ['url' => $url, 'message' => $e->getMessage()]);
             }
         }
 
         $this->info('Warmup complete.');
+
         return self::SUCCESS;
     }
 }

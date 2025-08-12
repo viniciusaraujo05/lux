@@ -12,7 +12,7 @@ class AiClientFactory
 
         return match ($provider) {
             'PERPLEXITY' => App::make(PerplexityClient::class),
-            default       => App::make(OpenAiClient::class),
+            default => App::make(OpenAiClient::class),
         };
     }
 }

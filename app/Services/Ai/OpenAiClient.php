@@ -2,22 +2,25 @@
 
 namespace App\Services\Ai;
 
-use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Str;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 
 class OpenAiClient implements AiClientInterface
 {
     private string $apiKey;
+
     private string $model;
+
     private int $timeout;
+
     private int $connectTimeout;
 
     public function __construct()
     {
         $this->apiKey = config('ai.openai.api_key');
-        $this->model  = config('ai.openai.model');
+        $this->model = config('ai.openai.model');
         $this->timeout = (int) (config('ai.openai.timeout', 60));
         $this->connectTimeout = (int) (config('ai.openai.connect_timeout', 10));
     }
@@ -27,6 +30,7 @@ class OpenAiClient implements AiClientInterface
         if ($this->isGpt5()) {
             return $this->chatGpt5($messages, $maxTokens);
         }
+
         return $this->chatStandard($messages, $maxTokens);
     }
 
@@ -40,12 +44,15 @@ class OpenAiClient implements AiClientInterface
     {
         // GPT-5: use Responses API with JSON mode; increase output token budget to avoid truncation
         $inputString = $this->messagesToInputString($messages);
-        $safeMax = min(max($maxTokens, 7000), 8192);
+        // Respect caller-provided budgets; only cap to API hard limit
+        $safeMax = min($maxTokens, 8192);
 
         $payload = [
             'model' => $this->model,
             'input' => $inputString,
             'max_output_tokens' => $safeMax,
+            // Responses API expects an object for text.format, similar to prior response_format
+            'text' => ['format' => ['type' => 'json_object']],
         ];
 
         // Optional reasoning effort (e.g., 'low' for faster responses) if configured
@@ -105,6 +112,7 @@ class OpenAiClient implements AiClientInterface
                 }
             }
         }
+
         return $buffer;
     }
 
@@ -119,6 +127,7 @@ class OpenAiClient implements AiClientInterface
         ];
         $json = $this->postChat($payload);
         $this->logTokenUsage($json, 'chat');
+
         return Arr::get($json, 'choices.0.message.content', '');
     }
 
@@ -138,11 +147,12 @@ class OpenAiClient implements AiClientInterface
     private function logTokenUsage(array $json, string $endpoint): void
     {
         $usage = Arr::get($json, 'usage');
-        if (!is_array($usage)) {
+        if (! is_array($usage)) {
             Log::debug('OpenAI usage not present', [
                 'endpoint' => $endpoint,
                 'model' => $this->model,
             ]);
+
             return;
         }
 
@@ -182,6 +192,7 @@ class OpenAiClient implements AiClientInterface
             $rest = array_slice($rest, -12);
         }
         $parts = array_merge($system, $rest);
+
         return implode("\n\n", $parts);
     }
 
@@ -209,6 +220,7 @@ class OpenAiClient implements AiClientInterface
                 if (in_array($status, [408, 409, 425, 429, 500, 502, 503, 504], true) && $attempt < $retries) {
                     usleep(($backoffMs + random_int(0, 150)) * 1000);
                     $backoffMs = min($backoffMs * 2, 2000);
+
                     continue;
                 }
 
@@ -217,6 +229,7 @@ class OpenAiClient implements AiClientInterface
                 if ($attempt < $retries) {
                     usleep(($backoffMs + random_int(0, 150)) * 1000);
                     $backoffMs = min($backoffMs * 2, 2000);
+
                     continue;
                 }
                 throw new \RuntimeException('OpenAI API network error: '.$e->getMessage(), $e->getCode() ?: 0, $e);

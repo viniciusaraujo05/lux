@@ -15,7 +15,7 @@ class SchemaService
         $schema = [
             '@context' => 'https://schema.org',
             '@type' => 'Article',
-            'headline' => ucfirst($book) . ' ' . $chapter . ($verses ? ':'.$verses : '') . ' - Explicação Bíblica',
+            'headline' => ucfirst($book).' '.$chapter.($verses ? ':'.$verses : '').' - Explicação Bíblica',
             'datePublished' => date('c'),
             'dateModified' => date('c'),
             'publisher' => [
@@ -25,22 +25,22 @@ class SchemaService
                     '@type' => 'ImageObject',
                     'url' => url('/images/logo.png'),
                     'width' => 600,
-                    'height' => 60
-                ]
+                    'height' => 60,
+                ],
             ],
             'mainEntityOfPage' => [
                 '@type' => 'WebPage',
-                '@id' => url()->current()
-            ]
+                '@id' => url()->current(),
+            ],
         ];
-        
+
         // Adicionar schema para conteúdo religioso
         $schema['about'] = [
             '@type' => 'CreativeWork',
             'name' => 'Bíblia Sagrada',
             'alternateName' => 'Escrituras Sagradas',
         ];
-        
+
         // Referência específica à passagem bíblica
         $schema['exampleOfWork'] = [
             '@type' => 'Book',
@@ -50,20 +50,20 @@ class SchemaService
             'inLanguage' => 'pt-BR',
             'author' => [
                 '@type' => 'Person',
-                'name' => $this->getBookAuthor($book)
+                'name' => $this->getBookAuthor($book),
             ],
             'hasPart' => [
                 '@type' => 'Chapter',
-                'name' => ucfirst($book) . ' ' . $chapter,
-                'position' => (int) $chapter
-            ]
+                'name' => ucfirst($book).' '.$chapter,
+                'position' => (int) $chapter,
+            ],
         ];
-        
+
         // Schema para FAQ se tiver explicação
         if ($explanation && $verses) {
             $schema['@type'] = ['Article', 'FAQPage'];
             $schema['mainEntity'] = [];
-            
+
             // Criar FAQ para cada versículo
             $versesList = explode(',', $verses);
             foreach ($versesList as $verse) {
@@ -72,18 +72,18 @@ class SchemaService
                     'name' => "O que significa {$book} {$chapter}:{$verse}?",
                     'acceptedAnswer' => [
                         '@type' => 'Answer',
-                        'text' => $this->extractVerseExplanation($verse, $explanation)
-                    ]
+                        'text' => $this->extractVerseExplanation($verse, $explanation),
+                    ],
                 ];
             }
         }
-        
+
         // Adicionar breadcrumbs
         $schema['breadcrumb'] = $this->generateBreadcrumbSchema($testament, $book, $chapter, $verses);
-        
+
         return json_encode($schema, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     }
-    
+
     /**
      * Gera Schema.org para breadcrumbs
      */
@@ -92,49 +92,49 @@ class SchemaService
         $testimonyLabel = $testament == 'antigo' ? 'Antigo Testamento' : 'Novo Testamento';
         $bookLabel = ucfirst($book);
         $bookSlug = Str::slug($book, '-');
-        
+
         $items = [
             [
                 '@type' => 'ListItem',
                 'position' => 1,
                 'name' => 'Bíblia',
-                'item' => url('/biblia')
+                'item' => url('/biblia'),
             ],
             [
                 '@type' => 'ListItem',
                 'position' => 2,
                 'name' => $testimonyLabel,
-                'item' => url("/biblia/{$testament}")
+                'item' => url("/biblia/{$testament}"),
             ],
             [
                 '@type' => 'ListItem',
                 'position' => 3,
                 'name' => $bookLabel,
-                'item' => url("/biblia/{$testament}/{$bookSlug}")
+                'item' => url("/biblia/{$testament}/{$bookSlug}"),
             ],
             [
                 '@type' => 'ListItem',
                 'position' => 4,
                 'name' => "Capítulo {$chapter}",
-                'item' => url("/biblia/{$testament}/{$bookSlug}/{$chapter}")
-            ]
+                'item' => url("/biblia/{$testament}/{$bookSlug}/{$chapter}"),
+            ],
         ];
-        
+
         if ($verses) {
             $items[] = [
                 '@type' => 'ListItem',
                 'position' => 5,
                 'name' => "Versículos {$verses}",
-                'item' => url("/explicacao/{$testament}/{$bookSlug}/{$chapter}?verses={$verses}")
+                'item' => url("/explicacao/{$testament}/{$bookSlug}/{$chapter}?verses={$verses}"),
             ];
         }
-        
+
         return [
             '@type' => 'BreadcrumbList',
-            'itemListElement' => $items
+            'itemListElement' => $items,
         ];
     }
-    
+
     /**
      * Extrai a explicação de um versículo específico
      */
@@ -143,7 +143,7 @@ class SchemaService
         // Simplificado - em uma implementação real, você extrairia a parte relevante
         return "Explicação teológica detalhada sobre {$verse}...";
     }
-    
+
     /**
      * Retorna o autor tradicional do livro bíblico
      */
@@ -163,9 +163,9 @@ class SchemaService
             'lucas' => 'Lucas',
             'joao' => 'João',
             'romanos' => 'Paulo',
-            'apocalipse' => 'João'
+            'apocalipse' => 'João',
         ];
-        
+
         return $authors[$book] ?? 'Autor bíblico';
     }
 }

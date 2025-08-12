@@ -12,6 +12,7 @@ class ExplanationFeedback extends Model
      * @var string
      */
     protected $table = 'explanation_feedbacks';
+
     protected $fillable = [
         'bible_explanation_id',
         'is_positive',

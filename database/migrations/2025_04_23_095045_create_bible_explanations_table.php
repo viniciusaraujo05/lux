@@ -21,10 +21,10 @@ return new class extends Migration
             $table->string('source', 50); // Source of explanation (ex: 'gpt-4', 'claude', 'manual')
             $table->unsignedInteger('access_count')->default(0);
             $table->timestamps();
-            
+
             // Composite index for fast queries
             $table->index(['testament', 'book', 'chapter', 'verses'], 'idx_bible_explanation_search');
-            
+
             // Unique constraint to prevent duplicates
             $table->unique(['testament', 'book', 'chapter', 'verses'], 'unique_bible_explanation');
         });

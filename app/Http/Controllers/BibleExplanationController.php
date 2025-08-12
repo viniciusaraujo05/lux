@@ -4,24 +4,22 @@ namespace App\Http\Controllers;
 
 use App\Services\BibleExplanationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Log;
 
 class BibleExplanationController extends Controller
 {
     protected $explanationService;
-    
+
     public function __construct(BibleExplanationService $explanationService)
     {
         $this->explanationService = $explanationService;
     }
-    
+
     /**
      * Get explanation for a biblical passage
      *
-     * @param Request $request
-     * @param string $testament
-     * @param string $book
-     * @param string $chapter
+     * @param  string  $testament
+     * @param  string  $book
+     * @param  string  $chapter
      * @return \Illuminate\Http\JsonResponse
      */
     public function getExplanation(Request $request, $testament, $book, $chapter)
@@ -30,7 +28,7 @@ class BibleExplanationController extends Controller
 
         // Converte o slug do livro para o nome correto em português
         $bookName = $this->slugToBookName($book);
-        
+
         $result = $this->explanationService->getExplanation(
             $testament,
             $bookName,
@@ -115,6 +113,7 @@ class BibleExplanationController extends Controller
             'apocalipse' => 'Apocalipse',
         ];
         $slug = strtolower($slug);
+
         return $map[$slug] ?? ucfirst($slug);
     }
 }
