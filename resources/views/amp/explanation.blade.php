@@ -18,6 +18,8 @@
         if (isset($description) && is_array($description)) {
             $description = implode(' ', $description);
         }
+        // Ensure relatedLinks is an array
+        $relatedLinks = isset($relatedLinks) && is_array($relatedLinks) ? $relatedLinks : [];
     @endphp
     <title>{{ $title ?? 'Verso a verso - Bíblia Explicada' }}</title>
     <link rel="canonical" href="{{ $canonicalUrl }}">
@@ -254,16 +256,18 @@
              </div>
             
             <!-- Seção de links relacionados -->
+            @if(count($relatedLinks) > 0)
             <div class="related-content">
                 <h3>Leituras Relacionadas</h3>
                 <ul class="related-links">
-                    @foreach($relatedLinks ?? [] as $link)
+                    @foreach($relatedLinks as $link)
                         <li>
                             <a href="{{ $link['url'] }}">{{ $link['title'] }}</a>
                         </li>
                     @endforeach
                 </ul>
             </div>
+            @endif
             
             <div class="non-amp-link">
                 <a href="{{ $canonicalUrl }}">Ver versão completa deste conteúdo</a>
