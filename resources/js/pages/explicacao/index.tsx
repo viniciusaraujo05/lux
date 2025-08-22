@@ -1,10 +1,10 @@
-import React, { useState, useEffect, FC, ReactNode } from 'react';
+import React, { useState, useEffect, FC, ReactNode, useRef } from 'react';
 import AppLayout from '@/layouts/app-layout';
 import { Head } from '@inertiajs/react';
 import {
   ChevronLeft, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, Heart, User, Loader2,
   BookOpen, Scale, Landmark, Users, Microscope, Cross, Target, Link, Gem,
-  AlertTriangle, FileText, CheckCircle, Key, Book, HelpCircle, Share2
+  AlertTriangle, FileText, CheckCircle, Key, Book, HelpCircle, Share2, Sparkles, RefreshCw
 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -17,37 +17,69 @@ import SlugService from '@/services/SlugService';
 
 const DynamicLoading: FC = () => {
   const messages = [
-    "Buscando as melhores informações...",
-    "Analisando contexto histórico...",
-    "Interpretando versos...",
-    "Buscando comentarios bíblicos...",
-    "Quase lá, só um instante..."
+    'Preparando contexto do livro...',
+    'Buscando comentários bíblicos...',
+    'Analisando o texto original...',
+    'Gerando a explicação...',
+    'Formatando o conteúdo...',
+    'Quase pronto...'
   ];
-  const [index, setIndex] = useState(0);
+  const steps = [
+    'Contexto histórico e literário',
+    'Referências cruzadas',
+    'Análise exegética',
+    'Aplicações práticas',
+    'Revisão geral'
+  ];
+  const [msgIndex, setMsgIndex] = useState(0);
+  const [step, setStep] = useState(0);
   const [showFirstUserMsg, setShowFirstUserMsg] = useState(false);
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIndex((i) => (i + 1) % messages.length);
-    }, 4000);
+    const interval = setInterval(() => setMsgIndex((i) => (i + 1) % messages.length), 2800);
+    const stepper = setInterval(() => setStep((s) => Math.min(s + 1, steps.length - 1)), 2600);
     const timeout = setTimeout(() => setShowFirstUserMsg(true), 20000);
     return () => {
       clearInterval(interval);
+      clearInterval(stepper);
       clearTimeout(timeout);
     };
   }, []);
+  const effectiveStep = step >= steps.length - 1 ? steps.length : (step === 0 ? 1 : step);
+  const progress = Math.min(100, Math.round((effectiveStep / steps.length) * 100));
+
   return (
-    <Card className="w-full max-w-4xl mt-16 items-center py-10">
-      <CardContent className="flex flex-col items-center gap-4 px-8">
-        <Loader2 className="h-10 w-10 text-primary animate-spin" />
-        <p className="text-base font-medium text-center text-muted-foreground">{messages[index]}</p>
-        <Skeleton className="w-3/4 h-2" />
+    <Card className="w-full max-w-4xl mt-10 sm:mt-16 items-center py-8 sm:py-10">
+      <CardContent className="flex flex-col items-center gap-4 sm:gap-5 px-6 sm:px-8 w-full">
+        <div className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg">
+          <Sparkles className="h-7 w-7 text-white animate-pulse" />
+        </div>
+        <h2 className="text-lg sm:text-xl font-semibold text-foreground">Preparando sua explicação...</h2>
+        <p className="text-sm text-center text-muted-foreground">{messages[msgIndex]}</p>
+
+        <div className="w-full max-w-md mt-1">
+          <div className="h-2 bg-muted rounded-full overflow-hidden">
+            <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+        <p className="text-xs text-center text-muted-foreground mt-1">{progress}% concluído — {progress >= 80 ? 'já está quase pronto...' : 'estamos preparando com carinho...'}</p>
+
+        <ul className="w-full max-w-md text-sm text-muted-foreground space-y-2 mt-2">
+          {steps.map((label, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${i < step ? 'bg-emerald-500 border-emerald-500 text-white' : i === step ? 'border-primary text-primary animate-pulse' : 'border-muted-foreground/30 text-muted-foreground/40'}`}>
+                {i < step ? <CheckCircle size={14} /> : <Loader2 size={12} className={i === step ? 'animate-spin' : ''} />}
+              </div>
+              <span className={`${i <= step ? 'text-foreground' : ''}`}>{label}</span>
+            </li>
+          ))}
+        </ul>
+
         <p className="text-xs text-center text-muted-foreground italic max-w-md">
-        "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
+          "A tua palavra é lâmpada para os meus pés e luz para o meu caminho." - Salmos 119:105
         </p>
         {showFirstUserMsg && (
-          <p className="text-xs text-center text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 rounded-md px-3 py-2 mt-2">
-            Você está prestes a ser a primeira pessoa a acessar a explicação deste versículo! Isso pode demorar um pouco mais.<br />
-            Nas próximas visitas, tudo será instantâneo 😊
+          <p className="text-xs text-center text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 rounded-md px-3 py-2 mt-1">
+            Você pode ser a primeira pessoa a acessar a explicação deste versículo — a geração inicial pode levar um pouco mais. Nas próximas visitas, tudo será instantâneo 😊
           </p>
         )}
       </CardContent>
@@ -61,6 +93,10 @@ interface BibleExplanationProps {
   livro: string;
   capitulo: string;
   versos?: string;
+  // SSR initial props
+  initialExplanation?: any;
+  initialSource?: string;
+  initialExplanationId?: number;
 }
 
 interface VerseExplanation {
@@ -99,7 +135,13 @@ interface ErrorExplanation {
   message: string;
 }
 
-type ExplanationData = VerseExplanation | ChapterSummary | ErrorExplanation;
+interface FallbackExplanation {
+  type: 'error';
+  requestDetails?: { book?: string; chapter?: number; verses?: string | null };
+  errorDetails: { title: string; message: string; suggestion?: string };
+}
+
+type ExplanationData = VerseExplanation | ChapterSummary | ErrorExplanation | FallbackExplanation;
 
 // --- Reusable UI Components ---
 const Section: FC<{ title: string; children: ReactNode; icon?: ReactNode; defaultOpen?: boolean }> = ({ title, children, icon, defaultOpen = true }) => {
@@ -294,6 +336,10 @@ function isErrorExplanation(data: any): data is ErrorExplanation {
   return data && typeof data === 'object' && 'error' in data;
 }
 
+function isFallbackExplanation(data: any): data is FallbackExplanation {
+  return data && typeof data === 'object' && data.type === 'error' && !!data.errorDetails;
+}
+
 const ExplanationRenderer: FC<{ data: ExplanationData | string | null; isChapterMode: boolean }> = ({ data, isChapterMode }) => {
   if (typeof data === 'string') {
     // Fallback for old HTML data
@@ -332,10 +378,24 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     }
   }, []);
 
-  const [loading, setLoading] = useState(true);
-  const [explanation, setExplanation] = useState<ExplanationData | string | null>(null);
-  const [source, setSource] = useState('');
-  const [explanationId, setExplanationId] = useState<number | null>(null);
+  // Normalize possible stringified JSON or legacy HTML
+  const normalizeExplanation = (value: any): ExplanationData | string | null => {
+    if (!value) return null;
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value);
+      } catch {
+        return value; // legacy HTML
+      }
+    }
+    if (typeof value === 'object') return value as ExplanationData;
+    return null;
+  };
+
+  const [loading, setLoading] = useState(!props.initialExplanation);
+  const [explanation, setExplanation] = useState<ExplanationData | string | null>(normalizeExplanation(props.initialExplanation));
+  const [source, setSource] = useState(props.initialSource || '');
+  const [explanationId, setExplanationId] = useState<number | null>(props.initialExplanationId || null);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
   const [feedbackComment, setFeedbackComment] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -350,6 +410,15 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   const slugService = SlugService.getInstance();
   const bookSlug = slugService.livroParaSlug(book);
 
+  // Helper: rolar para o topo ao trocar de versículo/capítulo/param
+  const scrollToTop = (smooth: boolean = true) => {
+    try {
+      window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  };
+
   function extractVerses() {
     if (typeof window === 'undefined') return props.versos || null;
     const params = new URLSearchParams(window.location.search);
@@ -363,12 +432,37 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     }
     return props.versos || null;
   }
-  const verses = extractVerses();
+  const [versesState, setVersesState] = useState<string | null>(extractVerses());
+  const verses = versesState;
   const isChapterMode = !verses;
 
   const maxVerses = 50;
 
+  // Sync verses state when server provides initial props (SSR or Inertia navigation)
   useEffect(() => {
+    if (props.initialExplanation !== undefined) {
+      setExplanation(normalizeExplanation(props.initialExplanation));
+      setSource(props.initialSource || 'unknown');
+      setExplanationId(props.initialExplanationId || null);
+      if (props.initialExplanationId) fetchFeedbackStats(props.initialExplanationId);
+      setLoading(!props.initialExplanation);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.initialExplanation, props.initialSource, props.initialExplanationId]);
+
+  useEffect(() => {
+    // Keep verses in sync when SSR prop changes
+    if (props.versos !== undefined) {
+      setVersesState(props.versos || null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.versos]);
+
+  // Client fetch with SSR-skip only on first hydration
+  const didUseSSR = useRef(false);
+  useEffect(() => {
+    const controller = new AbortController();
+    const signal = controller.signal;
     async function fetchExplanation() {
       setLoading(true);
       try {
@@ -376,60 +470,111 @@ function BibleExplanationContent(props: BibleExplanationProps) {
         if (verses) {
           apiUrl += `?verses=${verses}`;
         }
-        const response = await fetch(apiUrl);
+        const response = await fetch(apiUrl, { signal });
         if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
 
         const data = await response.json();
 
-        // The backend now sends the explanation inside the 'explanation' key
         const explanationContent = data.explanation;
-
-        if (typeof explanationContent === 'string') {
-          // It might be a JSON string or legacy HTML. Try parsing.
-          try {
-            const parsedJson = JSON.parse(explanationContent);
-            setExplanation(parsedJson);
-          } catch (e) {
-            // If parsing fails, it's legacy HTML
-            setExplanation(explanationContent);
-          }
-        } else if (typeof explanationContent === 'object' && explanationContent !== null) {
-          // It's already a JSON object
-          setExplanation(explanationContent);
-        } else {
-          throw new Error('No explanation was returned.');
-        }
-
+        setExplanation(normalizeExplanation(explanationContent));
         setSource(data.origin || 'unknown');
         setExplanationId(data.id || null);
         if (data.id) fetchFeedbackStats(data.id);
-
-        if (verses) {
-          const slugifiedBook = bookSlug;
-          const slug = verses + '-explicacao-biblica';
-          const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}/${slug}`;
-          if (window.location.pathname !== expectedPath) {
-            window.history.replaceState({}, '', expectedPath);
-          }
-        }
-      } catch (error) {
+      } catch (error: any) {
+        if (error?.name === 'AbortError') return; // ignore aborted requests
         console.error('Error fetching explanation:', error);
         setExplanation({ error: 'fetch_failed', message: 'Erro ao buscar a explicação. Por favor, verifique sua conexão e tente novamente.' });
       } finally {
-        setLoading(false);
+        if (!signal.aborted) setLoading(false);
       }
     }
+    if (!didUseSSR.current && props.initialExplanation) {
+      // First render with SSR data: use it and skip fetching
+      setLoading(false);
+      didUseSSR.current = true;
+      return () => controller.abort();
+    }
     fetchExplanation();
+    return () => controller.abort();
   }, [testamento, bookSlug, chapter, verses]);
+
+  // Manual refetch for Retry action (adds cache-busting param)
+  const retryRefetch = async () => {
+    setLoading(true);
+    setExplanation(null);
+    try {
+      let apiUrl = `/api/explanation/${testamento}/${bookSlug}/${chapter}`;
+      const ts = `_ts=${Date.now()}`;
+      if (verses) {
+        apiUrl += `?verses=${encodeURIComponent(verses)}&${ts}`;
+      } else {
+        apiUrl += `?${ts}`;
+      }
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
+      const data = await response.json();
+      const explanationContent = data.explanation;
+      setExplanation(normalizeExplanation(explanationContent));
+      setSource(data.origin || 'unknown');
+      setExplanationId(data.id || null);
+      if (data.id) fetchFeedbackStats(data.id);
+      scrollToTop();
+    } catch (error) {
+      console.error('Retry fetch failed:', error);
+      setExplanation({ error: 'fetch_failed', message: 'Ainda não foi possível gerar a explicação. Tente novamente em alguns instantes.' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Canonical URL rewrite for verse mode
+  useEffect(() => {
+    if (!verses) return;
+    try {
+      const slugifiedBook = bookSlug;
+      const slug = verses + '-explicacao-biblica';
+      const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}/${slug}`;
+      if (window.location.pathname !== expectedPath) {
+        window.history.replaceState({}, '', expectedPath);
+      }
+    } catch { /* noop */ }
+  }, [testamento, bookSlug, chapter, verses]);
+
+  // Sync with browser back/forward navigation
+  useEffect(() => {
+    const onPop = () => {
+      try {
+        const v = extractVerses();
+        setVersesState(v);
+        setLoading(true);
+        // Volta para o topo ao navegar pelo histórico
+        scrollToTop(false);
+      } catch { /* noop */ }
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
 
   // SEO and other side effects
   useEffect(() => {
     // ... (fetchSeoMetadata, fetchRelatedLinks can be called here)
   }, [testamento, bookSlug, chapter, verses]);
 
+  // Sempre rolar para o topo quando os parâmetros de navegação mudarem
+  useEffect(() => {
+    scrollToTop(false);
+  }, [testamento, bookSlug, chapter, verses]);
+
   const navigateToVerse = (verseNumber: number) => {
     if (verseNumber < 1 || verseNumber > maxVerses) return;
-    window.location.href = `/explicacao/${testamento}/${bookSlug}/${chapter}?verses=${verseNumber}`;
+    const url = `/explicacao/${testamento}/${bookSlug}/${chapter}?verses=${verseNumber}`;
+    try {
+      window.history.pushState({}, '', url);
+    } catch { /* noop */ }
+    // Garantir que a visão comece pelo topo ao trocar de versículo
+    scrollToTop();
+    setVersesState(String(verseNumber));
+    setLoading(true);
   };
 
   const navigateToNextVerse = () => {
@@ -513,12 +658,14 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                     if (saved && saved.book) {
                       const slugService = SlugService.getInstance();
                       const bSlug = slugService.livroParaSlug(saved.book);
-                      if (saved.chapter !== null && saved.chapter !== undefined) {
-                        fallbackUrl = `/biblia/${saved.testament}/${bSlug}/${saved.chapter}`;
-                      } else {
-                        fallbackUrl = `/biblia/${saved.testament}/${bSlug}`;
-                      }
+                      // Sempre voltar para a visão de capítulos
+                      fallbackUrl = `/biblia/${saved.testament}/${bSlug}`;
                     }
+                  } else {
+                    // Sem estado salvo: voltar para capítulos do livro atual
+                    const gridTestament = (props.testamento === 'antigo' ? 'velho' : 'novo');
+                    const currentBookSlug = bookSlug;
+                    fallbackUrl = `/biblia/${gridTestament}/${currentBookSlug}`;
                   }
                   // Preferir voltar pelo histórico quando possível e seguro
                   const hasHistory = window.history.length > 1;
@@ -553,7 +700,31 @@ function BibleExplanationContent(props: BibleExplanationProps) {
             <DynamicLoading />
           ) : (
             <div className="bg-card text-card-foreground rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border">
-              <ExplanationRenderer data={explanation} isChapterMode={isChapterMode} />
+              {isFallbackExplanation(explanation) ? (
+                <div className="p-5 sm:p-6 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-400 rounded-r-lg">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-300 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-amber-800 dark:text-amber-200">{explanation.errorDetails.title}</h3>
+                      <p className="text-amber-700 dark:text-amber-300 mt-1">{explanation.errorDetails.message}</p>
+                      {explanation.errorDetails.suggestion && (
+                        <p className="text-amber-700/90 dark:text-amber-300/90 text-sm mt-2">{explanation.errorDetails.suggestion}</p>
+                      )}
+                      <div className="mt-4">
+                        <button
+                          onClick={retryRefetch}
+                          className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                        >
+                          <RefreshCw size={16} />
+                          Tentar novamente
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <ExplanationRenderer data={explanation} isChapterMode={isChapterMode} />
+              )}
             </div>
           )}
 

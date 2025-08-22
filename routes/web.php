@@ -133,9 +133,19 @@ Route::get('/ofertar', function () {
 })->name('ofertar');
 
 // Bible Explanation Page Routes (capítulo)
-Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
+Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo, \Illuminate\Http\Request $request) {
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
+
+    // Versículos por query param (suporta SSR canônico com ?verses=)
+    $verses = $request->query('verses');
+
+    // Prefetch explanation for SSR initial props only on full page loads (not Inertia visits)
+    $prefetch = null;
+    if (!$request->header('X-Inertia')) {
+        $prefetch = app()->make(\App\Services\BibleExplanationService::class)
+            ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
+    }
 
     // SEO meta dinâmico (capítulo)
     $titleBase = ucfirst($livroOriginal).' '.$capitulo;
@@ -179,11 +189,20 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
     ];
     $jsonLd = json_encode([$breadcrumbs, $article], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-    return Inertia::render('explicacao/index', [
+    $pageProps = [
         'testamento' => $testamento,
         'livro' => $livroOriginal,
         'capitulo' => $capitulo,
-    ])->withViewData([
+        // SSR initial props
+        'initialExplanation' => $prefetch['explanation'] ?? null,
+        'initialSource' => $prefetch['origin'] ?? 'unknown',
+        'initialExplanationId' => $prefetch['id'] ?? null,
+    ];
+    if (!empty($verses)) {
+        $pageProps['versos'] = $verses;
+    }
+
+    return Inertia::render('explicacao/index', $pageProps)->withViewData([
         'title' => $title,
         'description' => $description,
         'keywords' => $keywords,
@@ -196,7 +215,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
 })->where('testamento', '^(antigo|novo)$');
 
 // URL amigável para SEO com slug - rota para versículos específicos
-Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (string $testamento, string $livro, string $capitulo, string $slug) {
+Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (string $testamento, string $livro, string $capitulo, string $slug, \Illuminate\Http\Request $request) {
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
 
@@ -205,6 +224,13 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
     $normalizedSlug = str_replace(['%3A', ':', '%2F', '/'], '-', $slug);
     if (preg_match('/^(\d+)(?:[-](\d+))?/', $normalizedSlug, $versesMatch)) {
         $verses = isset($versesMatch[2]) ? ($versesMatch[1].'-'.$versesMatch[2]) : $versesMatch[1];
+
+        // Prefetch explanation for SSR initial props (verses mode) only on full loads
+        $prefetch = null;
+        if (!$request->header('X-Inertia')) {
+            $prefetch = app()->make(\App\Services\BibleExplanationService::class)
+                ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
+        }
         // SEO meta dinâmico (versículo)
         $titleBase = ucfirst($livroOriginal).' '.$capitulo.':'.$verses;
         $title = $titleBase.' - Explicação Bíblica | Verso a verso';
@@ -253,6 +279,10 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'livro' => $livroOriginal,
             'capitulo' => $capitulo,
             'versos' => $verses,
+            // SSR initial props only on full page loads
+            'initialExplanation' => $prefetch['explanation'] ?? null,
+            'initialSource' => $prefetch['origin'] ?? 'unknown',
+            'initialExplanationId' => $prefetch['id'] ?? null,
         ])->withViewData([
             'title' => $title,
             'description' => $description,
@@ -260,6 +290,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'canonicalUrl' => $canonicalUrl,
             'robots' => 'index, follow',
             'jsonLd' => $jsonLd,
+            'ampUrl' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}"),
         ]);
     }
 
@@ -305,10 +336,18 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
     ];
     $jsonLd = json_encode([$breadcrumbs, $article], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
+    // Prefetch explanation for SSR initial props (chapter mode)
+    $prefetch = app()->make(\App\Services\BibleExplanationService::class)
+        ->getExplanation($testamento, $livroOriginal, (int) $capitulo, null);
+
     return Inertia::render('explicacao/index', [
         'testamento' => $testamento,
         'livro' => $livroOriginal,
         'capitulo' => $capitulo,
+        // SSR initial props
+        'initialExplanation' => $prefetch['explanation'] ?? null,
+        'initialSource' => $prefetch['origin'] ?? 'unknown',
+        'initialExplanationId' => $prefetch['id'] ?? null,
     ])->withViewData([
         'title' => $title,
         'description' => $description,
@@ -316,6 +355,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
         'canonicalUrl' => $canonicalUrl,
         'robots' => 'index, follow',
         'jsonLd' => $jsonLd,
+        'ampUrl' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}"),
     ]);
 })->where('testamento', '^(antigo|novo)$');
 

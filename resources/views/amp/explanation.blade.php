@@ -20,6 +20,13 @@
         }
         // Ensure relatedLinks is an array
         $relatedLinks = isset($relatedLinks) && is_array($relatedLinks) ? $relatedLinks : [];
+        // Ensure explanation is a string; if array (JSON structure), stringify safely for AMP
+        if (isset($explanation) && is_array($explanation)) {
+            // Prefer a minimal textual rendering for AMP; fallback to compact JSON
+            $explanation = '<pre style="white-space:pre-wrap">'
+                . e(json_encode($explanation, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
+                . '</pre>';
+        }
     @endphp
     <title>{{ $title ?? 'Verso a verso - Bíblia Explicada' }}</title>
     <link rel="canonical" href="{{ $canonicalUrl }}">

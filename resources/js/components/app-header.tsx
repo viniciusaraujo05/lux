@@ -3,7 +3,7 @@ import { Icon } from '@/components/icon';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { NavigationMenu, NavigationMenuItem, NavigationMenuList, navigationMenuTriggerStyle } from '@/components/ui/navigation-menu';
+// Navigation menu removed; using simple nav.
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { UserMenuContent } from '@/components/user-menu-content';
@@ -63,29 +63,26 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <div className="ml-6 hidden h-full items-center space-x-6 lg:flex">
-                        <NavigationMenu className="flex h-full items-stretch">
-                            <NavigationMenuList className="flex h-full items-stretch space-x-2">
-                                {mainNavItems.map((item, index) => (
-                                    <NavigationMenuItem key={index} className="relative flex h-full items-center">
-                                        <Link
-                                            href={item.href}
-                                            className={cn(
-                                                navigationMenuTriggerStyle(),
-                                                page.url === item.href && activeItemStyles,
-                                                'h-9 cursor-pointer px-3',
-                                            )}
-                                        >
-                                            {item.icon && <Icon iconNode={item.icon} className="mr-2 h-4 w-4" />}
-                                            {item.title}
-                                        </Link>
-                                        {page.url === item.href && (
-                                            <div className="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white"></div>
+                    <div className="ml-6 hidden h-full items-center space-x-2 lg:flex">
+                        <nav className="flex h-full items-stretch space-x-2">
+                            {mainNavItems.map((item, index) => (
+                                <div key={index} className="relative flex h-full items-center">
+                                    <Link
+                                        href={item.href}
+                                        className={cn(
+                                            'group inline-flex h-9 w-max items-center justify-center rounded-md bg-transparent px-3 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+                                            page.url === item.href && activeItemStyles,
                                         )}
-                                    </NavigationMenuItem>
-                                ))}
-                            </NavigationMenuList>
-                        </NavigationMenu>
+                                    >
+                                        {item.icon && <Icon iconNode={item.icon} className="mr-2 h-4 w-4" />}
+                                        {item.title}
+                                    </Link>
+                                    {page.url === item.href && (
+                                        <div className="absolute bottom-0 left-0 h-0.5 w-full translate-y-px bg-black dark:bg-white" />
+                                    )}
+                                </div>
+                            ))}
+                        </nav>
                     </div>
 
                     <div className="ml-auto flex items-center space-x-2">

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from "@/components/ui/card";
 import BibleService from "@/services/BibleService";
 import SlugService from "@/services/SlugService";
-import { ChevronLeft, Home, Book, Bookmark, Search } from "lucide-react";
+import { ChevronLeft, Home, Book, Bookmark, Search, Loader2 } from "lucide-react";
 import { motion } from 'framer-motion';
+import { router } from '@inertiajs/react';
 
 // Definindo os estados de navegação possíveis
 type NavigationState = 'testamentos' | 'livros' | 'capitulos' | 'versiculos';
@@ -37,10 +38,20 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   const [searchTerm, setSearchTerm] = useState<string>(''); // Estado global para pesquisa
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]); // Versículos selecionados para explicação
   const [selectionMode, setSelectionMode] = useState<boolean>(false); // Modo de seleção de versículos
+  const [navigating, setNavigating] = useState<boolean>(false); // Feedback imediato ao navegar para explicação
   
   // Instâncias dos serviços
   const bibleService = BibleService.getInstance();
   const slugService = SlugService.getInstance();
+  
+  // Helper: rolar para o topo em transições
+  const scrollToTop = () => {
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  };
   
   // Normaliza o testamento para as rotas de explicação (backend usa 'antigo' | 'novo')
   const toExplanationTestament = (t: 'velho' | 'novo'): 'antigo' | 'novo' => (t === 'velho' ? 'antigo' : 'novo');
@@ -222,6 +233,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         setChapters([]);
         setVerses([]);
         setNavState('livros');
+        scrollToTop();
         return;
       }
       // '/biblia/{testamento}/{livro}' ou '/biblia/{testamento}/{livro}/{capitulo}'
@@ -241,10 +253,12 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             const vs = await bibleService.getVersiculos(book, chapter, testament);
             setVerses(vs);
             setNavState('versiculos');
+            scrollToTop();
           } else {
             setSelectedChapter(null);
             setVerses([]);
             setNavState('capitulos');
+            scrollToTop();
           }
         } catch (e) {
           console.error('Erro ao sincronizar URL:', e);
@@ -286,6 +300,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         '', 
         `/biblia/${testament}/${bookSlug}`
       );
+      // Garantir que a visão comece pelo topo
+      scrollToTop();
       
       const bookChapters = await bibleService.getCapitulos(book, testament);
       setChapters(bookChapters);
@@ -316,6 +332,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         '',
         `/biblia/${activeTestament}/${bookSlug}/${chapter}`
       );
+      // Garantir que a visão comece pelo topo
+      scrollToTop();
       
       // Garantir que o testamento seja do tipo correto
       const testament = activeTestament as 'velho' | 'novo';
@@ -527,19 +545,34 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
+                disabled={navigating || !selectedBook || !selectedChapter}
                 onClick={() => {
-                  setLoading(true);
                   const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
                   const expTestament = toExplanationTestament(activeTestament);
                   // Persistir estado antes de navegar para explicação
                   persistNavState();
-                  window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}`;
+                  setNavigating(true);
+                  // Subir para o topo para evitar ficar no rodapé
+                  scrollToTop();
+                  router.visit(`/explicacao/${expTestament}/${bookSlug}/${selectedChapter}`, {
+                    preserveScroll: false,
+                    onFinish: () => setNavigating(false),
+                  });
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                Explicar Capítulo
+                {navigating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Indo para explicação...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                    Explicar Capítulo
+                  </>
+                )}
               </motion.button>
               
               {/* <motion.button
@@ -595,7 +628,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 return (
                   <motion.button
                     key={verse}
-                    className={`p-2 sm:p-3 md:p-4 rounded-md border text-sm sm:text-base ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-accent'} transition-all cursor-pointer`}
+                    className={`p-2 sm:p-3 md:p-4 rounded-md border text-sm sm:text-base ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-accent'} transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed`}
+                    disabled={navigating}
                     whileHover={{ scale: 1.08, boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}
                     whileTap={{ scale: 0.96 }}
                     transition={{ type: 'spring', stiffness: 300 }}
@@ -608,18 +642,23 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                             : [...prev, verse].sort((a, b) => a - b)
                         );
                       } else {
-                        // Modo normal: navegar para explicação de versículo único
-                        setLoading(true);
+                        // Modo normal: navegar para explicação de versículo único (SPA)
                         const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
                         const expTestament = toExplanationTestament(activeTestament);
                         // Persistir estado com o versículo selecionado
                         persistNavState({ selectedVerses: [verse] });
                         const verseSlug = `${verse}-explicacao-biblica`;
-                        window.location.href = `/explicacao/${expTestament}/${bookSlug}/${selectedChapter}/${verseSlug}`;
+                        setNavigating(true);
+                        // Subir para o topo antes de navegar
+                        scrollToTop();
+                        router.visit(`/explicacao/${expTestament}/${bookSlug}/${selectedChapter}/${verseSlug}`, {
+                          preserveScroll: false,
+                          onFinish: () => setNavigating(false),
+                        });
                       }
                     }}
                   >
-                    {verse}
+                    {navigating ? <Loader2 className="w-4 h-4 animate-spin" /> : verse}
                   </motion.button>
                 );
               })}

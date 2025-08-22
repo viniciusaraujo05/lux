@@ -7,6 +7,9 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
+use function mt_rand;
+use function random_int;
+
 class OpenAiClient implements AiClientInterface
 {
     private string $apiKey;
@@ -124,8 +127,20 @@ class OpenAiClient implements AiClientInterface
             'temperature' => 0.6,
             'max_tokens' => $maxTokens,
             'presence_penalty' => 0.1,
+            'response_format' => ['type' => 'json_object'],
         ];
-        $json = $this->postChat($payload);
+        try {
+            $json = $this->postChat($payload);
+        } catch (\RuntimeException $e) {
+            $code = (int) $e->getCode();
+            if ($code >= 400 && $code < 500 && isset($payload['response_format'])) {
+                // Retry once without response_format for models that don't support JSON mode
+                unset($payload['response_format']);
+                $json = $this->postChat($payload);
+            } else {
+                throw $e;
+            }
+        }
         $this->logTokenUsage($json, 'chat');
 
         return Arr::get($json, 'choices.0.message.content', '');
@@ -197,6 +212,24 @@ class OpenAiClient implements AiClientInterface
     }
 
     /**
+     * Returns a cryptographically secure random integer when available,
+     * otherwise falls back to mt_rand. Keeps analyzers happy without leading \
+     * global namespace tokens in call sites.
+     */
+    private function secureRandomInt(int $min, int $max): int
+    {
+        try {
+            if (function_exists('random_int')) {
+                return random_int($min, $max);
+            }
+        } catch (\Throwable $e) {
+            // Fallback below
+        }
+
+        return mt_rand($min, $max);
+    }
+
+    /**
      * Perform a JSON POST with retries, exponential backoff, and controlled timeouts.
      */
     private function postJsonWithRetry(string $url, array $payload, int $retries = 2): array
@@ -218,7 +251,7 @@ class OpenAiClient implements AiClientInterface
 
                 // Retry on transient status codes
                 if (in_array($status, [408, 409, 425, 429, 500, 502, 503, 504], true) && $attempt < $retries) {
-                    usleep(($backoffMs + random_int(0, 150)) * 1000);
+                    usleep(($backoffMs + $this->secureRandomInt(0, 150)) * 1000);
                     $backoffMs = min($backoffMs * 2, 2000);
 
                     continue;
@@ -227,7 +260,7 @@ class OpenAiClient implements AiClientInterface
                 throw new \RuntimeException('OpenAI API error: '.$body, $status);
             } catch (\Throwable $e) {
                 if ($attempt < $retries) {
-                    usleep(($backoffMs + random_int(0, 150)) * 1000);
+                    usleep(($backoffMs + $this->secureRandomInt(0, 150)) * 1000);
                     $backoffMs = min($backoffMs * 2, 2000);
 
                     continue;
