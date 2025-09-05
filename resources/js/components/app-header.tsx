@@ -58,7 +58,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
             <div className="border-sidebar-border/80 border-b relative">
                 <ThemeToggleButton />
                 <div className="mx-auto flex h-16 items-center px-4 md:max-w-7xl">
-                    <Link href="/dashboard" prefetch className="flex items-center space-x-2">
+                    <Link href="/" prefetch className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors">
                         <AppLogo />
                     </Link>
 

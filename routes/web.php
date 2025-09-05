@@ -32,6 +32,16 @@ Route::get('/api/explanation/{testament}/{book}/{chapter}', function (string $te
         ->getExplanation($request, $testament, $bookOriginal, $chapter);
 });
 
+// Book Context API Route
+Route::get('/api/book-context/{testament}/{book}', function (string $testament, string $book, \Illuminate\Http\Request $request) {
+    // Converter o slug para o nome original do livro
+    $bookOriginal = SlugService::slugParaLivro($book);
+
+    // Encaminhar para o controlador com o nome original do livro
+    return app()->make(\App\Http\Controllers\BookContextController::class)
+        ->getBookContext($request, $testament, $bookOriginal);
+});
+
 // API para obter metadados SEO para uma página específica
 Route::get('/api/seo/{testament}/{book}/{chapter}', function (string $testament, string $book, string $chapter, \Illuminate\Http\Request $request) {
     // Converter o slug para o nome original do livro
@@ -131,6 +141,79 @@ Route::get('/faq', function () {
 Route::get('/ofertar', function () {
     return Inertia::render('ofertar');
 })->name('ofertar');
+
+// Book Context Page Routes
+Route::get('/contexto/{testamento}/{livro}', function (string $testamento, string $livro, \Illuminate\Http\Request $request) {
+    // Converter o slug para o nome original do livro
+    $livroOriginal = SlugService::slugParaLivro($livro);
+
+    // Prefetch context for SSR initial props only on full page loads (not Inertia visits)
+    $prefetch = null;
+    if (!$request->header('X-Inertia')) {
+        $prefetch = app()->make(\App\Services\BookContextService::class)
+            ->getBookContext($testamento, $livroOriginal);
+    }
+
+    // SEO meta dinâmico (contexto do livro)
+    $title = 'Contexto de '.ucfirst($livroOriginal).' - Análise Bíblica | Verso a verso';
+    $description = 'Análise completa do contexto bíblico de '.ucfirst($livroOriginal).' com gênero literário, contexto histórico, autoria, doutrinas e aplicação contemporânea.';
+    $keywords = implode(', ', [
+        'contexto bíblico',
+        'análise '.$livroOriginal,
+        'gênero literário',
+        'contexto histórico',
+        'autoria bíblica',
+        'doutrinas',
+        'estudo bíblico',
+        'teologia',
+    ]);
+    $canonicalUrl = url("/contexto/{$testamento}/{$livro}");
+
+    $breadcrumbs = [
+        '@context' => 'https://schema.org',
+        '@type' => 'BreadcrumbList',
+        'itemListElement' => [
+            ['@type' => 'ListItem', 'position' => 1, 'name' => 'Início', 'item' => url('/')],
+            ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
+            ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
+            ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
+            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Contexto', 'item' => $canonicalUrl],
+        ],
+    ];
+    $article = [
+        '@context' => 'https://schema.org',
+        '@type' => 'Article',
+        'headline' => 'Contexto de '.$livroOriginal,
+        'mainEntityOfPage' => $canonicalUrl,
+        'inLanguage' => 'pt-BR',
+        'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
+        'publisher' => [
+            '@type' => 'Organization',
+            'name' => 'Verso a verso',
+            'logo' => ['@type' => 'ImageObject', 'url' => asset('logo.svg')],
+        ],
+        'datePublished' => now()->toIso8601String(),
+        'dateModified' => now()->toIso8601String(),
+    ];
+    $jsonLd = json_encode([$breadcrumbs, $article], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+    $pageProps = [
+        'testamento' => $testamento,
+        'livro' => $livroOriginal,
+        // SSR initial props
+        'initialContext' => $prefetch ?? null,
+    ];
+
+    return Inertia::render('contexto/index', $pageProps)->withViewData([
+        'title' => $title,
+        'description' => $description,
+        'keywords' => $keywords,
+        'canonicalUrl' => $canonicalUrl,
+        'robots' => 'index, follow',
+        'jsonLd' => $jsonLd,
+        'ogType' => 'article',
+    ]);
+})->where('testamento', '^(antigo|novo)$');
 
 // Bible Explanation Page Routes (capítulo)
 Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo, \Illuminate\Http\Request $request) {

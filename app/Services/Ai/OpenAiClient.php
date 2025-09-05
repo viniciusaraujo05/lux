@@ -30,8 +30,17 @@ class OpenAiClient implements AiClientInterface
 
     public function chat(array $messages, int $maxTokens = 4000): string
     {
+        // Verificar se alguma mensagem contém a palavra 'json'
+        $containsJson = false;
+        foreach ($messages as $message) {
+            if (isset($message['content']) && stripos($message['content'], 'json') !== false) {
+                $containsJson = true;
+                break;
+            }
+        }
+        
         if ($this->isGpt5()) {
-            return $this->chatGpt5($messages, $maxTokens);
+            return $this->chatGpt5($messages, $maxTokens, $containsJson);
         }
 
         return $this->chatStandard($messages, $maxTokens);
@@ -43,7 +52,7 @@ class OpenAiClient implements AiClientInterface
         return Str::startsWith($this->model, 'gpt-5');
     }
 
-    private function chatGpt5(array $messages, int $maxTokens): string
+    private function chatGpt5(array $messages, int $maxTokens, bool $useJsonFormat = false): string
     {
         // GPT-5: use Responses API with JSON mode; increase output token budget to avoid truncation
         $inputString = $this->messagesToInputString($messages);
@@ -54,9 +63,12 @@ class OpenAiClient implements AiClientInterface
             'model' => $this->model,
             'input' => $inputString,
             'max_output_tokens' => $safeMax,
-            // Responses API expects an object for text.format, similar to prior response_format
-            'text' => ['format' => ['type' => 'json_object']],
         ];
+        
+        // Adiciona formato JSON apenas se a mensagem contiver a palavra 'json'
+        if ($useJsonFormat) {
+            $payload['text'] = ['format' => ['type' => 'json_object']];
+        }
 
         // Optional reasoning effort (e.g., 'low' for faster responses) if configured
         $effort = config('ai.openai.reasoning_effort'); // e.g., 'low' | 'medium' | 'high'
@@ -216,17 +228,23 @@ class OpenAiClient implements AiClientInterface
      * otherwise falls back to mt_rand. Keeps analyzers happy without leading \
      * global namespace tokens in call sites.
      */
+    private function randomSleep(int $minMs = 100, int $maxMs = 500): void
+    {
+        // Avoid rate limits with a small random sleep
+        $ms = $this->secureRandomInt($minMs, $maxMs);
+        usleep($ms * 1000);
+    }
+    
+    /**
+     * Gera um número aleatório seguro
+     */
     private function secureRandomInt(int $min, int $max): int
     {
         try {
-            if (function_exists('random_int')) {
-                return random_int($min, $max);
-            }
-        } catch (\Throwable $e) {
-            // Fallback below
+            return \random_int($min, $max);
+        } catch (\Exception $e) {
+            return \mt_rand($min, $max);
         }
-
-        return mt_rand($min, $max);
     }
 
     /**

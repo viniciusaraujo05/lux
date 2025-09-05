@@ -1,6 +1,6 @@
 import React, { useState, useEffect, FC, ReactNode, useRef } from 'react';
 import AppLayout from '@/layouts/app-layout';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
   ChevronLeft, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, Heart, User, Loader2,
   BookOpen, Scale, Landmark, Users, Microscope, Cross, Target, Link, Gem,
@@ -470,7 +470,13 @@ function BibleExplanationContent(props: BibleExplanationProps) {
         if (verses) {
           apiUrl += `?verses=${verses}`;
         }
-        const response = await fetch(apiUrl, { signal });
+        const response = await fetch(apiUrl, { 
+          signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          }
+        });
         if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
 
         const data = await response.json();
@@ -483,7 +489,64 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       } catch (error: any) {
         if (error?.name === 'AbortError') return; // ignore aborted requests
         console.error('Error fetching explanation:', error);
-        setExplanation({ error: 'fetch_failed', message: 'Erro ao buscar a explicação. Por favor, verifique sua conexão e tente novamente.' });
+        
+        // Detectar se é erro de conexão durante geração de IA
+        const isConnectionError = error?.message?.includes('Failed to fetch') || 
+                                 error?.message?.includes('ERR_CONNECTION_CLOSED') ||
+                                 error?.message?.includes('net::ERR_CONNECTION_CLOSED');
+        
+        if (isConnectionError) {
+          // Tentar buscar novamente após um delay - pode ter sido salvo no banco
+          console.log('Connection error detected, retrying in 3 seconds...');
+          setTimeout(async () => {
+            try {
+              // Reconstruir a URL da API para o retry
+              let retryApiUrl = `/api/explanation/${testamento}/${bookSlug}/${chapter}`;
+              if (verses) {
+                retryApiUrl += `?verses=${verses}`;
+              }
+              
+              const retryResponse = await fetch(retryApiUrl, { 
+                headers: {
+                  'Accept': 'application/json',
+                  'Content-Type': 'application/json',
+                }
+              });
+              
+              if (retryResponse.ok) {
+                const retryData = await retryResponse.json();
+                setExplanation(normalizeExplanation(retryData.explanation));
+                setSource(retryData.origin || 'cache');
+                setExplanationId(retryData.id || null);
+                if (retryData.id) fetchFeedbackStats(retryData.id);
+                setLoading(false);
+                return;
+              }
+            } catch (retryError) {
+              console.error('Retry failed:', retryError);
+            }
+            
+            // Se o retry falhou, mostrar erro com opção de tentar novamente
+            setExplanation({ 
+              error: 'connection_failed', 
+              message: 'A explicação pode ter sido gerada, mas houve um problema de conexão. Clique em "Tentar novamente" ou atualize a página.' 
+            });
+            setLoading(false);
+          }, 3000);
+          
+          return; // Não definir erro imediatamente, aguardar retry
+        }
+        
+        // Outros tipos de erro
+        let errorMessage = 'Erro ao buscar a explicação. Por favor, tente novamente.';
+        if (error?.message?.includes('timeout')) {
+          errorMessage = 'A requisição demorou muito. Tente novamente em alguns instantes.';
+        }
+        
+        setExplanation({ 
+          error: 'fetch_failed', 
+          message: errorMessage 
+        });
       } finally {
         if (!signal.aborted) setLoading(false);
       }
@@ -510,7 +573,12 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       } else {
         apiUrl += `?${ts}`;
       }
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
       if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
       const data = await response.json();
       const explanationContent = data.explanation;
@@ -650,35 +718,25 @@ function BibleExplanationContent(props: BibleExplanationProps) {
             <div className="flex items-center gap-4">
               <button onClick={() => {
                 try {
-                  const NAV_STATE_KEY = 'verbum:bible_nav_state';
-                  const savedRaw = localStorage.getItem(NAV_STATE_KEY);
-                  let fallbackUrl = '/biblia';
-                  if (savedRaw) {
-                    const saved = JSON.parse(savedRaw) as { testament: 'velho' | 'novo'; book: string | null; chapter: number | null };
-                    if (saved && saved.book) {
-                      const slugService = SlugService.getInstance();
-                      const bSlug = slugService.livroParaSlug(saved.book);
-                      // Sempre voltar para a visão de capítulos
-                      fallbackUrl = `/biblia/${saved.testament}/${bSlug}`;
-                    }
-                  } else {
-                    // Sem estado salvo: voltar para capítulos do livro atual
-                    const gridTestament = (props.testamento === 'antigo' ? 'velho' : 'novo');
-                    const currentBookSlug = bookSlug;
-                    fallbackUrl = `/biblia/${gridTestament}/${currentBookSlug}`;
-                  }
-                  // Preferir voltar pelo histórico quando possível e seguro
-                  const hasHistory = window.history.length > 1;
-                  const sameOriginRef = document.referrer && document.referrer.startsWith(window.location.origin);
-                  if (hasHistory && sameOriginRef) {
-                    window.history.back();
-                  } else {
-                    window.location.href = fallbackUrl;
-                  }
-                } catch {
-                  window.history.back();
+                  // Sempre voltar para a visão de versículos do capítulo atual
+                  // Seguindo o fluxo: Livros > Capítulos > Versículos > Explicação
+                  const gridTestament = (props.testamento === 'antigo' ? 'velho' : 'novo');
+                  const currentBookSlug = bookSlug;
+                  const versiculosUrl = `/biblia/${gridTestament}/${currentBookSlug}/${chapter}`;
+                  
+                  // Usar router.visit para navegação SPA consistente
+                  router.visit(versiculosUrl, {
+                    preserveScroll: false,
+                    replace: false
+                  });
+                } catch (error) {
+                  console.error('Erro na navegação:', error);
+                  // Fallback para navegação direta
+                  const gridTestament = (props.testamento === 'antigo' ? 'velho' : 'novo');
+                  const currentBookSlug = bookSlug;
+                  window.location.href = `/biblia/${gridTestament}/${currentBookSlug}/${chapter}`;
                 }
-              }} className="text-indigo-600 hover:text-indigo-800" aria-label="Voltar">
+              }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary/80 transition-colors font-medium" aria-label="Voltar para versículos">
                 <ChevronLeft size={isMobile ? 18 : 22} />
               </button>
               <h1 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200 truncate max-w-[150px] sm:max-w-full">

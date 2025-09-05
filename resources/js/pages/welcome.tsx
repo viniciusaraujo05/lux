@@ -10,12 +10,33 @@ import { Heart } from 'lucide-react';
 // Lazy-load the heavy grid to reduce initial bundle size
 const BibleBooksGrid = React.lazy(() => import('@/components/BibleBooksGrid'));
 
-// Lightweight skeleton while the grid loads
+// Enhanced skeleton while the grid loads
 const GridSkeleton: React.FC = () => (
-  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
-    {Array.from({ length: 12 }).map((_, i) => (
-      <div key={i} className="h-10 rounded-md bg-muted/60 animate-pulse" />
-    ))}
+  <div className="space-y-8">
+    {/* Search skeleton */}
+    <div className="flex justify-center">
+      <div className="w-full max-w-md h-10 rounded-lg bg-muted/60 animate-pulse" />
+    </div>
+    
+    {/* Velho Testamento skeleton */}
+    <div>
+      <div className="h-6 w-40 bg-muted/60 animate-pulse rounded mb-4" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        {Array.from({ length: 39 }).map((_, i) => (
+          <div key={`vt-${i}`} className="h-12 rounded-md bg-muted/60 animate-pulse" />
+        ))}
+      </div>
+    </div>
+    
+    {/* Novo Testamento skeleton */}
+    <div>
+      <div className="h-6 w-40 bg-muted/60 animate-pulse rounded mb-4" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        {Array.from({ length: 27 }).map((_, i) => (
+          <div key={`nt-${i}`} className="h-12 rounded-md bg-muted/60 animate-pulse" />
+        ))}
+      </div>
+    </div>
   </div>
 );
 

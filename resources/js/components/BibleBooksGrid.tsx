@@ -1,13 +1,126 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { Card, CardContent } from "@/components/ui/card";
-import BibleService from "@/services/BibleService";
-import SlugService from "@/services/SlugService";
-import { ChevronLeft, Home, Book, Bookmark, Search, Loader2 } from "lucide-react";
-import { motion } from 'framer-motion';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ChevronLeft, ChevronRight, BookOpen, Home, Search, Menu, X, Sparkles, Book, Users, Scale, Cross, Target, Gem, FileText, Key, Loader2, Bookmark } from 'lucide-react';
+import SlugService from '@/services/SlugService';
+import BibleService from '@/services/BibleService';
 import { router } from '@inertiajs/react';
+import { Card, CardContent } from '@/components/ui/card';
 
 // Definindo os estados de navegação possíveis
-type NavigationState = 'testamentos' | 'livros' | 'capitulos' | 'versiculos';
+type NavigationState = 'testamentos' | 'livros' | 'capitulos' | 'versiculos' | 'contexto';
+
+// Interface para o contexto do livro
+interface BookContextData {
+  sections: Array<{
+    id: string;
+    title: string;
+    content?: string;
+    subsections?: Array<{
+      title: string;
+      content: string;
+    }>;
+  }>;
+}
+
+// Componente para renderizar o contexto do livro
+const BookContextRenderer: React.FC<{ context: string; bookName: string | null }> = ({ context, bookName }) => {
+  let contextData: BookContextData;
+  
+  try {
+    contextData = JSON.parse(context);
+  } catch (error) {
+    return (
+      <div className="p-6 bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 dark:border-red-400 rounded-r-lg">
+        <h3 className="font-semibold text-red-800 dark:text-red-200">Erro ao processar contexto</h3>
+        <p className="text-red-700 dark:text-red-300 mt-1">Não foi possível processar o contexto do livro.</p>
+      </div>
+    );
+  }
+
+  const getSectionIcon = (id: string) => {
+    switch (id) {
+      case 'identificacao-genero': return <Book className="h-5 w-5" />;
+      case 'contexto-historico': return <Users className="h-5 w-5" />;
+      case 'autoria-intencao': return <FileText className="h-5 w-5" />;
+      case 'mensagem-fe': return <Cross className="h-5 w-5" />;
+      case 'relacao-biblia': return <Target className="h-5 w-5" />;
+      case 'tradicao-interpretativa': return <Scale className="h-5 w-5" />;
+      case 'doutrinas-presentes': return <Gem className="h-5 w-5" />;
+      case 'leitura-canonica': return <Key className="h-5 w-5" />;
+      default: return <BookOpen className="h-5 w-5" />;
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Cabeçalho */}
+      <div className="text-center py-6 bg-gradient-to-r from-primary/5 to-secondary/5 rounded-lg border border-border">
+        <h1 className="text-2xl font-bold text-foreground mb-2">
+          Contexto do Livro de {bookName}
+        </h1>
+        <p className="text-muted-foreground">
+          Análise teológica e histórica abrangente
+        </p>
+      </div>
+
+      {/* Seções */}
+      {contextData.sections?.map((section, index) => (
+        <motion.div
+          key={section.id}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.1 }}
+          className="bg-card text-card-foreground rounded-lg border border-border shadow-sm overflow-hidden"
+        >
+          {/* Cabeçalho da seção */}
+          <div className="bg-gradient-to-r from-primary/10 to-secondary/10 px-6 py-4 border-b border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-primary/20 rounded-lg text-primary">
+                {getSectionIcon(section.id)}
+              </div>
+              <h2 className="text-xl font-semibold text-foreground">
+                {section.title}
+              </h2>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {/* Conteúdo principal da seção */}
+            {section.content && (
+              <div className="prose prose-gray dark:prose-invert max-w-none mb-6">
+                <p className="text-muted-foreground leading-relaxed">
+                  {section.content}
+                </p>
+              </div>
+            )}
+
+            {/* Subseções */}
+            {section.subsections && (
+              <div className="space-y-4">
+                {section.subsections.map((subsection, subIndex) => (
+                  <div key={subIndex} className="bg-muted/30 rounded-lg p-4 border border-border/50">
+                    <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+                      <div className="w-2 h-2 bg-primary rounded-full"></div>
+                      {subsection.title}
+                    </h3>
+                    <p className="text-muted-foreground leading-relaxed">
+                      {subsection.content}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      ))}
+
+      {/* Rodapé */}
+      <div className="text-center py-4 text-sm text-muted-foreground border-t border-border">
+        <p>Análise gerada com base em fontes teológicas e exegéticas confiáveis</p>
+      </div>
+    </div>
+  );
+};
 
 interface BibleBooksGridProps {
   initialTestament?: 'velho' | 'novo';
@@ -39,7 +152,9 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   const [selectedVerses, setSelectedVerses] = useState<number[]>([]); // Versículos selecionados para explicação
   const [selectionMode, setSelectionMode] = useState<boolean>(false); // Modo de seleção de versículos
   const [navigating, setNavigating] = useState<boolean>(false); // Feedback imediato ao navegar para explicação
-  
+  const [bookContext, setBookContext] = useState<any>(null);
+  const [contextLoading, setContextLoading] = useState(false);
+
   // Instâncias dos serviços
   const bibleService = BibleService.getInstance();
   const slugService = SlugService.getInstance();
@@ -50,6 +165,35 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch {
       window.scrollTo(0, 0);
+    }
+  };
+
+  // Fetch book context
+  const fetchBookContext = async () => {
+    if (!selectedBook) return;
+    
+    try {
+      const bookSlug = slugService.livroParaSlug(selectedBook);
+      const expTestament = toExplanationTestament(activeTestament);
+      const response = await fetch(`/api/book-context/${expTestament}/${bookSlug}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
+      
+      const data = await response.json();
+      setBookContext(data);
+    } catch (error) {
+      console.error('Error fetching book context:', error);
+      setBookContext({
+        error: 'fetch_failed',
+        message: 'Erro ao buscar o contexto do livro. Tente novamente.'
+      });
+    } finally {
+      setContextLoading(false);
     }
   };
   
@@ -349,20 +493,16 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
   // Função para voltar para a visualização anterior
   const navigateBack = () => {
-    // Preferir histórico do navegador para uma navegação natural
-    if (window.history.length > 1) {
-      window.history.back();
-      return;
-    }
-
-    // Fallback se não houver histórico
-    if (selectedChapter !== null) {
+    if (navState === 'contexto') {
+      setNavState('capitulos');
+      setBookContext(null);
+    } else if (selectedChapter !== null) {
       const backBookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
       setSelectedChapter(null);
       setVerses([]);
       setSelectedVerses([]);
       setSelectionMode(false);
-      window.history.replaceState(
+      window.history.pushState(
         { testament: activeTestament, book: selectedBook },
         '',
         `/biblia/${activeTestament}/${backBookSlug}`
@@ -371,9 +511,10 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     } else if (selectedBook !== null) {
       setSelectedBook(null);
       setChapters([]);
-      window.history.replaceState({}, '', `/biblia`);
+      window.history.pushState({}, '', `/biblia`);
       setNavState('livros');
     }
+    scrollToTop();
   };
 
   // Atualiza o estado de navegação quando algo é selecionado
@@ -471,20 +612,65 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     );
   };
 
-  // Componente de loading
-  const LoadingIndicator = () => (
-    <div className="flex justify-center items-center h-32">
-      <div className="flex flex-col items-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
-        <p className="text-sm text-muted-foreground">Carregando...</p>
-      </div>
-    </div>
-  );
+  // Componente de loading melhorado
+  const LoadingIndicator = () => {
+    const getLoadingMessage = () => {
+      switch (navState) {
+        case 'livros': return 'Carregando livros da Bíblia...';
+        case 'capitulos': return `Carregando capítulos de ${selectedBook}...`;
+        case 'versiculos': return `Carregando versículos do capítulo ${selectedChapter}...`;
+        default: return 'Carregando...';
+      }
+    };
 
-  // Componente de erro
+    return (
+      <div className="flex justify-center items-center h-32 sm:h-40">
+        <div className="flex flex-col items-center space-y-3">
+          <div className="relative">
+            <div className="animate-spin rounded-full h-10 w-10 sm:h-12 sm:w-12 border-4 border-primary/20 border-t-primary"></div>
+            <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary/40 animate-pulse"></div>
+          </div>
+          <div className="text-center">
+            <p className="text-sm sm:text-base font-medium text-foreground">{getLoadingMessage()}</p>
+            <p className="text-xs text-muted-foreground mt-1">Aguarde um momento...</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Componente de erro melhorado
   const ErrorMessage = () => (
-    <div className="p-4 rounded-md bg-red-50 border border-red-200 text-red-700">
-      <p>{error}</p>
+    <div className="p-6 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
+      <div className="flex items-start gap-3">
+        <div className="flex-shrink-0">
+          <svg className="h-6 w-6 text-red-600 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <h3 className="text-sm font-medium text-red-800 dark:text-red-200 mb-1">
+            Erro ao carregar conteúdo
+          </h3>
+          <p className="text-sm text-red-700 dark:text-red-300 mb-3">
+            {error}
+          </p>
+          <button
+            onClick={() => {
+              setError(null);
+              setLoading(true);
+              // Recarregar a página para tentar novamente
+              window.location.reload();
+            }}
+            className="inline-flex items-center gap-2 px-3 py-2 text-sm font-medium text-red-700 dark:text-red-200 bg-red-100 dark:bg-red-800/30 hover:bg-red-200 dark:hover:bg-red-800/50 rounded-md transition-colors"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Tentar novamente
+          </button>
+        </div>
+      </div>
     </div>
   );
 
@@ -511,27 +697,107 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       
       case 'capitulos':
         return (
-          <div className="always-visible">
-            <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1 sm:gap-2">
-  {chapters.map((chapter) => {
-    const isSelected = selectedChapter === chapter;
-    return (
-      <motion.button
-        key={chapter}
-        className={`relative p-2 sm:p-3 md:p-4 rounded-md border text-sm sm:text-base transition-all cursor-pointer font-semibold text-center focus:outline-none ${isSelected ? 'bg-primary text-primary-foreground border-primary' : 'bg-card hover:bg-accent border-border text-foreground'}`}
-        whileHover={{ scale: 1.08, boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}
-        whileTap={{ scale: 0.96 }}
-        transition={{ type: 'spring', stiffness: 300 }}
-        onClick={() => navigateToVerses(chapter)}
-      >
-        {chapter}
-        {isSelected && (
-          <span className="absolute -top-1 -right-1 bg-primary-foreground text-primary w-4 h-4 flex items-center justify-center rounded-full text-xs border border-primary">✓</span>
-        )}
-      </motion.button>
-    );
-  })}
-</div>
+          <div className="always-visible space-y-6">
+            {/* Botão para explicar contexto do livro */}
+            <div className="flex justify-center">
+              <motion.button
+                className="px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-secondary bg-secondary text-secondary-foreground hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
+                whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
+                whileTap={{ scale: 0.97 }}
+                transition={{ type: 'spring', stiffness: 400 }}
+                disabled={navigating || !selectedBook}
+                onClick={() => {
+                  if (!selectedBook) return;
+                  setNavigating(true);
+                  
+                  // Navegar para a página de contexto
+                  const bookSlug = slugService.livroParaSlug(selectedBook);
+                  const expTestament = toExplanationTestament(activeTestament);
+                  
+                  router.visit(`/contexto/${expTestament}/${bookSlug}`, {
+                    onFinish: () => setNavigating(false),
+                    onError: () => setNavigating(false)
+                  });
+                }}
+              >
+                {navigating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Carregando...</span>
+                  </>
+                ) : (
+                  <>
+                    <BookOpen className="w-5 h-5" />
+                    <span>Explicar contexto do livro</span>
+                  </>
+                )}
+              </motion.button>
+            </div>
+
+            {/* Grid de capítulos */}
+            <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2 sm:gap-3">
+              {chapters.map((chapter) => {
+                const isSelected = selectedChapter === chapter;
+                return (
+                  <motion.button
+                    key={chapter}
+                    className={`relative p-3 sm:p-4 rounded-lg border text-sm sm:text-base transition-all cursor-pointer font-semibold text-center focus:outline-none focus:ring-2 focus:ring-primary/50 ${isSelected ? 'bg-primary text-primary-foreground border-primary shadow-md' : 'bg-card hover:bg-accent border-border text-foreground hover:border-primary/30'}`}
+                    whileHover={{ scale: 1.05, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+                    onClick={() => navigateToVerses(chapter)}
+                  >
+                    {chapter}
+                    {isSelected && (
+                      <span className="absolute -top-1 -right-1 bg-primary-foreground text-primary w-5 h-5 flex items-center justify-center rounded-full text-xs border-2 border-primary shadow-sm">✓</span>
+                    )}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+        );
+      
+      case 'contexto':
+        return (
+          <div className="always-visible space-y-6">
+            {contextLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="flex flex-col items-center space-y-4">
+                  <div className="relative">
+                    <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary/20 border-t-primary"></div>
+                    <div className="absolute inset-0 rounded-full border-4 border-transparent border-t-primary/40 animate-pulse"></div>
+                  </div>
+                  <p className="text-sm text-muted-foreground animate-pulse">Gerando contexto do livro...</p>
+                </div>
+              </div>
+            ) : bookContext ? (
+              <div className="space-y-6">
+                {bookContext.error ? (
+                  <div className="p-6 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-400 rounded-r-lg">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-amber-800 dark:text-amber-200">Erro ao carregar contexto</h3>
+                        <p className="text-amber-700 dark:text-amber-300 mt-1">{bookContext.message}</p>
+                        <div className="mt-4">
+                          <button
+                            onClick={() => {
+                              setContextLoading(true);
+                              fetchBookContext();
+                            }}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                          >
+                            Tentar novamente
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <BookContextRenderer context={bookContext.context} bookName={selectedBook} />
+                )}
+              </div>
+            ) : null}
           </div>
         );
       
@@ -621,18 +887,18 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
               </div>
             )} */}
 
-            {/* Grid de versículos - ajustado para mobile */}
-            <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-1 sm:gap-2">
+            {/* Grid de versículos - melhorado para mobile */}
+            <div className="grid grid-cols-5 xs:grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-2 sm:gap-3">
               {verses.map((verse) => {
                 const isSelected = selectedVerses.includes(verse);
                 return (
                   <motion.button
                     key={verse}
-                    className={`p-2 sm:p-3 md:p-4 rounded-md border text-sm sm:text-base ${isSelected ? 'bg-primary text-primary-foreground' : 'bg-card hover:bg-accent'} transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed`}
+                    className={`relative p-3 sm:p-4 rounded-lg border text-sm sm:text-base font-semibold transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary/50 ${isSelected ? 'bg-primary text-primary-foreground border-primary shadow-md' : 'bg-card hover:bg-accent border-border hover:border-primary/30'}`}
                     disabled={navigating}
-                    whileHover={{ scale: 1.08, boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}
-                    whileTap={{ scale: 0.96 }}
-                    transition={{ type: 'spring', stiffness: 300 }}
+                    whileHover={{ scale: 1.05, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                     onClick={() => {
                       if (selectionMode) {
                         // Modo de seleção: toggle de versículos selecionados
@@ -714,10 +980,11 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         
         <button 
           onClick={() => window.location.href = '/biblia'}
-          className="p-1 sm:p-2 rounded-full hover:bg-muted transition-all"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm font-medium text-sm"
           aria-label="Início"
         >
-          <Home size={16} className="sm:w-5 sm:h-5" />
+          <Home size={18} />
+          <span className="hidden sm:inline">Início</span>
         </button>
       </div>
       {renderCurrentView()}
