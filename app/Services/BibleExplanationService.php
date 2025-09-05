@@ -39,18 +39,33 @@ class BibleExplanationService
         $ttl = 60 * 60 * 24; // 24h
         $lockKey = "bible_explanation:lock:{$testament}:{$book}:{$chapter}:".($verses ?? 'all');
 
-        // 1) Cache first
+        // 1) Cache first - try multiple cache stores for better performance
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {
             return $cached;
         }
+        
+        // Try Redis cache if available
+        if (config('cache.stores.redis')) {
+            try {
+                $redisCached = Cache::store('redis')->get($cacheKey);
+                if (is_array($redisCached)) {
+                    // Store in default cache for next time
+                    Cache::put($cacheKey, $redisCached, $ttl);
+                    return $redisCached;
+                }
+            } catch (\Exception $e) {
+                Log::debug('Redis cache not available, using default cache');
+            }
+        }
 
-        // 2) Database lookup (tolerant to NULL/empty verses)
-        $query = BibleExplanation::where([
-            'testament' => $testament,
-            'book' => $book,
-            'chapter' => $chapter,
-        ]);
+        // 2) Database lookup (optimized query with specific columns)
+        $query = BibleExplanation::select(['id', 'explanation_text', 'source', 'access_count'])
+            ->where([
+                'testament' => $testament,
+                'book' => $book,
+                'chapter' => $chapter,
+            ]);
         if ($verses === null) {
             $query->where(function ($q) {
                 $q->whereNull('verses')->orWhere('verses', '');
@@ -74,7 +89,16 @@ class BibleExplanationService
                 'explanation' => $decodedExplanation,
                 'source' => $explanation->source,
             ];
+            
+            // Cache in multiple stores for better performance
             Cache::put($cacheKey, $result, $ttl);
+            if (config('cache.stores.redis')) {
+                try {
+                    Cache::store('redis')->put($cacheKey, $result, $ttl);
+                } catch (\Exception $e) {
+                    Log::debug('Could not cache in Redis: ' . $e->getMessage());
+                }
+            }
 
             return $result;
         }

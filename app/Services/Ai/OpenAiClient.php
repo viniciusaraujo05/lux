@@ -249,6 +249,7 @@ class OpenAiClient implements AiClientInterface
 
     /**
      * Perform a JSON POST with retries, exponential backoff, and controlled timeouts.
+     * Optimized for Railpack deployment.
      */
     private function postJsonWithRetry(string $url, array $payload, int $retries = 2): array
     {
@@ -258,7 +259,19 @@ class OpenAiClient implements AiClientInterface
                 $response = Http::withHeaders([
                     'Authorization' => 'Bearer '.$this->apiKey,
                     'Content-Type' => 'application/json',
-                ])->connectTimeout($this->connectTimeout)->timeout($this->timeout)->post($url, $payload);
+                    'Accept' => 'application/json',
+                    'User-Agent' => 'Verbum/1.0',
+                ])
+                ->withOptions([
+                    'http_errors' => false,
+                    'stream' => false,  // Importante para Railpack
+                    'verify' => true,
+                    'timeout' => $this->timeout,
+                    'connect_timeout' => $this->connectTimeout,
+                ])
+                ->connectTimeout($this->connectTimeout)
+                ->timeout($this->timeout)
+                ->post($url, $payload);
 
                 if ($response->successful()) {
                     return (array) $response->json();
@@ -267,9 +280,18 @@ class OpenAiClient implements AiClientInterface
                 $status = $response->status();
                 $body = $response->body();
 
+                // Log para debug no Railpack
+                Log::debug('OpenAI API response', [
+                    'status' => $status,
+                    'attempt' => $attempt + 1,
+                    'url' => $url,
+                    'body_length' => strlen($body)
+                ]);
+
                 // Retry on transient status codes
                 if (in_array($status, [408, 409, 425, 429, 500, 502, 503, 504], true) && $attempt < $retries) {
-                    usleep(($backoffMs + $this->secureRandomInt(0, 150)) * 1000);
+                    $sleepTime = ($backoffMs + $this->secureRandomInt(0, 150)) * 1000;
+                    usleep($sleepTime);
                     $backoffMs = min($backoffMs * 2, 2000);
 
                     continue;
@@ -277,8 +299,15 @@ class OpenAiClient implements AiClientInterface
 
                 throw new \RuntimeException('OpenAI API error: '.$body, $status);
             } catch (\Throwable $e) {
+                Log::error('OpenAI API exception', [
+                    'message' => $e->getMessage(),
+                    'attempt' => $attempt + 1,
+                    'url' => $url
+                ]);
+
                 if ($attempt < $retries) {
-                    usleep(($backoffMs + $this->secureRandomInt(0, 150)) * 1000);
+                    $sleepTime = ($backoffMs + $this->secureRandomInt(0, 150)) * 1000;
+                    usleep($sleepTime);
                     $backoffMs = min($backoffMs * 2, 2000);
 
                     continue;

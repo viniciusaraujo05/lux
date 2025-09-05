@@ -25,10 +25,53 @@ class BibleExplanationController extends Controller
     public function getExplanation(Request $request, $testament, $book, $chapter)
     {
         $verses = $request->query('verses');
-
-        // Converte o slug do livro para o nome correto em português
         $bookName = $this->slugToBookName($book);
 
+        // Verificar cache primeiro para resposta rápida
+        $cacheKey = "bible_explanation:{$testament}:{$bookName}:{$chapter}:".($verses ?? 'all');
+        
+        if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
+            return response()->json(\Illuminate\Support\Facades\Cache::get($cacheKey));
+        }
+
+        // Verificar se existe no banco de dados
+        $existing = \App\Models\BibleExplanation::select(['id', 'explanation_text', 'source', 'access_count'])
+            ->where([
+                'testament' => $testament,
+                'book' => $bookName,
+                'chapter' => (int) $chapter,
+            ])
+            ->when($verses === null, function ($query) {
+                $query->where(function ($q) {
+                    $q->whereNull('verses')->orWhere('verses', '');
+                });
+            }, function ($query) use ($verses) {
+                $query->where('verses', $verses);
+            })
+            ->first();
+
+        if ($existing) {
+            $existing->increment('access_count');
+            
+            $decodedExplanation = json_decode($existing->explanation_text, true);
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $decodedExplanation = $existing->explanation_text;
+            }
+
+            $result = [
+                'id' => $existing->id,
+                'origin' => 'db_fast',
+                'explanation' => $decodedExplanation,
+                'source' => $existing->source,
+            ];
+            
+            // Cache para próximas requisições
+            \Illuminate\Support\Facades\Cache::put($cacheKey, $result, 60 * 60 * 24);
+            
+            return response()->json($result);
+        }
+
+        // Se não existe, usar o serviço normal (que pode ser demorado)
         $result = $this->explanationService->getExplanation(
             $testament,
             $bookName,

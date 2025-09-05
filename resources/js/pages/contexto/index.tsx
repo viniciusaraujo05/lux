@@ -545,13 +545,6 @@ const BookContextPage: React.FC<BookContextProps> = (props) => {
               </div>
             </div>
           </div>
-          
-          {/* Source Info */}
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            Fonte: {source === 'ai_generated' ? 'Gerado por IA' : 
-                   source === 'cached' ? 'Cache' : 
-                   source === 'ssr' ? 'Servidor' : 'Desconhecida'}
-          </div>
         </div>
         <Footer />
         <DonateButton />
