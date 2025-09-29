@@ -337,7 +337,7 @@ class BibleExplanationService
 
             // Dynamic output budgets tuned for GPT-5 mini capacity
             // Higher budgets reduce truncation risk while keeping single-attempt flow
-            $maxTokens = $verses === null ? 5000 : 3500;
+            $maxTokens = $verses === null ? 6000 : 5000;
             $responseContent = $client->chat($messages, $maxTokens);
 
             // 1. Extrair o JSON do bloco de markdown, se houver
