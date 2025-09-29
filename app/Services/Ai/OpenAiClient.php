@@ -24,7 +24,7 @@ class OpenAiClient implements AiClientInterface
     {
         $this->apiKey = config('ai.openai.api_key');
         $this->model = config('ai.openai.model');
-        $this->timeout = (int) (config('ai.openai.timeout', 60));
+        $this->timeout = (int) (config('ai.openai.timeout', 90));
         $this->connectTimeout = (int) (config('ai.openai.connect_timeout', 10));
     }
 
@@ -65,10 +65,8 @@ class OpenAiClient implements AiClientInterface
             'max_output_tokens' => $safeMax,
         ];
         
-        // Adiciona formato JSON apenas se a mensagem contiver a palavra 'json'
-        if ($useJsonFormat) {
-            $payload['text'] = ['format' => ['type' => 'json_object']];
-        }
+        // Sempre exigir JSON no Responses API
+        $payload['text'] = ['format' => ['type' => 'json_object']];
 
         // Optional reasoning effort (e.g., 'low' for faster responses) if configured
         $effort = config('ai.openai.reasoning_effort'); // e.g., 'low' | 'medium' | 'high'
@@ -76,28 +74,10 @@ class OpenAiClient implements AiClientInterface
             $payload['reasoning'] = ['effort' => $effort];
         }
 
-        // Try with optional reasoning; on 4xx, retry once without the reasoning field
-        try {
-            $json = $this->postResponses($payload);
-        } catch (\RuntimeException $e) {
-            $code = (int) $e->getCode();
-            if ($code >= 400 && $code < 500 && isset($payload['reasoning'])) {
-                unset($payload['reasoning']);
-                $json = $this->postResponses($payload);
-            } else {
-                throw $e;
-            }
-        }
+        // Chamada única; sem fallback lógico adicional
+        $json = $this->postResponses($payload);
         $this->logTokenUsage($json, 'responses');
-        // Auto-retry if truncated by max_output_tokens
-        if (\Illuminate\Support\Arr::get($json, 'status') === 'incomplete'
-            && \Illuminate\Support\Arr::get($json, 'incomplete_details.reason') === 'max_output_tokens'
-            && $safeMax < 8192
-        ) {
-            $payload['max_output_tokens'] = 8192;
-            $json = $this->postResponses($payload);
-            $this->logTokenUsage($json, 'responses');
-        }
+        // Sem reenvio automático quando truncado; respeitará o orçamento inicial
 
         // Prefer the convenience field if present
         $content = (string) Arr::get($json, 'output_text', '');
@@ -141,18 +121,8 @@ class OpenAiClient implements AiClientInterface
             'presence_penalty' => 0.1,
             'response_format' => ['type' => 'json_object'],
         ];
-        try {
-            $json = $this->postChat($payload);
-        } catch (\RuntimeException $e) {
-            $code = (int) $e->getCode();
-            if ($code >= 400 && $code < 500 && isset($payload['response_format'])) {
-                // Retry once without response_format for models that don't support JSON mode
-                unset($payload['response_format']);
-                $json = $this->postChat($payload);
-            } else {
-                throw $e;
-            }
-        }
+        // Chamada única exigindo JSON; sem fallback para remover response_format
+        $json = $this->postChat($payload);
         $this->logTokenUsage($json, 'chat');
 
         return Arr::get($json, 'choices.0.message.content', '');
