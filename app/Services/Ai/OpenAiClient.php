@@ -63,10 +63,8 @@ class OpenAiClient implements AiClientInterface
             'model' => $this->model,
             'input' => $inputString,
             'max_output_tokens' => $safeMax,
+            'response_format' => ['type' => 'json_object'],
         ];
-        
-        // Sempre exigir JSON no Responses API
-        $payload['text'] = ['format' => ['type' => 'json_object']];
 
         // Optional reasoning effort (e.g., 'low' for faster responses) if configured
         $effort = config('ai.openai.reasoning_effort'); // e.g., 'low' | 'medium' | 'high'
