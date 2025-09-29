@@ -251,7 +251,7 @@ class OpenAiClient implements AiClientInterface
      * Perform a JSON POST with retries, exponential backoff, and controlled timeouts.
      * Optimized for Railpack deployment.
      */
-    private function postJsonWithRetry(string $url, array $payload, int $retries = 2): array
+    private function postJsonWithRetry(string $url, array $payload, int $retries = 0): array
     {
         $requestId = (string) Str::uuid();
         $overallStart = microtime(true);
