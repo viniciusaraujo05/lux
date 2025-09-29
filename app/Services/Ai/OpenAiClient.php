@@ -253,8 +253,13 @@ class OpenAiClient implements AiClientInterface
      */
     private function postJsonWithRetry(string $url, array $payload, int $retries = 2): array
     {
+        $requestId = (string) Str::uuid();
+        $overallStart = microtime(true);
+        $totalAttempts = $retries + 1;
+        $payloadSize = strlen(json_encode($payload) ?: '');
         $backoffMs = 250;
         for ($attempt = 0; $attempt <= $retries; $attempt++) {
+            $attemptStart = microtime(true);
             try {
                 $response = Http::withHeaders([
                     'Authorization' => 'Bearer '.$this->apiKey,
@@ -273,25 +278,60 @@ class OpenAiClient implements AiClientInterface
                 ->timeout($this->timeout)
                 ->post($url, $payload);
 
+                $attemptElapsedMs = (int) round((microtime(true) - $attemptStart) * 1000);
+                $totalElapsedMs = (int) round((microtime(true) - $overallStart) * 1000);
+
                 if ($response->successful()) {
+                    $bodyLength = strlen($response->body() ?? '');
+                    Log::info('OpenAI API request succeeded', [
+                        'request_id' => $requestId,
+                        'url' => $url,
+                        'status' => $response->status(),
+                        'attempt' => $attempt + 1,
+                        'total_attempts' => $totalAttempts,
+                        'attempt_elapsed_ms' => $attemptElapsedMs,
+                        'total_elapsed_ms' => $totalElapsedMs,
+                        'timeout' => $this->timeout,
+                        'connect_timeout' => $this->connectTimeout,
+                        'payload_bytes' => $payloadSize,
+                        'response_body_bytes' => $bodyLength,
+                        'headers_rate_limit_requests_remaining' => $response->header('x-ratelimit-remaining-requests'),
+                        'headers_rate_limit_tokens_remaining' => $response->header('x-ratelimit-remaining-tokens'),
+                    ]);
                     return (array) $response->json();
                 }
 
                 $status = $response->status();
                 $body = $response->body();
+                $bodyLength = strlen($body ?? '');
 
                 // Log para debug no Railpack
-                Log::debug('OpenAI API response', [
+                Log::warning('OpenAI API non-success response', [
+                    'request_id' => $requestId,
                     'status' => $status,
                     'attempt' => $attempt + 1,
+                    'total_attempts' => $totalAttempts,
+                    'attempt_elapsed_ms' => $attemptElapsedMs,
+                    'total_elapsed_ms' => $totalElapsedMs,
                     'url' => $url,
-                    'body_length' => strlen($body)
+                    'payload_bytes' => $payloadSize,
+                    'body_length' => $bodyLength,
+                    'timeout' => $this->timeout,
+                    'connect_timeout' => $this->connectTimeout,
+                    'will_retry' => $attempt < $retries && in_array($status, [408, 409, 425, 429, 500, 502, 503, 504], true),
                 ]);
 
                 // Retry on transient status codes
                 if (in_array($status, [408, 409, 425, 429, 500, 502, 503, 504], true) && $attempt < $retries) {
-                    $sleepTime = ($backoffMs + $this->secureRandomInt(0, 150)) * 1000;
-                    usleep($sleepTime);
+                    $sleepMs = $backoffMs + $this->secureRandomInt(0, 150);
+                    Log::notice('OpenAI API scheduling retry', [
+                        'request_id' => $requestId,
+                        'next_attempt' => $attempt + 2,
+                        'total_attempts' => $totalAttempts,
+                        'sleep_ms' => $sleepMs,
+                        'backoff_base_ms' => $backoffMs,
+                    ]);
+                    usleep($sleepMs * 1000);
                     $backoffMs = min($backoffMs * 2, 2000);
 
                     continue;
@@ -299,15 +339,30 @@ class OpenAiClient implements AiClientInterface
 
                 throw new \RuntimeException('OpenAI API error: '.$body, $status);
             } catch (\Throwable $e) {
+                $attemptElapsedMs = (int) round((microtime(true) - $attemptStart) * 1000);
+                $totalElapsedMs = (int) round((microtime(true) - $overallStart) * 1000);
                 Log::error('OpenAI API exception', [
+                    'request_id' => $requestId,
                     'message' => $e->getMessage(),
+                    'exception' => get_class($e),
                     'attempt' => $attempt + 1,
-                    'url' => $url
+                    'total_attempts' => $totalAttempts,
+                    'attempt_elapsed_ms' => $attemptElapsedMs,
+                    'total_elapsed_ms' => $totalElapsedMs,
+                    'url' => $url,
+                    'payload_bytes' => $payloadSize,
                 ]);
 
                 if ($attempt < $retries) {
-                    $sleepTime = ($backoffMs + $this->secureRandomInt(0, 150)) * 1000;
-                    usleep($sleepTime);
+                    $sleepMs = $backoffMs + $this->secureRandomInt(0, 150);
+                    Log::notice('OpenAI API retry after exception', [
+                        'request_id' => $requestId,
+                        'next_attempt' => $attempt + 2,
+                        'total_attempts' => $totalAttempts,
+                        'sleep_ms' => $sleepMs,
+                        'backoff_base_ms' => $backoffMs,
+                    ]);
+                    usleep($sleepMs * 1000);
                     $backoffMs = min($backoffMs * 2, 2000);
 
                     continue;
