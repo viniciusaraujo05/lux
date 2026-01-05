@@ -1,2 +1,9 @@
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+Sitemap: https://versoaverso.site/sitemap.xml
+
+User-agent: AhrefsBot
+Crawl-delay: 10

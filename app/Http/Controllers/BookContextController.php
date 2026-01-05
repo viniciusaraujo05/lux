@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Services\BookContextService;
-use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class BookContextController extends Controller
 {
@@ -22,7 +22,7 @@ class BookContextController extends Controller
     {
         try {
             $result = $this->bookContextService->getBookContext($testament, $book);
-            
+
             return response()->json([
                 'context' => $result['context'],
                 'origin' => $result['origin'],
@@ -33,12 +33,12 @@ class BookContextController extends Controller
                 'testament' => $testament,
                 'book' => $book,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
+                'trace' => $e->getTraceAsString(),
             ]);
 
             return response()->json([
                 'error' => 'Failed to get book context',
-                'message' => 'Erro interno do servidor. Tente novamente em alguns instantes.'
+                'message' => 'Erro interno do servidor. Tente novamente em alguns instantes.',
             ], 500);
         }
     }

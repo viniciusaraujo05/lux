@@ -414,8 +414,32 @@
         }
         
         function loadAnalytics() {
-            // Aqui você carregaria scripts de analytics como Google Analytics
-            console.log('Scripts de analytics carregados');
+            // Carregar Google Tag Manager
+            if (!window.dataLayer) {
+                (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+                new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+                j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+                'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+                })(window,document,'script','dataLayer','GTM-N5X2XHKS');
+            }
+            
+            // Carregar Google Analytics
+            if (!window.gtag) {
+                const script = document.createElement('script');
+                script.async = true;
+                script.src = 'https://www.googletagmanager.com/gtag/js?id=G-QEEJB2L42W';
+                document.head.appendChild(script);
+                
+                script.onload = function() {
+                    window.dataLayer = window.dataLayer || [];
+                    function gtag(){dataLayer.push(arguments);}
+                    window.gtag = gtag;
+                    gtag('js', new Date());
+                    gtag('config', 'G-QEEJB2L42W');
+                };
+            }
+            
+            console.log('Google Analytics e GTM carregados');
         }
         
         function loadMarketing() {

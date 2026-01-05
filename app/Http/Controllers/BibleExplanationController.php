@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\BibleExplanationService;
+use App\Services\BibleExplanationServiceRefactored;
 use Illuminate\Http\Request;
 
 class BibleExplanationController extends Controller
 {
     protected $explanationService;
 
-    public function __construct(BibleExplanationService $explanationService)
+    public function __construct(BibleExplanationServiceRefactored $explanationService)
     {
         $this->explanationService = $explanationService;
     }
@@ -29,7 +29,7 @@ class BibleExplanationController extends Controller
 
         // Verificar cache primeiro para resposta rápida
         $cacheKey = "bible_explanation:{$testament}:{$bookName}:{$chapter}:".($verses ?? 'all');
-        
+
         if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
             return response()->json(\Illuminate\Support\Facades\Cache::get($cacheKey));
         }
@@ -52,7 +52,7 @@ class BibleExplanationController extends Controller
 
         if ($existing) {
             $existing->increment('access_count');
-            
+
             $decodedExplanation = json_decode($existing->explanation_text, true);
             if (json_last_error() !== JSON_ERROR_NONE) {
                 $decodedExplanation = $existing->explanation_text;
@@ -64,10 +64,10 @@ class BibleExplanationController extends Controller
                 'explanation' => $decodedExplanation,
                 'source' => $existing->source,
             ];
-            
+
             // Cache para próximas requisições
             \Illuminate\Support\Facades\Cache::put($cacheKey, $result, 60 * 60 * 24);
-            
+
             return response()->json($result);
         }
 

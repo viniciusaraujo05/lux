@@ -8,7 +8,6 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 use function mt_rand;
-use function random_int;
 
 class OpenAiClient implements AiClientInterface
 {
@@ -23,9 +22,9 @@ class OpenAiClient implements AiClientInterface
     public function __construct()
     {
         $this->apiKey = config('ai.openai.api_key');
-        $this->model = config('ai.openai.model');
-        $this->timeout = (int) (config('ai.openai.timeout', 90));
-        $this->connectTimeout = (int) (config('ai.openai.connect_timeout', 10));
+        $this->model = config('ai.openai.model', 'gpt-4o-mini');
+        $this->timeout = config('ai.openai.timeout', 90);
+        $this->connectTimeout = config('ai.openai.connect_timeout', 10);
     }
 
     public function chat(array $messages, int $maxTokens = 4000): string
@@ -38,7 +37,7 @@ class OpenAiClient implements AiClientInterface
                 break;
             }
         }
-        
+
         if ($this->isGpt5()) {
             return $this->chatGpt5($messages, $maxTokens, $containsJson);
         }
@@ -56,8 +55,12 @@ class OpenAiClient implements AiClientInterface
     {
         // GPT-5: use Responses API with JSON mode; increase output token budget to avoid truncation
         $inputString = $this->messagesToInputString($messages);
-        // Respect caller-provided budgets; only cap to API hard limit
-        $safeMax = min($maxTokens, 8192);
+        // Respect caller-provided budgets; cap based on model
+        if (str_contains(strtolower($this->model), 'gpt-4o-mini')) {
+            $safeMax = min($maxTokens, 4000); // GPT-4o-mini: faster with lower limit
+        } else {
+            $safeMax = min($maxTokens, 6000); // GPT-5: higher quality needs more tokens
+        }
 
         $payload = [
             'model' => $this->model,
@@ -144,11 +147,6 @@ class OpenAiClient implements AiClientInterface
     {
         $usage = Arr::get($json, 'usage');
         if (! is_array($usage)) {
-            Log::debug('OpenAI usage not present', [
-                'endpoint' => $endpoint,
-                'model' => $this->model,
-            ]);
-
             return;
         }
 
@@ -156,8 +154,13 @@ class OpenAiClient implements AiClientInterface
         $outputTokens = Arr::get($usage, 'output_tokens', Arr::get($usage, 'completion_tokens'));
         $totalTokens = Arr::get($usage, 'total_tokens');
 
-        $inputDetails = Arr::get($usage, 'input_tokens_details');
-        $outputDetails = Arr::get($usage, 'output_tokens_details');
+        Log::info('OpenAI token usage', [
+            'endpoint' => $endpoint,
+            'model' => $this->model,
+            'input_tokens' => $inputTokens,
+            'output_tokens' => $outputTokens,
+            'total_tokens' => $totalTokens,
+        ]);
     }
 
     private function messagesToInputString(array $messages): string
@@ -203,7 +206,7 @@ class OpenAiClient implements AiClientInterface
         $ms = $this->secureRandomInt($minMs, $maxMs);
         usleep($ms * 1000);
     }
-    
+
     /**
      * Gera um número aleatório seguro
      */
@@ -220,7 +223,7 @@ class OpenAiClient implements AiClientInterface
      * Perform a JSON POST with retries, exponential backoff, and controlled timeouts.
      * Optimized for Railpack deployment.
      */
-    private function postJsonWithRetry(string $url, array $payload, int $retries = 0): array
+    private function postJsonWithRetry(string $url, array $payload, int $retries = 2): array
     {
         $requestId = (string) Str::uuid();
         $overallStart = microtime(true);
@@ -236,37 +239,28 @@ class OpenAiClient implements AiClientInterface
                     'Accept' => 'application/json',
                     'User-Agent' => 'Verbum/1.0',
                 ])
-                ->withOptions([
-                    'http_errors' => false,
-                    'stream' => false,  // Importante para Railpack
-                    'verify' => true,
-                    'timeout' => $this->timeout,
-                    'connect_timeout' => $this->connectTimeout,
-                ])
-                ->connectTimeout($this->connectTimeout)
-                ->timeout($this->timeout)
-                ->post($url, $payload);
+                    ->withOptions([
+                        'http_errors' => false,
+                        'stream' => false,  // Importante para Railpack
+                        'verify' => true,
+                        'timeout' => $this->timeout,
+                        'connect_timeout' => $this->connectTimeout,
+                    ])
+                    ->connectTimeout($this->connectTimeout)
+                    ->timeout($this->timeout)
+                    ->post($url, $payload);
 
                 $attemptElapsedMs = (int) round((microtime(true) - $attemptStart) * 1000);
                 $totalElapsedMs = (int) round((microtime(true) - $overallStart) * 1000);
 
                 if ($response->successful()) {
-                    $bodyLength = strlen($response->body() ?? '');
                     Log::info('OpenAI API request succeeded', [
                         'request_id' => $requestId,
-                        'url' => $url,
-                        'status' => $response->status(),
                         'attempt' => $attempt + 1,
-                        'total_attempts' => $totalAttempts,
-                        'attempt_elapsed_ms' => $attemptElapsedMs,
-                        'total_elapsed_ms' => $totalElapsedMs,
-                        'timeout' => $this->timeout,
-                        'connect_timeout' => $this->connectTimeout,
-                        'payload_bytes' => $payloadSize,
-                        'response_body_bytes' => $bodyLength,
-                        'headers_rate_limit_requests_remaining' => $response->header('x-ratelimit-remaining-requests'),
-                        'headers_rate_limit_tokens_remaining' => $response->header('x-ratelimit-remaining-tokens'),
+                        'elapsed_ms' => $attemptElapsedMs,
+                        'rate_limit_remaining' => $response->header('x-ratelimit-remaining-requests'),
                     ]);
+
                     return (array) $response->json();
                 }
 
@@ -290,8 +284,8 @@ class OpenAiClient implements AiClientInterface
                     'will_retry' => $attempt < $retries && in_array($status, [408, 409, 425, 429, 500, 502, 503, 504], true),
                 ]);
 
-                // Retry on transient status codes
-                if (in_array($status, [408, 409, 425, 429, 500, 502, 503, 504], true) && $attempt < $retries) {
+                // Retry ONLY on server errors, NOT on timeout (to avoid wasting money)
+                if (in_array($status, [500, 502, 503, 504], true) && $attempt < $retries) {
                     $sleepMs = $backoffMs + $this->secureRandomInt(0, 150);
                     Log::notice('OpenAI API scheduling retry', [
                         'request_id' => $requestId,

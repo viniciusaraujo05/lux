@@ -44,7 +44,7 @@ class BibleExplanationService
         if (is_array($cached)) {
             return $cached;
         }
-        
+
         // Try Redis cache if available
         if (config('cache.stores.redis')) {
             try {
@@ -52,6 +52,7 @@ class BibleExplanationService
                 if (is_array($redisCached)) {
                     // Store in default cache for next time
                     Cache::put($cacheKey, $redisCached, $ttl);
+
                     return $redisCached;
                 }
             } catch (\Exception $e) {
@@ -89,14 +90,14 @@ class BibleExplanationService
                 'explanation' => $decodedExplanation,
                 'source' => $explanation->source,
             ];
-            
+
             // Cache in multiple stores for better performance
             Cache::put($cacheKey, $result, $ttl);
             if (config('cache.stores.redis')) {
                 try {
                     Cache::store('redis')->put($cacheKey, $result, $ttl);
                 } catch (\Exception $e) {
-                    Log::debug('Could not cache in Redis: ' . $e->getMessage());
+                    Log::debug('Could not cache in Redis: '.$e->getMessage());
                 }
             }
 
@@ -110,6 +111,7 @@ class BibleExplanationService
             $cachedInside = Cache::get($cacheKey);
             if (is_array($cachedInside)) {
                 $resultFromLock = $cachedInside;
+
                 return;
             }
 
@@ -143,6 +145,7 @@ class BibleExplanationService
                 ];
                 Cache::put($cacheKey, $result, $ttl);
                 $resultFromLock = $result;
+
                 return;
             }
 
@@ -167,6 +170,7 @@ class BibleExplanationService
                     'explanation' => $fallback,
                     'source' => 'fallback',
                 ];
+
                 return;
             }
 
@@ -178,6 +182,7 @@ class BibleExplanationService
                     'explanation' => $decoded,
                     'source' => 'fallback',
                 ];
+
                 return;
             }
 
@@ -204,6 +209,7 @@ class BibleExplanationService
                         'explanation' => $fallback,
                         'source' => 'fallback',
                     ];
+
                     return;
                 }
             }
@@ -236,6 +242,7 @@ class BibleExplanationService
                 ];
                 Cache::put($cacheKey, $result, $ttl);
                 $resultFromLock = $result;
+
                 return;
             }
 
@@ -260,6 +267,7 @@ class BibleExplanationService
                 Cache::put($cacheKey, $result, $ttl);
 
                 $resultFromLock = $result;
+
                 return;
             } catch (QueryException $e) {
                 $code = (string) $e->getCode();
@@ -292,6 +300,7 @@ class BibleExplanationService
                         Cache::put($cacheKey, $result, $ttl);
 
                         $resultFromLock = $result;
+
                         return;
                     }
                 }
@@ -639,13 +648,13 @@ EOD;
         if ($isFullChapter) {
             $out = $data;
             // Ensure top-level keys
-            if (!isset($out['contexto_geral']) || !is_array($out['contexto_geral'])) {
+            if (! isset($out['contexto_geral']) || ! is_array($out['contexto_geral'])) {
                 $out['contexto_geral'] = [];
             }
-            if (!isset($out['contexto_geral']['contexto_do_livro']) || !is_array($out['contexto_geral']['contexto_do_livro'])) {
+            if (! isset($out['contexto_geral']['contexto_do_livro']) || ! is_array($out['contexto_geral']['contexto_do_livro'])) {
                 $out['contexto_geral']['contexto_do_livro'] = [];
             }
-            $cdl = & $out['contexto_geral']['contexto_do_livro'];
+            $cdl = &$out['contexto_geral']['contexto_do_livro'];
             $cdl['autor_e_data'] = isset($cdl['autor_e_data']) ? (string) $cdl['autor_e_data'] : '';
             $cdl['audiencia_original'] = isset($cdl['audiencia_original']) ? (string) $cdl['audiencia_original'] : '';
             $cdl['proposito_do_livro'] = isset($cdl['proposito_do_livro']) ? (string) $cdl['proposito_do_livro'] : '';
@@ -704,18 +713,19 @@ EOD;
 
         $out = $data;
         foreach ($defaults as $key => $defVal) {
-            if (!isset($out[$key]) || !is_array($out[$key])) {
+            if (! isset($out[$key]) || ! is_array($out[$key])) {
                 $out[$key] = $defVal;
+
                 continue;
             }
             // Merge shallowly; coerce types for known array fields
             foreach ($defVal as $subKey => $subDef) {
-                if (!isset($out[$key][$subKey])) {
+                if (! isset($out[$key][$subKey])) {
                     $out[$key][$subKey] = $subDef;
                 } else {
                     if (is_array($subDef)) {
                         // Ensure array type
-                        if (!is_array($out[$key][$subKey])) {
+                        if (! is_array($out[$key][$subKey])) {
                             $out[$key][$subKey] = [];
                         }
                     } else {
@@ -731,25 +741,25 @@ EOD;
         }
 
         // Extra coercions for arrays the validator checks explicitly
-        if (isset($out['analise_exegenetica']['analises']) && !is_array($out['analise_exegenetica']['analises'])) {
+        if (isset($out['analise_exegenetica']['analises']) && ! is_array($out['analise_exegenetica']['analises'])) {
             $out['analise_exegenetica']['analises'] = [];
         }
-        if (isset($out['temas_principais']['temas']) && !is_array($out['temas_principais']['temas'])) {
+        if (isset($out['temas_principais']['temas']) && ! is_array($out['temas_principais']['temas'])) {
             $out['temas_principais']['temas'] = [];
         }
-        if (isset($out['explicacao_do_versiculo']['palavras_chave']) && !is_array($out['explicacao_do_versiculo']['palavras_chave'])) {
+        if (isset($out['explicacao_do_versiculo']['palavras_chave']) && ! is_array($out['explicacao_do_versiculo']['palavras_chave'])) {
             $out['explicacao_do_versiculo']['palavras_chave'] = [];
         }
-        if (isset($out['personagens_principais']['personagens']) && !is_array($out['personagens_principais']['personagens'])) {
+        if (isset($out['personagens_principais']['personagens']) && ! is_array($out['personagens_principais']['personagens'])) {
             $out['personagens_principais']['personagens'] = [];
         }
-        if (isset($out['aplicacao_contemporanea']['pontos_aplicacao']) && !is_array($out['aplicacao_contemporanea']['pontos_aplicacao'])) {
+        if (isset($out['aplicacao_contemporanea']['pontos_aplicacao']) && ! is_array($out['aplicacao_contemporanea']['pontos_aplicacao'])) {
             $out['aplicacao_contemporanea']['pontos_aplicacao'] = [];
         }
-        if (isset($out['aplicacao_contemporanea']['perguntas_reflexao']) && !is_array($out['aplicacao_contemporanea']['perguntas_reflexao'])) {
+        if (isset($out['aplicacao_contemporanea']['perguntas_reflexao']) && ! is_array($out['aplicacao_contemporanea']['perguntas_reflexao'])) {
             $out['aplicacao_contemporanea']['perguntas_reflexao'] = [];
         }
-        if (isset($out['referencias_cruzadas']['referencias']) && !is_array($out['referencias_cruzadas']['referencias'])) {
+        if (isset($out['referencias_cruzadas']['referencias']) && ! is_array($out['referencias_cruzadas']['referencias'])) {
             $out['referencias_cruzadas']['referencias'] = [];
         }
 

@@ -149,7 +149,7 @@ Route::get('/contexto/{testamento}/{livro}', function (string $testamento, strin
 
     // Prefetch context for SSR initial props only on full page loads (not Inertia visits)
     $prefetch = null;
-    if (!$request->header('X-Inertia')) {
+    if (! $request->header('X-Inertia')) {
         $prefetch = app()->make(\App\Services\BookContextService::class)
             ->getBookContext($testamento, $livroOriginal);
     }
@@ -225,7 +225,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
 
     // Prefetch explanation for SSR initial props only on full page loads (not Inertia visits)
     $prefetch = null;
-    if (!$request->header('X-Inertia')) {
+    if (! $request->header('X-Inertia')) {
         $prefetch = app()->make(\App\Services\BibleExplanationService::class)
             ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
     }
@@ -281,7 +281,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
         'initialSource' => $prefetch['origin'] ?? 'unknown',
         'initialExplanationId' => $prefetch['id'] ?? null,
     ];
-    if (!empty($verses)) {
+    if (! empty($verses)) {
         $pageProps['versos'] = $verses;
     }
 
@@ -310,7 +310,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
 
         // Prefetch explanation for SSR initial props (verses mode) only on full loads
         $prefetch = null;
-        if (!$request->header('X-Inertia')) {
+        if (! $request->header('X-Inertia')) {
             $prefetch = app()->make(\App\Services\BibleExplanationService::class)
                 ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
         }

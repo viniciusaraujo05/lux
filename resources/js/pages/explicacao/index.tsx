@@ -201,9 +201,9 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
     </header>
 
     <Section title="Contexto Detalhado" icon={<BookOpen size={22} />} defaultOpen={false}>
-      <p>{explanation.contexto_detalhado.introducao}</p>
+      {explanation.contexto_detalhado?.introducao && <p>{explanation.contexto_detalhado.introducao}</p>}
       <ul>
-        {Object.entries(explanation.contexto_detalhado).map(([key, value]) => {
+        {explanation.contexto_detalhado && Object.entries(explanation.contexto_detalhado).map(([key, value]) => {
           if (key === 'introducao') return null;
           return <ListItem key={key}><strong>{key.replace(/_/g, ' ').replace(/(?:^|\s)\S/g, a => a.toUpperCase())}:</strong> {value}</ListItem>
         })}
@@ -211,8 +211,8 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
     </Section>
 
     <Section title="Análise do versículo" icon={<Microscope size={22} />}>
-      <p>{explanation.analise_exegenetica.introducao}</p>
-      {explanation.analise_exegenetica.analises.map((item, index) => (
+      {explanation.analise_exegenetica?.introducao && <p>{explanation.analise_exegenetica.introducao}</p>}
+      {explanation.analise_exegenetica?.analises?.map((item, index) => (
         <div key={index} className="mt-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
           <h4 className="font-bold text-indigo-600 dark:text-indigo-400">Versículo {item.verso}</h4>
           <p>{item.analise}</p>
@@ -221,71 +221,79 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
     </Section>
 
     <Section title="Teologia da Passagem (Doutrinas)" icon={<Landmark size={22} />} defaultOpen={false}>
-      <p>{explanation.teologia_da_passagem.introducao}</p>
-      <ul>{explanation.teologia_da_passagem.doutrinas.map((item, i) => <ListItem key={i}>{item}</ListItem>)}</ul>
+      {explanation.teologia_da_passagem?.introducao && <p>{explanation.teologia_da_passagem.introducao}</p>}
+      <ul>{explanation.teologia_da_passagem?.doutrinas?.map((item, i) => <ListItem key={i}>{item}</ListItem>)}</ul>
     </Section>
 
     <Section title="Temas Principais" icon={<Key size={22} />}>
-      <p>{explanation.temas_principais.introducao}</p>
-      <ul>{explanation.temas_principais.temas.map((item, i) => <ListItem key={i}><strong>{item.tema}:</strong> {item.descricao}</ListItem>)}</ul>
+      {explanation.temas_principais?.introducao && <p>{explanation.temas_principais.introducao}</p>}
+      <ul>{explanation.temas_principais?.temas?.map((item, i) => <ListItem key={i}><strong>{item.tema}:</strong> {item.descricao}</ListItem>)}</ul>
     </Section>
 
     <Section title="Explicação do Versículo" icon={<Book size={22} />}>
-      <p>{explanation.explicacao_do_versiculo.introducao}</p>
+      {explanation.explicacao_do_versiculo?.introducao && <p>{explanation.explicacao_do_versiculo.introducao}</p>}
       <div className="mt-4 space-y-4">
-        <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-md">
-          <h4 className="font-semibold text-indigo-700 dark:text-indigo-300">Significado Profundo</h4>
-          <p className="mt-2">{explanation.explicacao_do_versiculo.significado_profundo}</p>
-        </div>
-        <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md">
-          <h4 className="font-semibold text-blue-700 dark:text-blue-300">Contexto Original</h4>
-          <p className="mt-2">{explanation.explicacao_do_versiculo.contexto_original}</p>
-        </div>
-        <div>
-          <h4 className="font-semibold text-slate-700 dark:text-slate-300">Palavras-Chave</h4>
-          <ul className="mt-2 flex flex-wrap gap-2">
-            {explanation.explicacao_do_versiculo.palavras_chave.map((palavra, i) => (
-              <li key={i} className="px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded-full text-sm">{palavra}</li>
-            ))}
-          </ul>
-        </div>
-        <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-md">
-          <h4 className="font-semibold text-purple-700 dark:text-purple-300">Interpretação Teológica</h4>
-          <p className="mt-2">{explanation.explicacao_do_versiculo.interpretacao_teologica}</p>
-        </div>
+        {explanation.explicacao_do_versiculo?.significado_profundo && (
+          <div className="p-3 bg-indigo-50 dark:bg-indigo-900/30 rounded-md">
+            <h4 className="font-semibold text-indigo-700 dark:text-indigo-300">Significado Profundo</h4>
+            <p className="mt-2">{explanation.explicacao_do_versiculo.significado_profundo}</p>
+          </div>
+        )}
+        {explanation.explicacao_do_versiculo?.contexto_original && (
+          <div className="p-3 bg-blue-50 dark:bg-blue-900/30 rounded-md">
+            <h4 className="font-semibold text-blue-700 dark:text-blue-300">Contexto Original</h4>
+            <p className="mt-2">{explanation.explicacao_do_versiculo.contexto_original}</p>
+          </div>
+        )}
+        {explanation.explicacao_do_versiculo?.palavras_chave?.length > 0 && (
+          <div>
+            <h4 className="font-semibold text-slate-700 dark:text-slate-300">Palavras-Chave</h4>
+            <ul className="mt-2 flex flex-wrap gap-2">
+              {explanation.explicacao_do_versiculo.palavras_chave.map((palavra, i) => (
+                <li key={i} className="px-3 py-1 bg-slate-100 dark:bg-slate-700 rounded-full text-sm">{palavra}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {explanation.explicacao_do_versiculo?.interpretacao_teologica && (
+          <div className="p-3 bg-purple-50 dark:bg-purple-900/30 rounded-md">
+            <h4 className="font-semibold text-purple-700 dark:text-purple-300">Interpretação Teológica</h4>
+            <p className="mt-2">{explanation.explicacao_do_versiculo.interpretacao_teologica}</p>
+          </div>
+        )}
       </div>
     </Section>
 
-    {explanation.personagens_principais.personagens.length > 0 && (
+    {explanation.personagens_principais?.personagens?.length > 0 && (
       <Section title="Personagens Principais" icon={<Users size={22} />} defaultOpen={false}>
-        <p>{explanation.personagens_principais.introducao}</p>
+        {explanation.personagens_principais?.introducao && <p>{explanation.personagens_principais.introducao}</p>}
         <ul>{explanation.personagens_principais.personagens.map((item, i) => <ListItem key={i} icon={<User size={18} />}><strong>{item.nome}:</strong> {item.descricao}</ListItem>)}</ul>
       </Section>
     )}
 
     <Section title="Aplicação Contemporânea" icon={<Target size={22} />}>
-      <p>{explanation.aplicacao_contemporanea.introducao}</p>
+      {explanation.aplicacao_contemporanea?.introducao && <p>{explanation.aplicacao_contemporanea.introducao}</p>}
       <h4 className="font-semibold mt-4">Pontos de Aplicação</h4>
-      <ul>{explanation.aplicacao_contemporanea.pontos_aplicacao.map((item, i) => <ListItem key={i}>{item}</ListItem>)}</ul>
+      <ul>{explanation.aplicacao_contemporanea?.pontos_aplicacao?.map((item, i) => <ListItem key={i}>{item}</ListItem>)}</ul>
       <h4 className="font-semibold mt-4">Perguntas para Reflexão</h4>
-      <ul>{explanation.aplicacao_contemporanea.perguntas_reflexao.map((item, i) => <ListItem key={i} icon={<HelpCircle size={18} />}>{item}</ListItem>)}</ul>
+      <ul>{explanation.aplicacao_contemporanea?.perguntas_reflexao?.map((item, i) => <ListItem key={i} icon={<HelpCircle size={18} />}>{item}</ListItem>)}</ul>
     </Section>
 
     <Section title="Referências Cruzadas Relevantes" icon={<Link size={22} />} defaultOpen={false}>
-      <p>{explanation.referencias_cruzadas.introducao}</p>
-      <ul>{explanation.referencias_cruzadas.referencias.map((item, i) => <ListItem key={i}><strong>{item.passagem}:</strong> {item.explicacao}</ListItem>)}</ul>
+      {explanation.referencias_cruzadas?.introducao && <p>{explanation.referencias_cruzadas.introducao}</p>}
+      <ul>{explanation.referencias_cruzadas?.referencias?.map((item, i) => <ListItem key={i}><strong>{item.passagem}:</strong> {item.explicacao}</ListItem>)}</ul>
     </Section>
 
-    {explanation.simbologia_biblica.simbolos.length > 0 && (
+    {explanation.simbologia_biblica?.simbolos?.length > 0 && (
       <Section title="Simbologia Bíblica" icon={<Gem size={22} />} defaultOpen={false}>
-        <p>{explanation.simbologia_biblica.introducao}</p>
+        {explanation.simbologia_biblica?.introducao && <p>{explanation.simbologia_biblica.introducao}</p>}
         <ul>{explanation.simbologia_biblica.simbolos.map((item, i) => <ListItem key={i}><strong>{item.simbolo}:</strong> {item.significado}</ListItem>)}</ul>
       </Section>
     )}
 
     <Section title="Interprete à Luz de Cristo" icon={<Cross size={22} />}>
-      <p>{explanation.interprete_luz_de_cristo.introducao}</p>
-      <p className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 rounded-r-md">{explanation.interprete_luz_de_cristo.conexao}</p>
+      {explanation.interprete_luz_de_cristo?.introducao && <p>{explanation.interprete_luz_de_cristo.introducao}</p>}
+      {explanation.interprete_luz_de_cristo?.conexao && <p className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 rounded-r-md">{explanation.interprete_luz_de_cristo.conexao}</p>}
     </Section>
   </div>
 );
