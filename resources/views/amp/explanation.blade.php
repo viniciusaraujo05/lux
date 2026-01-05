@@ -6,27 +6,9 @@
     @php
         // Normalize inputs early to avoid Array to string conversion anywhere in the template
         $versesStr = isset($verses) ? (is_array($verses) ? implode(',', $verses) : $verses) : null;
-        if (isset($verseTexts) && is_array($verseTexts)) {
-            $verseTexts = implode(' ', $verseTexts);
-        }
-        if (isset($keywords) && is_array($keywords)) {
-            $keywords = implode(', ', $keywords);
-        }
-        if (isset($title) && is_array($title)) {
-            $title = implode(' ', $title);
-        }
-        if (isset($description) && is_array($description)) {
-            $description = implode(' ', $description);
-        }
+        
         // Ensure relatedLinks is an array
         $relatedLinks = isset($relatedLinks) && is_array($relatedLinks) ? $relatedLinks : [];
-        // Ensure explanation is a string; if array (JSON structure), stringify safely for AMP
-        if (isset($explanation) && is_array($explanation)) {
-            // Prefer a minimal textual rendering for AMP; fallback to compact JSON
-            $explanation = '<pre style="white-space:pre-wrap">'
-                . e(json_encode($explanation, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES))
-                . '</pre>';
-        }
     @endphp
     <title>{{ $title ?? 'Verso a verso - Bíblia Explicada' }}</title>
     <link rel="canonical" href="{{ $canonicalUrl }}">
@@ -253,13 +235,20 @@
              <div class="section">
                  <h2>Explicação Bíblica</h2>
                  
-                 @if(!empty($versesStr))
-                     <div class="bible-text">
-                         {{ $verseTexts ?? ('Versículo ' . $versesStr . ' do capítulo ' . $chapter . ' de ' . $book) }}
-                     </div>
+                 @if(!empty($intro))
+                    <p>{!! $intro !!}</p>
                  @endif
-                 
-                 {!! $explanation ?? 'Carregando explicação...' !!}
+
+                 @if(isset($sections) && is_array($sections))
+                    @foreach($sections as $section)
+                        <div class="subsection">
+                            <h3>{{ $section['title'] }}</h3>
+                            <p>{!! $section['content'] !!}</p>
+                        </div>
+                    @endforeach
+                 @elseif(isset($content))
+                    <div>{!! $content !!}</div>
+                 @endif
              </div>
             
             <!-- Seção de links relacionados -->
