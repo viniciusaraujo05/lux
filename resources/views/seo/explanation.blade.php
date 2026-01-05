@@ -24,6 +24,10 @@
       gtag('config', 'G-QEEJB2L42W');
     </script>
     
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1406842788891515"
+         crossorigin="anonymous"></script>
+    
     <!-- Open Graph -->
     <meta property="og:title" content="{{ $title }}">
     <meta property="og:description" content="{{ $description }}">
@@ -148,6 +152,19 @@
             <p><strong>{{ $book }} {{ $chapter }}@if(isset($verses)):{{ $verses }}@endif</strong></p>
         @endif
     </header>
+
+    <!-- AdSense Top -->
+    <div style="margin: 20px 0; text-align: center;">
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="ca-pub-1406842788891515"
+             data-ad-slot="auto"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+        <script>
+             (adsbygoogle = window.adsbygoogle || []).push({});
+        </script>
+    </div>
     
     <main>
         <article>
@@ -168,11 +185,28 @@
             @endif
             
             @if(isset($sections))
+                @php $sectionCount = 0; @endphp
                 @foreach($sections as $sectionKey => $section)
+                    @php $sectionCount++; @endphp
                     <section>
                         <h2>{{ $section['title'] ?? ucfirst(str_replace('_', ' ', $sectionKey)) }}</h2>
                         <p style="line-height: 1.8; text-align: justify;">{{ $section['content'] ?? $section }}</p>
                     </section>
+
+                    @if($sectionCount === 2)
+                        <!-- AdSense Middle -->
+                        <div style="margin: 30px 0; text-align: center;">
+                            <ins class="adsbygoogle"
+                                 style="display:block"
+                                 data-ad-client="ca-pub-1406842788891515"
+                                 data-ad-slot="auto"
+                                 data-ad-format="auto"
+                                 data-full-width-responsive="true"></ins>
+                            <script>
+                                 (adsbygoogle = window.adsbygoogle || []).push({});
+                            </script>
+                        </div>
+                    @endif
                 @endforeach
             @endif
             
@@ -201,6 +235,19 @@
                 </ul>
             </aside>
         @endif
+
+        <!-- AdSense Bottom -->
+        <div style="margin: 30px 0; text-align: center;">
+            <ins class="adsbygoogle"
+                 style="display:block"
+                 data-ad-client="ca-pub-1406842788891515"
+                 data-ad-slot="auto"
+                 data-ad-format="auto"
+                 data-full-width-responsive="true"></ins>
+            <script>
+                 (adsbygoogle = window.adsbygoogle || []).push({});
+            </script>
+        </div>
     </main>
     
     <footer>

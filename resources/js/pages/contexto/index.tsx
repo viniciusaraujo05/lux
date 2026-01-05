@@ -27,6 +27,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import AdSense from '@/components/AdSense';
 import SlugService from '@/services/SlugService';
 import BibleService from '@/services/BibleService';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
@@ -206,6 +207,8 @@ const BookContextRenderer: FC<{ context: BookContextData; bookName: string }> = 
         </CardHeader>
       </Card>
 
+      <AdSense className="my-6" />
+
       {/* Context Sections */}
       {context.sections?.map((section, index) => (
         <Section
@@ -241,6 +244,7 @@ const BookContextRenderer: FC<{ context: BookContextData; bookName: string }> = 
           )}
         </Section>
       ))}
+      <AdSense className="my-8" />
     </div>
   );
 };

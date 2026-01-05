@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <script async src="https://cdn.ampproject.org/v0.js"></script>
+    <script async custom-element="amp-ad" src="https://cdn.ampproject.org/v0/amp-ad-0.1.js"></script>
     @php
         // Normalize inputs early to avoid Array to string conversion anywhere in the template
         $versesStr = isset($verses) ? (is_array($verses) ? implode(',', $verses) : $verses) : null;
@@ -230,7 +231,19 @@
              </h1>
              <div>AMP</div>
          </header>
- 
+
+         <!-- AMP Ad Top -->
+         <div style="margin: 16px 0; display: flex; justify-content: center;">
+            <amp-ad width="100vw" height="320"
+                 type="adsense"
+                 data-ad-client="ca-pub-1406842788891515"
+                 data-ad-slot="auto"
+                 data-auto-format="rspv"
+                 data-full-width="">
+               <div overflow=""></div>
+            </amp-ad>
+         </div>
+
          <main>
              <div class="section">
                  <h2>Explicação Bíblica</h2>
@@ -240,11 +253,27 @@
                  @endif
 
                  @if(isset($sections) && is_array($sections))
+                    @php $ampSectionCount = 0; @endphp
                     @foreach($sections as $section)
+                        @php $ampSectionCount++; @endphp
                         <div class="subsection">
                             <h3>{{ $section['title'] }}</h3>
                             <p>{!! $section['content'] !!}</p>
                         </div>
+
+                        @if($ampSectionCount === 2)
+                            <!-- AMP Ad Middle -->
+                            <div style="margin: 20px 0; display: flex; justify-content: center;">
+                                <amp-ad width="100vw" height="320"
+                                     type="adsense"
+                                     data-ad-client="ca-pub-1406842788891515"
+                                     data-ad-slot="auto"
+                                     data-auto-format="rspv"
+                                     data-full-width="">
+                                   <div overflow=""></div>
+                                </amp-ad>
+                            </div>
+                        @endif
                     @endforeach
                  @elseif(isset($content))
                     <div>{!! $content !!}</div>
@@ -267,6 +296,18 @@
             
             <div class="non-amp-link">
                 <a href="{{ $canonicalUrl }}">Ver versão completa deste conteúdo</a>
+            </div>
+
+            <!-- AMP Ad Bottom -->
+            <div style="margin: 24px 0; display: flex; justify-content: center;">
+                <amp-ad width="100vw" height="320"
+                     type="adsense"
+                     data-ad-client="ca-pub-1406842788891515"
+                     data-ad-slot="auto"
+                     data-auto-format="rspv"
+                     data-full-width="">
+                   <div overflow=""></div>
+                </amp-ad>
             </div>
         </main>
         

@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import Footer from '@/components/footer';
 import DonateButton from '@/components/donate-button';
+import AdSense from '@/components/AdSense';
 // Removed Lottie Player to use Lucide Bird icon
 // import { Player } from '@lottiefiles/react-lottie-player';
 import SlugService from '@/services/SlugService';
@@ -200,6 +201,8 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
       </Card>
     </header>
 
+    <AdSense className="mb-6" />
+
     <Section title="Contexto Detalhado" icon={<BookOpen size={22} />} defaultOpen={false}>
       {explanation.contexto_detalhado?.introducao && <p>{explanation.contexto_detalhado.introducao}</p>}
       <ul>
@@ -224,6 +227,8 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
       {explanation.teologia_da_passagem?.introducao && <p>{explanation.teologia_da_passagem.introducao}</p>}
       <ul>{explanation.teologia_da_passagem?.doutrinas?.map((item, i) => <ListItem key={i}>{item}</ListItem>)}</ul>
     </Section>
+
+    <AdSense className="my-8" />
 
     <Section title="Temas Principais" icon={<Key size={22} />}>
       {explanation.temas_principais?.introducao && <p>{explanation.temas_principais.introducao}</p>}
@@ -316,6 +321,9 @@ const ChapterSummaryComponent: FC<{ summary: ChapterSummary }> = ({ summary }) =
     <Section title="Resumo do Capítulo" icon={<FileText size={22} />}>
       <p>{summary.resumo_do_capitulo}</p>
     </Section>
+
+    <AdSense className="my-8" />
+
     <Section title="Temas Principais" icon={<Key size={22} />}>
       <ul>{summary.temas_principais.map((item, i) => <ListItem key={i}>{item}</ListItem>)}</ul>
     </Section>

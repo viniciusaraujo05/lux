@@ -6,6 +6,7 @@ import ThemeToggleButton from '@/components/ThemeToggleButton';
 import Footer from '@/components/footer';
 import DonateButton from '@/components/donate-button';
 import { Heart } from 'lucide-react';
+import AdSense from '@/components/AdSense';
 
 // Lazy-load the heavy grid to reduce initial bundle size
 const BibleBooksGrid = React.lazy(() => import('@/components/BibleBooksGrid'));
@@ -107,6 +108,15 @@ export default function Welcome(props: WelcomeProps) {
             </motion.div>
           </header>
           <CTA />
+          
+          <motion.div
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+          >
+            <AdSense className="mb-8" />
+          </motion.div>
+
           <motion.main
             className="rounded-lg border bg-card text-card-foreground shadow-sm p-4 md:p-6 lg:p-8"
             initial={reduce ? false : { opacity: 0, scale: 0.97 }}
