@@ -9,7 +9,7 @@ interface AdSenseProps {
 }
 
 const AdSense: React.FC<AdSenseProps> = ({
-  slot = 'auto',
+  slot,
   format = 'auto',
   responsive = true,
   className = '',
@@ -40,14 +40,17 @@ const AdSense: React.FC<AdSenseProps> = ({
 
       try {
         // @ts-ignore
-        (window.adsbygoogle = window.adsbygoogle || []).push({});
-        setIsLoaded(true);
+        if (window.adsbygoogle && Array.isArray(window.adsbygoogle)) {
+          // @ts-ignore
+          window.adsbygoogle.push({});
+          setIsLoaded(true);
+        }
       } catch (e) {
         // Silently fail - AdSense errors are expected during development
       }
     };
 
-    timeoutId = setTimeout(loadAd, 200);
+    timeoutId = setTimeout(loadAd, 300);
     
     return () => {
       if (timeoutId) clearTimeout(timeoutId);
@@ -55,18 +58,15 @@ const AdSense: React.FC<AdSenseProps> = ({
   }, [isLoaded]);
 
   return (
-    <div ref={adRef} className={`adsense-container my-6 md:my-8 flex justify-center w-full overflow-hidden ${className}`}>
+    <div ref={adRef} className={`adsense-container my-6 md:my-8 flex justify-center w-full ${className}`}>
       <ins
         className="adsbygoogle"
         style={{ 
-          ...style, 
-          minHeight: '50px',
-          maxHeight: '250px',
-          width: '100%',
-          maxWidth: '100%'
+          display: 'block',
+          ...style
         }}
         data-ad-client="ca-pub-1406842788891515"
-        data-ad-slot={slot}
+        {...(slot && { 'data-ad-slot': slot })}
         data-ad-format={format}
         data-full-width-responsive={responsive ? 'true' : 'false'}
       />

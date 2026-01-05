@@ -43,6 +43,12 @@
         <!-- Google AdSense -->
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1406842788891515"
              crossorigin="anonymous"></script>
+        <script>
+            (adsbygoogle = window.adsbygoogle || []).push({
+                google_ad_client: "ca-pub-1406842788891515",
+                enable_page_level_ads: true
+            });
+        </script>
         
         <!-- Meta tags para SEO -->
         <meta name="description" content="{{ isset($description) ? $description : 'Verso a Verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
