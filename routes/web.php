@@ -106,6 +106,10 @@ Route::get('/biblia/{testamento}/{livro}/{capitulo}', function (string $testamen
 
 // SEO Routes
 Route::get('/sitemap.xml', [SeoController::class, 'sitemap']);
+Route::get('/sitemap-antigo-testamento.xml', [SeoController::class, 'sitemapAntigoTestamento']);
+Route::get('/sitemap-novo-testamento.xml', [SeoController::class, 'sitemapNovoTestamento']);
+Route::get('/sitemap-amp.xml', [SeoController::class, 'sitemapAmp']);
+Route::get('/sitemap-principal.xml', [SeoController::class, 'sitemapPrincipal']);
 Route::get('/robots.txt', [SeoController::class, 'robots']);
 
 // AMP Routes

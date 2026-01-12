@@ -10,13 +10,12 @@ use Illuminate\Support\Str;
 class SeoController extends Controller
 {
     /**
-     * Gera o sitemap.xml para o site
+     * Dados dos livros e capítulos (compartilhado entre métodos)
      */
-    public function sitemap()
+    private function getLivrosData()
     {
-        $ttl = 60 * 60 * 24; // 24h
-        $xml = Cache::remember('sitemap_xml', $ttl, function () {
-            $livros = [
+        return [
+            'livros' => [
                 'antigo' => [
                     'genesis', 'exodo', 'levitico', 'numeros', 'deuteronomio', 'josue', 'juizes', 'rute',
                     '1samuel', '2samuel', '1reis', '2reis', '1cronicas', '2cronicas', 'esdras', 'neemias',
@@ -30,10 +29,8 @@ class SeoController extends Controller
                     '1timoteo', '2timoteo', 'tito', 'filemom', 'hebreus', 'tiago', '1pedro', '2pedro',
                     '1joao', '2joao', '3joao', 'judas', 'apocalipse',
                 ],
-            ];
-
-            // Número aproximado de capítulos para cada livro
-            $capitulos = [
+            ],
+            'capitulos' => [
                 'genesis' => 50, 'exodo' => 40, 'levitico' => 27, 'numeros' => 36, 'deuteronomio' => 34,
                 'josue' => 24, 'juizes' => 21, 'rute' => 4, '1samuel' => 31, '2samuel' => 24,
                 '1reis' => 22, '2reis' => 25, '1cronicas' => 29, '2cronicas' => 36, 'esdras' => 10,
@@ -48,29 +45,75 @@ class SeoController extends Controller
                 '2timoteo' => 4, 'tito' => 3, 'filemom' => 1, 'hebreus' => 13, 'tiago' => 5,
                 '1pedro' => 5, '2pedro' => 3, '1joao' => 5, '2joao' => 1, '3joao' => 1,
                 'judas' => 1, 'apocalipse' => 22,
-            ];
+            ],
+        ];
+    }
 
+    /**
+     * Sitemap Index - Divide em múltiplos sitemaps
+     */
+    public function sitemapIndex()
+    {
+        $sitemaps = [
+            [
+                'loc' => url('/sitemap-antigo-testamento.xml'),
+                'lastmod' => now()->toIso8601String(),
+            ],
+            [
+                'loc' => url('/sitemap-novo-testamento.xml'),
+                'lastmod' => now()->toIso8601String(),
+            ],
+            [
+                'loc' => url('/sitemap-amp.xml'),
+                'lastmod' => now()->toIso8601String(),
+            ],
+            [
+                'loc' => url('/sitemap-principal.xml'),
+                'lastmod' => now()->toIso8601String(),
+            ],
+        ];
+
+        $xml = view('seo.sitemap-index', ['sitemaps' => $sitemaps])->render();
+
+        return Response::make($xml, 200, [
+            'Content-Type' => 'application/xml',
+        ]);
+    }
+
+    /**
+     * Sitemap Principal - Home, testamentos, livros
+     */
+    public function sitemapPrincipal()
+    {
+        $ttl = 60 * 60 * 24;
+        $xml = Cache::remember('sitemap_principal_xml', $ttl, function () {
+            $data = $this->getLivrosData();
+            $livros = $data['livros'];
             $urls = [];
 
-            // URLs para a página inicial e páginas principais
+            // Página inicial
             $urls[] = [
                 'loc' => url('/'),
                 'priority' => '1.0',
                 'changefreq' => 'daily',
+                'lastmod' => now()->toIso8601String(),
             ];
 
+            // Página da Bíblia
             $urls[] = [
                 'loc' => url('/biblia'),
                 'priority' => '0.9',
                 'changefreq' => 'daily',
+                'lastmod' => now()->toIso8601String(),
             ];
 
-            // URLs para todos os testamentos, livros e capítulos da Bíblia
+            // Testamentos e livros
             foreach ($livros as $testamento => $livrosTestamento) {
                 $urls[] = [
                     'loc' => url("/biblia/{$testamento}"),
                     'priority' => '0.8',
                     'changefreq' => 'monthly',
+                    'lastmod' => now()->toIso8601String(),
                 ];
 
                 foreach ($livrosTestamento as $livro) {
@@ -78,38 +121,157 @@ class SeoController extends Controller
                         'loc' => url("/biblia/{$testamento}/".Str::slug($livro, '-')),
                         'priority' => '0.8',
                         'changefreq' => 'monthly',
+                        'lastmod' => now()->toIso8601String(),
                     ];
+                }
+            }
 
-                    $totalCapitulos = $capitulos[$livro] ?? 30; // Valor padrão se não estiver na lista
+            return view('seo.sitemap', ['urls' => $urls])->render();
+        });
+
+        return Response::make($xml, 200, [
+            'Content-Type' => 'application/xml',
+        ]);
+    }
+
+    /**
+     * Sitemap Antigo Testamento - Capítulos e explicações
+     */
+    public function sitemapAntigoTestamento()
+    {
+        $ttl = 60 * 60 * 24;
+        $xml = Cache::remember('sitemap_antigo_xml', $ttl, function () {
+            return $this->generateTestamentSitemap('antigo');
+        });
+
+        return Response::make($xml, 200, [
+            'Content-Type' => 'application/xml',
+        ]);
+    }
+
+    /**
+     * Sitemap Novo Testamento - Capítulos e explicações
+     */
+    public function sitemapNovoTestamento()
+    {
+        $ttl = 60 * 60 * 24;
+        $xml = Cache::remember('sitemap_novo_xml', $ttl, function () {
+            return $this->generateTestamentSitemap('novo');
+        });
+
+        return Response::make($xml, 200, [
+            'Content-Type' => 'application/xml',
+        ]);
+    }
+
+    /**
+     * Gera sitemap para um testamento específico
+     */
+    private function generateTestamentSitemap($testamento)
+    {
+        $data = $this->getLivrosData();
+        $livros = $data['livros'][$testamento];
+        $capitulos = $data['capitulos'];
+        $urls = [];
+
+        foreach ($livros as $livro) {
+            $totalCapitulos = $capitulos[$livro] ?? 30;
+
+            for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
+                // URL de leitura do capítulo
+                $urls[] = [
+                    'loc' => url("/biblia/{$testamento}/".Str::slug($livro, '-')."/{$capitulo}"),
+                    'priority' => '0.7',
+                    'changefreq' => 'monthly',
+                    'lastmod' => now()->toIso8601String(),
+                ];
+
+                // URL de explicação do capítulo completo
+                $urls[] = [
+                    'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}"),
+                    'priority' => '0.9',
+                    'changefreq' => 'weekly',
+                    'lastmod' => now()->toIso8601String(),
+                ];
+
+                // Versão SEO-friendly da URL de explicação
+                $tituloSEO = $this->getTituloSEO($testamento, $livro, $capitulo);
+                if ($tituloSEO) {
+                    $urls[] = [
+                        'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$tituloSEO}"),
+                        'priority' => '0.9',
+                        'changefreq' => 'weekly',
+                        'lastmod' => now()->toIso8601String(),
+                    ];
+                }
+            }
+        }
+
+        // Adiciona explicações de versículos específicos do banco de dados
+        $explicacoes = BibleExplanation::where('verses', '!=', null)
+            ->where('testament', $testamento)
+            ->orderBy('book')
+            ->orderBy('chapter')
+            ->get();
+
+        foreach ($explicacoes as $explicacao) {
+            $livro = $explicacao->book;
+            $capitulo = $explicacao->chapter;
+            $versiculos = $explicacao->verses;
+
+            // URL SEO-friendly
+            $slug = Str::slug($versiculos);
+            $urls[] = [
+                'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}-explicacao-biblica"),
+                'priority' => '0.9',
+                'changefreq' => 'weekly',
+                'lastmod' => now()->toIso8601String(),
+            ];
+        }
+
+        return view('seo.sitemap', ['urls' => $urls])->render();
+    }
+
+    /**
+     * Sitemap AMP - Todas as páginas AMP
+     */
+    public function sitemapAmp()
+    {
+        $ttl = 60 * 60 * 24;
+        $xml = Cache::remember('sitemap_amp_xml', $ttl, function () {
+            $data = $this->getLivrosData();
+            $livros = $data['livros'];
+            $capitulos = $data['capitulos'];
+            $urls = [];
+
+            foreach ($livros as $testamento => $livrosTestamento) {
+                foreach ($livrosTestamento as $livro) {
+                    $totalCapitulos = $capitulos[$livro] ?? 30;
 
                     for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
+                        // URL AMP para explicação de capítulo completo
                         $urls[] = [
-                            'loc' => url("/biblia/{$testamento}/".Str::slug($livro, '-')."/{$capitulo}"),
-                            'priority' => '0.7',
-                            'changefreq' => 'monthly',
+                            'loc' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}"),
+                            'priority' => '0.9',
+                            'changefreq' => 'weekly',
+                            'lastmod' => now()->toIso8601String(),
                         ];
 
-                        // URL para a explicação de capítulo completo
-                        $urls[] = [
-                            'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}"),
-                            'priority' => '0.8',
-                            'changefreq' => 'monthly',
-                        ];
-
-                        // Versão SEO-friendly da URL de explicação
+                        // URL AMP para versão SEO-friendly
                         $tituloSEO = $this->getTituloSEO($testamento, $livro, $capitulo);
                         if ($tituloSEO) {
                             $urls[] = [
-                                'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$tituloSEO}"),
-                                'priority' => '0.8',
-                                'changefreq' => 'monthly',
+                                'loc' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$tituloSEO}"),
+                                'priority' => '0.9',
+                                'changefreq' => 'weekly',
+                                'lastmod' => now()->toIso8601String(),
                             ];
                         }
                     }
                 }
             }
 
-            // Adiciona explicações de versículos específicos do banco de dados
+            // Adiciona URLs AMP de versículos específicos
             $explicacoes = BibleExplanation::where('verses', '!=', null)
                 ->orderBy('testament')
                 ->orderBy('book')
@@ -121,31 +283,30 @@ class SeoController extends Controller
                 $livro = $explicacao->book;
                 $capitulo = $explicacao->chapter;
                 $versiculos = $explicacao->verses;
-
-                // URL normal
-                $urls[] = [
-                    'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}?verses={$versiculos}"),
-                    'priority' => '0.8',
-                    'changefreq' => 'monthly',
-                ];
-
-                // URL SEO-friendly
                 $slug = Str::slug($versiculos);
+
                 $urls[] = [
-                    'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}-explicacao-biblica"),
-                    'priority' => '0.8',
-                    'changefreq' => 'monthly',
+                    'loc' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}-explicacao-biblica"),
+                    'priority' => '0.9',
+                    'changefreq' => 'weekly',
+                    'lastmod' => now()->toIso8601String(),
                 ];
             }
 
-            $xml = view('seo.sitemap', ['urls' => $urls])->render();
-
-            return $xml;
+            return view('seo.sitemap', ['urls' => $urls])->render();
         });
 
         return Response::make($xml, 200, [
             'Content-Type' => 'application/xml',
         ]);
+    }
+
+    /**
+     * Redireciona sitemap.xml antigo para o novo sitemap index
+     */
+    public function sitemap()
+    {
+        return $this->sitemapIndex();
     }
 
     /**
