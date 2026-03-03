@@ -163,7 +163,7 @@ const Section: FC<{ title: string; children: ReactNode; icon?: ReactNode; defaul
         </h2>
         <ChevronLeft className={`transform transition-transform duration-300 ${isOpen ? '-rotate-90' : 'rotate-0'}`} size={20} />
       </button>
-      {isOpen && <div className="px-4 pb-4 prose prose-slate dark:prose-invert max-w-none text-base leading-relaxed">{children}</div>}
+      {isOpen && <div className="px-4 pb-4 prose prose-slate dark:prose-invert max-w-none text-[16px] sm:text-[17px] leading-8">{children}</div>}
     </section>
   );
 };
@@ -403,6 +403,15 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     }
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) return;
+    const prev = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => {
+      window.history.scrollRestoration = prev;
+    };
+  }, []);
+
   // Normalize possible stringified JSON or legacy HTML
   const normalizeExplanation = (value: any): ExplanationData | string | null => {
     if (!value) return null;
@@ -439,8 +448,11 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   // Helper: rolar para o topo ao trocar de versículo/capítulo/param
   const scrollToTop = (smooth: boolean = true) => {
+    const behavior: ScrollBehavior = smooth ? 'smooth' : 'auto';
     try {
-      window.scrollTo({ top: 0, behavior: smooth ? 'smooth' : 'auto' });
+      window.scrollTo({ top: 0, left: 0, behavior });
+      requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+      setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' },), 0);
     } catch {
       window.scrollTo(0, 0);
     }
@@ -850,7 +862,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       </Head>
       <AppLayout>
         <div className="container max-w-4xl mx-auto p-2 sm:p-4">
-          <header className="mb-3 sm:mb-6 flex items-center justify-between bg-card text-card-foreground shadow-sm rounded-lg p-2 sm:p-4 sticky top-2 z-10">
+          <header className="mb-3 sm:mb-6 flex items-center justify-between bg-gradient-to-r from-card via-card to-primary/5 text-card-foreground shadow-sm rounded-lg p-2 sm:p-4 sticky top-2 z-10 border border-border/70">
             <div className="flex items-center gap-4">
               <button onClick={() => {
                 try {
@@ -893,7 +905,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
           {loading ? (
             <DynamicLoading statusMessage={streamStatus} statusProgress={streamProgress} />
           ) : (
-            <div className="bg-card text-card-foreground rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border">
+            <div className="bg-card text-card-foreground rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border/80 sm:text-[16.5px] leading-8">
               {isFallbackExplanation(explanation) ? (
                 <div className="p-5 sm:p-6 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-400 rounded-r-lg">
                   <div className="flex items-start gap-3">

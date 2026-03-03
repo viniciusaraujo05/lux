@@ -5,6 +5,14 @@ use App\Services\SlugService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
+$normalizeBibleTestament = static function (string $testamento): ?string {
+    return match (strtolower($testamento)) {
+        'velho', 'antigo' => 'velho',
+        'novo' => 'novo',
+        default => null,
+    };
+};
+
 Route::get('/', function () {
     // Adicionar metadados de SEO específicos para a página inicial
     $seoData = [
@@ -93,22 +101,52 @@ Route::get('/biblia', function () {
     return Inertia::render('welcome');
 });
 
-Route::get('/biblia/{testamento}/{livro}', function (string $testamento, string $livro) {
+Route::get('/biblia/{testamento}', function (string $testamento) use ($normalizeBibleTestament) {
+    $normalizedTestament = $normalizeBibleTestament($testamento);
+    if (! $normalizedTestament) {
+        abort(404);
+    }
+    if ($testamento !== $normalizedTestament) {
+        return redirect("/biblia/{$normalizedTestament}", 301);
+    }
+
+    return Inertia::render('welcome', [
+        'testamento' => $normalizedTestament,
+    ]);
+});
+
+Route::get('/biblia/{testamento}/{livro}', function (string $testamento, string $livro) use ($normalizeBibleTestament) {
+    $normalizedTestament = $normalizeBibleTestament($testamento);
+    if (! $normalizedTestament) {
+        abort(404);
+    }
+    if ($testamento !== $normalizedTestament) {
+        return redirect("/biblia/{$normalizedTestament}/{$livro}", 301);
+    }
+
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
 
     return Inertia::render('welcome', [
-        'testamento' => $testamento,
+        'testamento' => $normalizedTestament,
         'livro' => $livroOriginal,
     ]);
 });
 
-Route::get('/biblia/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) {
+Route::get('/biblia/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo) use ($normalizeBibleTestament) {
+    $normalizedTestament = $normalizeBibleTestament($testamento);
+    if (! $normalizedTestament) {
+        abort(404);
+    }
+    if ($testamento !== $normalizedTestament) {
+        return redirect("/biblia/{$normalizedTestament}/{$livro}/{$capitulo}", 301);
+    }
+
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
 
     return Inertia::render('welcome', [
-        'testamento' => $testamento,
+        'testamento' => $normalizedTestament,
         'livro' => $livroOriginal,
         'capitulo' => $capitulo,
     ]);
@@ -182,6 +220,7 @@ Route::get('/contexto/{testamento}/{livro}', function (string $testamento, strin
         'teologia',
     ]);
     $canonicalUrl = url("/contexto/{$testamento}/{$livro}");
+    $bibleTestamento = $testamento === 'antigo' ? 'velho' : 'novo';
 
     $breadcrumbs = [
         '@context' => 'https://schema.org',
@@ -189,8 +228,8 @@ Route::get('/contexto/{testamento}/{livro}', function (string $testamento, strin
         'itemListElement' => [
             ['@type' => 'ListItem', 'position' => 1, 'name' => 'Início', 'item' => url('/')],
             ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
-            ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
-            ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
+            ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$bibleTestamento}")],
+            ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$bibleTestamento}/{$livro}")],
             ['@type' => 'ListItem', 'position' => 5, 'name' => 'Contexto', 'item' => $canonicalUrl],
         ],
     ];
@@ -257,6 +296,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
         'teologia',
     ]);
     $canonicalUrl = url("/explicacao/{$testamento}/{$livro}/{$capitulo}");
+    $bibleTestamento = $testamento === 'antigo' ? 'velho' : 'novo';
 
     $breadcrumbs = [
         '@context' => 'https://schema.org',
@@ -264,9 +304,9 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
         'itemListElement' => [
             ['@type' => 'ListItem', 'position' => 1, 'name' => 'Início', 'item' => url('/')],
             ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
-            ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
-            ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
-            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
+            ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$bibleTestamento}")],
+            ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$bibleTestamento}/{$livro}")],
+            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$bibleTestamento}/{$livro}/{$capitulo}")],
         ],
     ];
     $article = [
@@ -341,6 +381,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'teologia',
         ]);
         $canonicalUrl = url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}");
+        $bibleTestamento = $testamento === 'antigo' ? 'velho' : 'novo';
 
         $breadcrumbs = [
             '@context' => 'https://schema.org',
@@ -348,9 +389,9 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'itemListElement' => [
                 ['@type' => 'ListItem', 'position' => 1, 'name' => 'Início', 'item' => url('/')],
                 ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
-                ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
-                ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
-                ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
+                ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$bibleTestamento}")],
+                ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$bibleTestamento}/{$livro}")],
+                ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$bibleTestamento}/{$livro}/{$capitulo}")],
                 ['@type' => 'ListItem', 'position' => 6, 'name' => 'Verso(s) '.$verses, 'item' => $canonicalUrl],
             ],
         ];
@@ -404,6 +445,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
         'teologia',
     ]);
     $canonicalUrl = url("/explicacao/{$testamento}/{$livro}/{$capitulo}");
+    $bibleTestamento = $testamento === 'antigo' ? 'velho' : 'novo';
 
     $breadcrumbs = [
         '@context' => 'https://schema.org',
@@ -411,9 +453,9 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
         'itemListElement' => [
             ['@type' => 'ListItem', 'position' => 1, 'name' => 'Início', 'item' => url('/')],
             ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
-            ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$testamento}")],
-            ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$testamento}/{$livro}")],
-            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$testamento}/{$livro}/{$capitulo}")],
+            ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$bibleTestamento}")],
+            ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$bibleTestamento}/{$livro}")],
+            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$bibleTestamento}/{$livro}/{$capitulo}")],
         ],
     ];
     $article = [

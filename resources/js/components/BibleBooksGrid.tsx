@@ -158,15 +158,34 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   // Instâncias dos serviços
   const bibleService = BibleService.getInstance();
   const slugService = SlugService.getInstance();
+
+  const normalizeSearchText = (value: string) =>
+    value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
   
-  // Helper: rolar para o topo em transições
-  const scrollToTop = () => {
+  // Força topo de forma resiliente para evitar "salto para baixo" em transições SPA/histórico.
+  const forceScrollTop = (smooth = false) => {
+    const behavior: ScrollBehavior = smooth ? 'smooth' : 'auto';
     try {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo({ top: 0, left: 0, behavior });
+      requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }));
+      setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }), 0);
     } catch {
       window.scrollTo(0, 0);
     }
   };
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('scrollRestoration' in window.history)) return;
+    const prev = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    return () => {
+      window.history.scrollRestoration = prev;
+    };
+  }, []);
 
   // Fetch book context
   const fetchBookContext = async () => {
@@ -377,12 +396,12 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         setChapters([]);
         setVerses([]);
         setNavState('livros');
-        scrollToTop();
+        forceScrollTop(false);
         return;
       }
       // '/biblia/{testamento}/{livro}' ou '/biblia/{testamento}/{livro}/{capitulo}'
       if (parts.length >= 3) {
-        const testament = (parts[1] === 'velho' ? 'velho' : 'novo') as 'velho' | 'novo';
+        const testament = (parts[1] === 'velho' || parts[1] === 'antigo' ? 'velho' : 'novo') as 'velho' | 'novo';
         const bookSlug = parts[2];
         const book = slugService.slugParaLivro(bookSlug);
         setActiveTestament(testament);
@@ -397,12 +416,12 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             const vs = await bibleService.getVersiculos(book, chapter, testament);
             setVerses(vs);
             setNavState('versiculos');
-            scrollToTop();
+            forceScrollTop(false);
           } else {
             setSelectedChapter(null);
             setVerses([]);
             setNavState('capitulos');
-            scrollToTop();
+            forceScrollTop(false);
           }
         } catch (e) {
           console.error('Erro ao sincronizar URL:', e);
@@ -445,7 +464,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         `/biblia/${testament}/${bookSlug}`
       );
       // Garantir que a visão comece pelo topo
-      scrollToTop();
+      forceScrollTop(false);
       
       const bookChapters = await bibleService.getCapitulos(book, testament);
       setChapters(bookChapters);
@@ -477,7 +496,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         `/biblia/${activeTestament}/${bookSlug}/${chapter}`
       );
       // Garantir que a visão comece pelo topo
-      scrollToTop();
+      forceScrollTop(false);
       
       // Garantir que o testamento seja do tipo correto
       const testament = activeTestament as 'velho' | 'novo';
@@ -514,7 +533,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       window.history.pushState({}, '', `/biblia`);
       setNavState('livros');
     }
-    scrollToTop();
+    forceScrollTop(false);
   };
 
   // Atualiza o estado de navegação quando algo é selecionado
@@ -531,27 +550,43 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
   // Memoizações básicas para filtrar livros
   const allBooks = useMemo(() => [...livrosVelhoTestamento, ...livrosNovoTestamento], [livrosVelhoTestamento, livrosNovoTestamento]);
-  const filteredBooks = useMemo(() => allBooks.filter(book => book.toLowerCase().includes(searchTerm.toLowerCase())), [allBooks, searchTerm]);
+  const filteredBooks = useMemo(() => {
+    const normalizedSearch = normalizeSearchText(searchTerm);
+    if (!normalizedSearch) return allBooks;
+    return allBooks.filter((book) => normalizeSearchText(book).includes(normalizedSearch));
+  }, [allBooks, searchTerm]);
   const filteredVT = useMemo(() => filteredBooks.filter(book => livrosVelhoTestamento.includes(book)), [filteredBooks, livrosVelhoTestamento]);
   const filteredNT = useMemo(() => filteredBooks.filter(book => livrosNovoTestamento.includes(book)), [filteredBooks, livrosNovoTestamento]);
 
-  // Renderiza todos os livros com barra de pesquisa e separados por testamento
+  // Renderiza livros com tabs por testamento, busca destacada e cards com melhor contraste
   const renderAllBooks = () => {
-    // Determina qual testamento contém o livro
-    const getTestament = (book: string) => {
-      return livrosVelhoTestamento.includes(book) ? 'velho' : 'novo';
-    };
+    const getTestament = (book: string) => (livrosVelhoTestamento.includes(book) ? 'velho' : 'novo');
+    const isSearching = searchTerm.trim().length > 0;
+    const booksForActiveTestament = isSearching
+      ? filteredBooks
+      : activeTestament === 'velho'
+        ? filteredVT
+        : filteredNT;
+    const activeLabel = isSearching
+      ? 'Resultados da busca'
+      : activeTestament === 'velho'
+        ? 'Antigo Testamento'
+        : 'Novo Testamento';
     
     // Renderiza um card de livro
     const renderBookCard = (book: string) => (
       <motion.div
         key={book}
-        whileHover={{ scale: 1.06, boxShadow: "0 4px 24px rgba(80,80,120,0.12)" }}
+        whileHover={{ y: -3, scale: 1.03, boxShadow: "0 8px 30px rgba(56,123,255,0.22)" }}
         whileTap={{ scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 300 }}
       >
         <Card
-          className={`bible-card overflow-hidden transition-all cursor-pointer ${selectedBook === book ? 'border-2 border-primary' : 'border border-border'}`}
+          className={`bible-card overflow-hidden transition-all cursor-pointer ${
+            selectedBook === book
+              ? 'border-2 border-primary shadow-lg shadow-primary/20'
+              : 'border border-border/80 hover:border-primary/40'
+          }`}
           onClick={() => {
             // Define o testamento correto ao navegar para os capítulos
             setActiveTestament(getTestament(book));
@@ -559,8 +594,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
           }}
         >
           <CardContent className="p-0">
-            <button className="w-full h-full p-4 text-center font-medium text-sm focus:outline-none always-visible">
-              {book}
+            <button className="w-full h-full p-4 sm:p-5 text-left font-semibold text-sm sm:text-[15px] focus:outline-none always-visible">
+              <span className="leading-tight">{book}</span>
             </button>
           </CardContent>
         </Card>
@@ -569,43 +604,53 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
     return (
       <div>
+        <div className="sticky top-2 z-20 mb-4 rounded-xl border border-border/70 bg-background/90 backdrop-blur-md p-2 shadow-md">
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setActiveTestament('velho')}
+              className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                activeTestament === 'velho'
+                  ? 'bg-primary text-primary-foreground shadow'
+                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-accent'
+              }`}
+            >
+              Antigo Testamento
+            </button>
+            <button
+              onClick={() => setActiveTestament('novo')}
+              className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+                activeTestament === 'novo'
+                  ? 'bg-primary text-primary-foreground shadow'
+                  : 'bg-card text-muted-foreground hover:text-foreground hover:bg-accent'
+              }`}
+            >
+              Novo Testamento
+            </button>
+          </div>
+        </div>
+
         <div className="mb-6 flex justify-center">
           <div className="relative w-full max-w-md">
             <input
               type="text"
-              className="w-full px-4 py-2 pl-10 rounded-lg border border-border focus:ring-2 focus:ring-primary outline-none text-sm shadow-sm"
-              placeholder="Pesquisar livro da Bíblia..."
+              className="w-full px-4 py-3.5 pl-12 rounded-xl border border-border/70 bg-card text-foreground placeholder:text-muted-foreground/90 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-sm shadow-sm"
+              placeholder="Buscar livro, capítulo ou tema..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               aria-label="Pesquisar livro"
             />
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-4 top-4 h-5 w-5 text-muted-foreground" />
           </div>
         </div>
         
-        {filteredBooks.length === 0 ? (
+        {booksForActiveTestament.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">Nenhum livro encontrado.</div>
         ) : (
-          <div className="space-y-8">
-            {/* Velho Testamento */}
-            {filteredVT.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-primary">Velho Testamento</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {filteredVT.map(renderBookCard)}
-                </div>
-              </div>
-            )}
-            
-            {/* Novo Testamento */}
-            {filteredNT.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4 text-primary">Novo Testamento</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
-                  {filteredNT.map(renderBookCard)}
-                </div>
-              </div>
-            )}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold text-primary">{activeLabel}</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+              {booksForActiveTestament.map(renderBookCard)}
+            </div>
           </div>
         )}
       </div>
@@ -701,7 +746,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             {/* Botão para explicar contexto do livro */}
             <div className="flex justify-center">
               <motion.button
-                className="px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-secondary bg-secondary text-secondary-foreground hover:bg-secondary/90 focus:outline-none focus:ring-2 focus:ring-secondary/50 transition-all"
+                className="px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
@@ -741,7 +786,11 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 return (
                   <motion.button
                     key={chapter}
-                    className={`relative p-3 sm:p-4 rounded-lg border text-sm sm:text-base transition-all cursor-pointer font-semibold text-center focus:outline-none focus:ring-2 focus:ring-primary/50 ${isSelected ? 'bg-primary text-primary-foreground border-primary shadow-md' : 'bg-card hover:bg-accent border-border text-foreground hover:border-primary/30'}`}
+                    className={`relative p-3 sm:p-4 rounded-xl border text-sm sm:text-base transition-all cursor-pointer font-semibold text-center focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                      isSelected
+                        ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                        : 'bg-card hover:bg-accent border-border text-foreground hover:border-primary/30'
+                    }`}
                     whileHover={{ scale: 1.05, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
@@ -807,7 +856,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             {/* Botões de ação */}
             <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
               <motion.button
-                className="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all dark:bg-primary dark:text-primary-foreground dark:border-primary"
+                className="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
                 whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
@@ -819,10 +868,14 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                   persistNavState();
                   setNavigating(true);
                   // Subir para o topo para evitar ficar no rodapé
-                  scrollToTop();
+                  forceScrollTop(false);
+                  if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                   router.visit(`/explicacao/${expTestament}/${bookSlug}/${selectedChapter}`, {
                     preserveScroll: false,
-                    onFinish: () => setNavigating(false),
+                    onFinish: () => {
+                      setNavigating(false);
+                      forceScrollTop(false);
+                    },
                   });
                 }}
               >
@@ -894,7 +947,11 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 return (
                   <motion.button
                     key={verse}
-                    className={`relative p-3 sm:p-4 rounded-lg border text-sm sm:text-base font-semibold transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary/50 ${isSelected ? 'bg-primary text-primary-foreground border-primary shadow-md' : 'bg-card hover:bg-accent border-border hover:border-primary/30'}`}
+                    className={`relative p-3 sm:p-4 rounded-xl border text-sm sm:text-base font-semibold transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                      isSelected
+                        ? 'bg-primary text-primary-foreground border-primary shadow-md'
+                        : 'bg-card hover:bg-accent border-border hover:border-primary/30'
+                    }`}
                     disabled={navigating}
                     whileHover={{ scale: 1.05, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
                     whileTap={{ scale: 0.98 }}
@@ -916,10 +973,14 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                         const verseSlug = `${verse}-explicacao-biblica`;
                         setNavigating(true);
                         // Subir para o topo antes de navegar
-                        scrollToTop();
+                        forceScrollTop(false);
+                        if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
                         router.visit(`/explicacao/${expTestament}/${bookSlug}/${selectedChapter}/${verseSlug}`, {
                           preserveScroll: false,
-                          onFinish: () => setNavigating(false),
+                          onFinish: () => {
+                            setNavigating(false);
+                            forceScrollTop(false);
+                          },
                         });
                       }
                     }}
@@ -939,10 +1000,35 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
   // Removido efeito que forçava navState('livros') no mount para evitar sobrescrever restauração
 
+  const steps = [
+    { key: 'livros', label: 'Livro' },
+    { key: 'capitulos', label: 'Capítulo' },
+    { key: 'versiculos', label: 'Versículo' },
+  ] as const;
+  const currentStepIndex = navState === 'livros' ? 0 : navState === 'capitulos' ? 1 : 2;
+
   return (
     <div className="flex flex-col space-y-4">
-      {/* Renderiza o cabeçalho de navegação */}
-      <div className="flex items-center justify-between bg-card shadow-sm rounded-md p-3 mb-4">
+      <div className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-3 sm:p-4 shadow-sm">
+        <div className="mb-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground text-center">
+          {steps.map((step, idx) => (
+            <div key={step.key} className="inline-flex items-center gap-2">
+              <span
+                className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-2 font-semibold ${
+                  idx <= currentStepIndex
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground'
+                }`}
+              >
+                {idx + 1}
+              </span>
+              <span className={idx <= currentStepIndex ? 'text-foreground font-medium' : ''}>{step.label}</span>
+              {idx < steps.length - 1 && <span className="opacity-50">→</span>}
+            </div>
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between bg-card/80 backdrop-blur-sm shadow-sm rounded-md p-3">
         {navState !== 'livros' ? (
           <button 
             onClick={navigateBack}
@@ -977,7 +1063,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             })()}
           </span>
         </div>
-        
+
         <button 
           onClick={() => window.location.href = '/biblia'}
           className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm font-medium text-sm"
@@ -986,6 +1072,14 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
           <Home size={18} />
           <span className="hidden sm:inline">Início</span>
         </button>
+        </div>
+
+        {(selectedBook || selectedChapter) && (
+          <div className="mt-3 rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-xs sm:text-sm text-muted-foreground">
+            <span className="font-semibold text-foreground">Seleção atual:</span>{' '}
+            {selectedBook ?? 'Livro'}{selectedChapter ? ` ${selectedChapter}` : ''}{selectedVerses.length ? ` • ${selectedVerses.length} verso(s)` : ''}
+          </div>
+        )}
       </div>
       {renderCurrentView()}
     </div>

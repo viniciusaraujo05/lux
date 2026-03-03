@@ -110,8 +110,9 @@ class SeoController extends Controller
 
             // Testamentos e livros
             foreach ($livros as $testamento => $livrosTestamento) {
+                $bibleTestamento = $this->toBibleTestament($testamento);
                 $urls[] = [
-                    'loc' => url("/biblia/{$testamento}"),
+                    'loc' => url("/biblia/{$bibleTestamento}"),
                     'priority' => '0.8',
                     'changefreq' => 'monthly',
                     'lastmod' => now()->toIso8601String(),
@@ -120,7 +121,7 @@ class SeoController extends Controller
                 foreach ($livrosTestamento as $livro) {
                     $livroSlug = $this->normalizeBookSlug($livro);
                     $urls[] = [
-                        'loc' => url("/biblia/{$testamento}/{$livroSlug}"),
+                        'loc' => url("/biblia/{$bibleTestamento}/{$livroSlug}"),
                         'priority' => '0.8',
                         'changefreq' => 'monthly',
                         'lastmod' => now()->toIso8601String(),
@@ -174,6 +175,7 @@ class SeoController extends Controller
         $data = $this->getLivrosData();
         $livros = $data['livros'][$testamento];
         $capitulos = $data['capitulos'];
+        $bibleTestamento = $this->toBibleTestament($testamento);
         $urls = [];
 
         foreach ($livros as $livro) {
@@ -183,7 +185,7 @@ class SeoController extends Controller
             for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
                 // URL de leitura do capítulo
                 $urls[] = [
-                    'loc' => url("/biblia/{$testamento}/{$livroSlug}/{$capitulo}"),
+                    'loc' => url("/biblia/{$bibleTestamento}/{$livroSlug}/{$capitulo}"),
                     'priority' => '0.7',
                     'changefreq' => 'monthly',
                     'lastmod' => now()->toIso8601String(),
@@ -379,5 +381,10 @@ class SeoController extends Controller
             '3joao' => '3-joao',
             default => $livro,
         };
+    }
+
+    private function toBibleTestament(string $testamento): string
+    {
+        return $testamento === 'antigo' ? 'velho' : 'novo';
     }
 }

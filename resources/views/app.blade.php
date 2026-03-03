@@ -50,13 +50,17 @@
             });
         </script>
         
+        @php
+            $resolvedCanonicalUrl = $canonicalUrl ?? url()->current();
+        @endphp
+
         <!-- Meta tags para SEO -->
         <meta name="description" content="{{ isset($description) ? $description : 'Verso a Verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta name="keywords" content="{{ isset($keywords) ? $keywords : 'bíblia, explicação bíblica, estudo bíblico, versículos da bíblia, verso a verso, comentário bíblico' }}">
         <meta name="robots" content="{{ $robots ?? 'index, follow' }}">
         <meta name="author" content="Verso a verso">
-        <link rel="canonical" href="{{ $canonicalUrl ?? url()->current() }}" />
-        <link rel="alternate" hreflang="pt-br" href="{{ $canonicalUrl ?? url()->current() }}" />
+        <link rel="canonical" href="{{ $resolvedCanonicalUrl }}" />
+        <link rel="alternate" hreflang="pt-br" href="{{ $resolvedCanonicalUrl }}" />
         @if(isset($ampUrl))
             <link rel="amphtml" href="{{ $ampUrl }}" />
         @endif
@@ -64,7 +68,7 @@
         <!-- Open Graph / Facebook -->
         <meta property="og:type" content="{{ $ogType ?? 'website' }}">
         <meta property="og:locale" content="pt_BR">
-        <meta property="og:url" content="{{ url()->current() }}">
+        <meta property="og:url" content="{{ $resolvedCanonicalUrl }}">
         <meta property="og:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}">
         <meta property="og:description" content="{{ isset($description) ? $description : 'Verso a verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta property="og:image" content="{{ asset('logo.svg') }}">
@@ -75,7 +79,7 @@
         
         <!-- Twitter -->
         <meta property="twitter:card" content="summary_large_image">
-        <meta property="twitter:url" content="{{ url()->current() }}">
+        <meta property="twitter:url" content="{{ $resolvedCanonicalUrl }}">
         <meta property="twitter:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}">
         <meta property="twitter:description" content="{{ isset($description) ? $description : 'Verso a verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta property="twitter:image" content="{{ asset('logo.svg') }}">
@@ -96,7 +100,7 @@
         @vite(['resources/js/app.tsx', "resources/js/pages/{$page['component']}.tsx"])
         @inertiaHead
     </head>
-    <body>
+    <body class="font-sans antialiased">
     <!-- Google Tag Manager (noscript) -->
     <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N5X2XHKS"
     height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
@@ -110,7 +114,6 @@
 
   gtag('config', 'G-QEEJB2L42W');
 </script>
-<body class="font-sans antialiased">
         @inertia
         @include('partials.cookie-consent')
     </body>

@@ -4,6 +4,10 @@ Disallow: /admin
 Disallow: /api
 
 Sitemap: https://versoaverso.site/sitemap.xml
+Sitemap: https://versoaverso.site/sitemap-principal.xml
+Sitemap: https://versoaverso.site/sitemap-antigo-testamento.xml
+Sitemap: https://versoaverso.site/sitemap-novo-testamento.xml
+Sitemap: https://versoaverso.site/sitemap-amp.xml
 
 User-agent: AhrefsBot
 Crawl-delay: 10
