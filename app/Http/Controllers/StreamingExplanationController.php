@@ -49,6 +49,13 @@ class StreamingExplanationController extends Controller
                     'progress' => 10,
                 ]);
 
+                // A chamada abaixo pode bloquear por vários segundos em geração por IA.
+                // Enviamos um status antes para o cliente refletir a fase atual.
+                $this->sendEvent('status', [
+                    'message' => 'Consultando banco e iniciando geração com IA...',
+                    'progress' => 30,
+                ]);
+
                 $result = $this->explanationService->getExplanation($testament, $book, $chapter, $verses);
 
                 if ($result['origin'] === 'cache' || $result['origin'] === 'db') {
@@ -60,21 +67,14 @@ class StreamingExplanationController extends Controller
 
                     $this->sendEvent('complete', $result);
                 } else {
-                    // Simulate progress for API generation
+                    // Resultado gerado por IA: enviar fases finais antes de concluir
                     $this->sendEvent('status', [
-                        'message' => 'Gerando explicação com IA...',
-                        'progress' => 30,
-                    ]);
-
-                    sleep(1); // Small delay to show progress
-
-                    $this->sendEvent('status', [
-                        'message' => 'Processando resposta...',
-                        'progress' => 70,
+                        'message' => 'Resposta da IA recebida, validando conteúdo...',
+                        'progress' => 75,
                     ]);
 
                     $this->sendEvent('status', [
-                        'message' => 'Finalizando...',
+                        'message' => 'Salvando e finalizando...',
                         'progress' => 90,
                     ]);
 

@@ -5,7 +5,9 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PageCacheMiddleware
 {
@@ -50,6 +52,11 @@ class PageCacheMiddleware
         $response = $next($request);
         $response->headers->set('X-Cache', 'MISS');
 
+        // SSE/streamed responses cannot be cached/compressed via getContent()/setContent().
+        if ($response instanceof StreamedResponse || $response instanceof BinaryFileResponse) {
+            return $response;
+        }
+
         if ($response->getStatusCode() === 200) {
             // Store both content and headers to keep things like content-type
             Cache::put($cacheKey, [
@@ -66,8 +73,16 @@ class PageCacheMiddleware
      */
     private function compressResponse(Response $response, Request $request): Response
     {
+        if ($response instanceof StreamedResponse || $response instanceof BinaryFileResponse) {
+            return $response;
+        }
+
         if ($response->headers->has('Content-Encoding')) {
             return $response; // already encoded
+        }
+
+        if (str_contains(strtolower((string) $response->headers->get('Content-Type', '')), 'text/event-stream')) {
+            return $response;
         }
 
         if (! str_contains($request->header('Accept-Encoding', ''), 'gzip')) {

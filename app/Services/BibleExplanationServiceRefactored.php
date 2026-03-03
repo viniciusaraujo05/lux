@@ -78,7 +78,7 @@ class BibleExplanationServiceRefactored
         $result = null;
 
         try {
-            Cache::lock($lockKey, 45)->block(15, function () use (
+            Cache::lock($lockKey, 30)->block(6, function () use (
                 &$result,
                 $cacheKey,
                 $testament,
@@ -155,11 +155,39 @@ class BibleExplanationServiceRefactored
                 'verses' => $verses,
             ]);
 
-            // Return fallback on lock timeout
+            // Em timeout de lock não devemos disparar outra chamada de IA.
+            // Fazemos um último re-check rápido e, se não existir, retornamos fallback imediato.
+            $cached = $this->cacheService->get($cacheKey);
+            if ($cached !== null) {
+                return $cached;
+            }
+
+            $explanation = $this->queryService->find($testament, $book, $chapter, $verses);
+            if ($explanation) {
+                $explanation->incrementAccessCount();
+
+                $result = $this->formatExplanationResult($explanation, 'db');
+                $this->cacheService->put($cacheKey, $result, $explanation->access_count);
+
+                return $result;
+            }
+
             return [
                 'id' => null,
                 'origin' => 'fallback',
-                'explanation' => $this->generationService->generate($testament, $book, $chapter, $verses)['fallback'] ?? [],
+                'explanation' => [
+                    'type' => 'error',
+                    'requestDetails' => [
+                        'book' => $book,
+                        'chapter' => $chapter,
+                        'verses' => $verses,
+                    ],
+                    'errorDetails' => [
+                        'title' => 'Processando Solicitação',
+                        'message' => 'Ainda estamos gerando essa explicação. Tente novamente em alguns segundos.',
+                        'suggestion' => 'Se demorar, recarregue a página em instantes.',
+                    ],
+                ],
                 'source' => 'fallback',
             ];
         }

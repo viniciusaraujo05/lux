@@ -19,12 +19,15 @@ class OpenAiClient implements AiClientInterface
 
     private int $connectTimeout;
 
+    private int $retries;
+
     public function __construct()
     {
         $this->apiKey = config('ai.openai.api_key');
         $this->model = config('ai.openai.model', 'gpt-4o-mini');
-        $this->timeout = config('ai.openai.timeout', 90);
+        $this->timeout = config('ai.openai.timeout', 45);
         $this->connectTimeout = config('ai.openai.connect_timeout', 10);
+        $this->retries = max(0, (int) config('ai.openai.retries', 1));
     }
 
     public function chat(array $messages, int $maxTokens = 4000): string
@@ -71,7 +74,7 @@ class OpenAiClient implements AiClientInterface
         $payload['text'] = ['format' => ['type' => 'json_object']];
 
         // Optional reasoning effort (e.g., 'low' for faster responses) if configured
-        $effort = config('ai.openai.reasoning_effort'); // e.g., 'low' | 'medium' | 'high'
+        $effort = config('ai.openai.reasoning_effort', 'low'); // e.g., 'low' | 'medium' | 'high'
         if (is_string($effort) && $effort !== '') {
             $payload['reasoning'] = ['effort' => $effort];
         }
@@ -132,12 +135,12 @@ class OpenAiClient implements AiClientInterface
 
     private function postChat(array $payload): array
     {
-        return $this->postJsonWithRetry('https://api.openai.com/v1/chat/completions', $payload);
+        return $this->postJsonWithRetry('https://api.openai.com/v1/chat/completions', $payload, $this->retries);
     }
 
     private function postResponses(array $payload): array
     {
-        return $this->postJsonWithRetry('https://api.openai.com/v1/responses', $payload);
+        return $this->postJsonWithRetry('https://api.openai.com/v1/responses', $payload, $this->retries);
     }
 
     /**
@@ -316,7 +319,7 @@ class OpenAiClient implements AiClientInterface
                     'payload_bytes' => $payloadSize,
                 ]);
 
-                if ($attempt < $retries) {
+                if ($attempt < $retries && $this->shouldRetryException($e)) {
                     $sleepMs = $backoffMs + $this->secureRandomInt(0, 150);
                     Log::notice('OpenAI API retry after exception', [
                         'request_id' => $requestId,
@@ -336,5 +339,24 @@ class OpenAiClient implements AiClientInterface
 
         // Unreachable, but PHP requires a return
         return [];
+    }
+
+    private function shouldRetryException(\Throwable $e): bool
+    {
+        // Erros 4xx (exceto throttling/timeouts já tratados no fluxo de status) não se beneficiam de retry.
+        if ($e instanceof \RuntimeException) {
+            $code = (int) $e->getCode();
+            if ($code >= 400 && $code < 500) {
+                return false;
+            }
+        }
+
+        // Timeout de rede normalmente não melhora com retry imediato e só aumenta latência/custo.
+        $message = strtolower($e->getMessage());
+        if (str_contains($message, 'timed out') || str_contains($message, 'timeout') || str_contains($message, 'curl error 28')) {
+            return false;
+        }
+
+        return true;
     }
 }

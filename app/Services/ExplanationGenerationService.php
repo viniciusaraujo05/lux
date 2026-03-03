@@ -12,12 +12,15 @@ class ExplanationGenerationService
 
     private ExplanationValidationService $validator;
 
+    private int $maxAttempts;
+
     public function __construct(
         PromptBuilderService $promptBuilder,
         ExplanationValidationService $validator
     ) {
         $this->promptBuilder = $promptBuilder;
         $this->validator = $validator;
+        $this->maxAttempts = max(1, (int) config('ai.generation.max_attempts', 2));
     }
 
     /**
@@ -30,7 +33,7 @@ class ExplanationGenerationService
         ?string $verses = null
     ): array {
         $isFullChapter = $verses === null;
-        $maxAttempts = 3;
+        $maxAttempts = $this->maxAttempts;
         $lastError = null;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
@@ -60,7 +63,7 @@ class ExplanationGenerationService
 
                 // Wait before retry (exponential backoff)
                 if ($attempt < $maxAttempts) {
-                    usleep(500000 * $attempt); // 0.5s, 1s, 1.5s
+                    usleep(200000 * $attempt); // 0.2s, 0.4s
                 }
 
             } catch (\Exception $e) {
@@ -74,7 +77,7 @@ class ExplanationGenerationService
                 ]);
 
                 if ($attempt < $maxAttempts) {
-                    usleep(1000000 * $attempt); // 1s, 2s
+                    usleep(400000 * $attempt); // 0.4s, 0.8s
                 }
             }
         }
@@ -112,9 +115,12 @@ class ExplanationGenerationService
             ['role' => 'user', 'content' => $prompt],
         ];
 
-        // Adjust token budget based on attempt
-        $baseTokens = $isFullChapter ? 3500 : 3000;
-        $maxTokens = $baseTokens + ($attempt > 1 ? 1000 : 0); // Increase on retry
+        // Adjust token budget based on request type and attempt
+        $baseTokens = $isFullChapter
+            ? (int) config('ai.generation.max_tokens_chapter', 2800)
+            : (int) config('ai.generation.max_tokens_verse', 2400);
+        $retryIncrement = (int) config('ai.generation.retry_tokens_increment', 600);
+        $maxTokens = $baseTokens + ($attempt > 1 ? $retryIncrement : 0);
 
         // Call AI
         $responseContent = $client->chat($messages, $maxTokens);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BibleExplanation;
+use App\Services\SlugService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Str;
@@ -117,8 +118,9 @@ class SeoController extends Controller
                 ];
 
                 foreach ($livrosTestamento as $livro) {
+                    $livroSlug = $this->normalizeBookSlug($livro);
                     $urls[] = [
-                        'loc' => url("/biblia/{$testamento}/".Str::slug($livro, '-')),
+                        'loc' => url("/biblia/{$testamento}/{$livroSlug}"),
                         'priority' => '0.8',
                         'changefreq' => 'monthly',
                         'lastmod' => now()->toIso8601String(),
@@ -175,12 +177,13 @@ class SeoController extends Controller
         $urls = [];
 
         foreach ($livros as $livro) {
+            $livroSlug = $this->normalizeBookSlug($livro);
             $totalCapitulos = $capitulos[$livro] ?? 30;
 
             for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
                 // URL de leitura do capítulo
                 $urls[] = [
-                    'loc' => url("/biblia/{$testamento}/".Str::slug($livro, '-')."/{$capitulo}"),
+                    'loc' => url("/biblia/{$testamento}/{$livroSlug}/{$capitulo}"),
                     'priority' => '0.7',
                     'changefreq' => 'monthly',
                     'lastmod' => now()->toIso8601String(),
@@ -188,7 +191,7 @@ class SeoController extends Controller
 
                 // URL de explicação do capítulo completo
                 $urls[] = [
-                    'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}"),
+                    'loc' => url("/explicacao/{$testamento}/{$livroSlug}/{$capitulo}"),
                     'priority' => '0.9',
                     'changefreq' => 'weekly',
                     'lastmod' => now()->toIso8601String(),
@@ -198,7 +201,7 @@ class SeoController extends Controller
                 $tituloSEO = $this->getTituloSEO($testamento, $livro, $capitulo);
                 if ($tituloSEO) {
                     $urls[] = [
-                        'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$tituloSEO}"),
+                        'loc' => url("/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$tituloSEO}"),
                         'priority' => '0.9',
                         'changefreq' => 'weekly',
                         'lastmod' => now()->toIso8601String(),
@@ -216,13 +219,14 @@ class SeoController extends Controller
 
         foreach ($explicacoes as $explicacao) {
             $livro = $explicacao->book;
+            $livroSlug = $this->normalizeBookSlug(SlugService::livroParaSlug((string) $livro));
             $capitulo = $explicacao->chapter;
             $versiculos = $explicacao->verses;
 
             // URL SEO-friendly
             $slug = Str::slug($versiculos);
             $urls[] = [
-                'loc' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}-explicacao-biblica"),
+                'loc' => url("/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$slug}-explicacao-biblica"),
                 'priority' => '0.9',
                 'changefreq' => 'weekly',
                 'lastmod' => now()->toIso8601String(),
@@ -246,12 +250,13 @@ class SeoController extends Controller
 
             foreach ($livros as $testamento => $livrosTestamento) {
                 foreach ($livrosTestamento as $livro) {
+                    $livroSlug = $this->normalizeBookSlug($livro);
                     $totalCapitulos = $capitulos[$livro] ?? 30;
 
                     for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
                         // URL AMP para explicação de capítulo completo
                         $urls[] = [
-                            'loc' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}"),
+                            'loc' => url("/amp/explicacao/{$testamento}/{$livroSlug}/{$capitulo}"),
                             'priority' => '0.9',
                             'changefreq' => 'weekly',
                             'lastmod' => now()->toIso8601String(),
@@ -261,7 +266,7 @@ class SeoController extends Controller
                         $tituloSEO = $this->getTituloSEO($testamento, $livro, $capitulo);
                         if ($tituloSEO) {
                             $urls[] = [
-                                'loc' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$tituloSEO}"),
+                                'loc' => url("/amp/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$tituloSEO}"),
                                 'priority' => '0.9',
                                 'changefreq' => 'weekly',
                                 'lastmod' => now()->toIso8601String(),
@@ -281,12 +286,13 @@ class SeoController extends Controller
             foreach ($explicacoes as $explicacao) {
                 $testamento = $explicacao->testament;
                 $livro = $explicacao->book;
+                $livroSlug = $this->normalizeBookSlug(SlugService::livroParaSlug((string) $livro));
                 $capitulo = $explicacao->chapter;
                 $versiculos = $explicacao->verses;
                 $slug = Str::slug($versiculos);
 
                 $urls[] = [
-                    'loc' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}-explicacao-biblica"),
+                    'loc' => url("/amp/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$slug}-explicacao-biblica"),
                     'priority' => '0.9',
                     'changefreq' => 'weekly',
                     'lastmod' => now()->toIso8601String(),
@@ -314,7 +320,16 @@ class SeoController extends Controller
      */
     public function robots()
     {
-        $content = "User-agent: *\nAllow: /\n\nSitemap: ".url('/sitemap.xml');
+        $content = implode("\n", [
+            'User-agent: *',
+            'Allow: /',
+            '',
+            'Sitemap: '.url('/sitemap.xml'),
+            'Sitemap: '.url('/sitemap-principal.xml'),
+            'Sitemap: '.url('/sitemap-antigo-testamento.xml'),
+            'Sitemap: '.url('/sitemap-novo-testamento.xml'),
+            'Sitemap: '.url('/sitemap-amp.xml'),
+        ]);
 
         return Response::make($content, 200, [
             'Content-Type' => 'text/plain',
@@ -340,5 +355,29 @@ class SeoController extends Controller
         $chave = "{$livro}-{$capitulo}";
 
         return $titulos[$chave] ?? null;
+    }
+
+    private function normalizeBookSlug(string $livro): string
+    {
+        return match ($livro) {
+            '1samuel' => '1-samuel',
+            '2samuel' => '2-samuel',
+            '1reis' => '1-reis',
+            '2reis' => '2-reis',
+            '1cronicas' => '1-cronicas',
+            '2cronicas' => '2-cronicas',
+            '1corintios' => '1-corintios',
+            '2corintios' => '2-corintios',
+            '1tessalonicenses' => '1-tessalonicenses',
+            '2tessalonicenses' => '2-tessalonicenses',
+            '1timoteo' => '1-timoteo',
+            '2timoteo' => '2-timoteo',
+            '1pedro' => '1-pedro',
+            '2pedro' => '2-pedro',
+            '1joao' => '1-joao',
+            '2joao' => '2-joao',
+            '3joao' => '3-joao',
+            default => $livro,
+        };
     }
 }

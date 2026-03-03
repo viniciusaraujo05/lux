@@ -16,7 +16,7 @@ import AdSense from '@/components/AdSense';
 // import { Player } from '@lottiefiles/react-lottie-player';
 import SlugService from '@/services/SlugService';
 
-const DynamicLoading: FC = () => {
+const DynamicLoading: FC<{ statusMessage?: string; statusProgress?: number | null }> = ({ statusMessage, statusProgress }) => {
   const messages = [
     'Preparando contexto do livro...',
     'Buscando comentários bíblicos...',
@@ -46,7 +46,10 @@ const DynamicLoading: FC = () => {
     };
   }, []);
   const effectiveStep = step >= steps.length - 1 ? steps.length : (step === 0 ? 1 : step);
-  const progress = Math.min(100, Math.round((effectiveStep / steps.length) * 100));
+  const animatedProgress = Math.min(100, Math.round((effectiveStep / steps.length) * 100));
+  const progress = typeof statusProgress === 'number'
+    ? Math.max(0, Math.min(100, Math.round(statusProgress)))
+    : animatedProgress;
 
   return (
     <Card className="w-full max-w-4xl mt-10 sm:mt-16 items-center py-8 sm:py-10">
@@ -55,7 +58,7 @@ const DynamicLoading: FC = () => {
           <Sparkles className="h-7 w-7 text-white animate-pulse" />
         </div>
         <h2 className="text-lg sm:text-xl font-semibold text-foreground">Preparando sua explicação...</h2>
-        <p className="text-sm text-center text-muted-foreground">{messages[msgIndex]}</p>
+        <p className="text-sm text-center text-muted-foreground">{statusMessage || messages[msgIndex]}</p>
 
         <div className="w-full max-w-md mt-1">
           <div className="h-2 bg-muted rounded-full overflow-hidden">
@@ -103,7 +106,8 @@ interface BibleExplanationProps {
 interface VerseExplanation {
   titulo_principal_e_texto_biblico: { titulo: string; texto: string };
   contexto_detalhado: { [key: string]: string };
-  analise_exegenetica: { introducao: string; analises: { verso: string; analise: string }[] };
+  analise_exegetica?: { introducao: string; analises: { verso: string; analise: string }[] };
+  analise_exegenetica?: { introducao: string; analises: { verso: string; analise: string }[] }; // backward compatibility
   teologia_da_passagem: { introducao: string; doutrinas: string[] };
   temas_principais: { introducao: string; temas: { tema: string; descricao: string }[] };
   explicacao_do_versiculo: { introducao: string; significado_profundo: string; contexto_original: string; palavras_chave: string[]; interpretacao_teologica: string };
@@ -184,8 +188,12 @@ const ErrorComponent: FC<{ message: string }> = ({ message }) => (
 );
 
 // --- Explanation Renderer Components ---
-const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ explanation }) => (
-  <div style={{ animation: 'fadeIn 0.8s ease-in-out' }}>
+const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ explanation }) => {
+  // Supports old cached key (analise_exegenetica) and new canonical key (analise_exegetica)
+  const analysis = explanation.analise_exegetica ?? explanation.analise_exegenetica;
+
+  return (
+    <div style={{ animation: 'fadeIn 0.8s ease-in-out' }}>
     <header className="mb-8">
       <Card className="text-center">
         <CardHeader className="space-y-2">
@@ -214,8 +222,8 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
     </Section>
 
     <Section title="Análise do versículo" icon={<Microscope size={22} />}>
-      {explanation.analise_exegenetica?.introducao && <p>{explanation.analise_exegenetica.introducao}</p>}
-      {explanation.analise_exegenetica?.analises?.map((item, index) => (
+      {analysis?.introducao && <p>{analysis.introducao}</p>}
+      {analysis?.analises?.map((item, index) => (
         <div key={index} className="mt-4 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-md">
           <h4 className="font-bold text-indigo-600 dark:text-indigo-400">Versículo {item.verso}</h4>
           <p>{item.analise}</p>
@@ -300,8 +308,9 @@ const VerseExplanationComponent: FC<{ explanation: VerseExplanation }> = ({ expl
       {explanation.interprete_luz_de_cristo?.introducao && <p>{explanation.interprete_luz_de_cristo.introducao}</p>}
       {explanation.interprete_luz_de_cristo?.conexao && <p className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/30 border-l-4 border-yellow-400 rounded-r-md">{explanation.interprete_luz_de_cristo.conexao}</p>}
     </Section>
-  </div>
-);
+    </div>
+  );
+};
 
 const ChapterSummaryComponent: FC<{ summary: ChapterSummary }> = ({ summary }) => (
   <div style={{ animation: 'fadeIn 0.8s ease-in-out' }}>
@@ -420,6 +429,8 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   const [seoMetadata, setSeoMetadata] = useState({ title: '', description: '', keywords: '' });
   const [relatedLinks, setRelatedLinks] = useState([]);
   const [feedbackStats, setFeedbackStats] = useState<{ positive_count: number; negative_count: number; total_count: number; positive_percentage: number; negative_percentage: number; } | null>(null);
+  const [streamStatus, setStreamStatus] = useState('Conectando ao serviço...');
+  const [streamProgress, setStreamProgress] = useState<number | null>(null);
 
   const isMobile = useMediaQuery('(max-width: 640px)');
   const { testamento, livro: book, capitulo: chapter } = props;
@@ -454,6 +465,32 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   const maxVerses = 50;
 
+  const buildExplanationApiUrl = (stream = false, cacheBust = false): string => {
+    const basePath = stream ? '/api/explanation-stream' : '/api/explanation';
+    let apiUrl = `${basePath}/${testamento}/${bookSlug}/${chapter}`;
+    const params = new URLSearchParams();
+    if (verses) {
+      params.set('verses', verses);
+    }
+    if (cacheBust) {
+      params.set('_ts', String(Date.now()));
+    }
+    const query = params.toString();
+    if (query) {
+      apiUrl += `?${query}`;
+    }
+
+    return apiUrl;
+  };
+
+  const applyExplanationPayload = (data: any) => {
+    const explanationContent = data?.explanation;
+    setExplanation(normalizeExplanation(explanationContent));
+    setSource(data?.origin || 'unknown');
+    setExplanationId(data?.id || null);
+    if (data?.id) fetchFeedbackStats(data.id);
+  };
+
   // Sync verses state when server provides initial props (SSR or Inertia navigation)
   useEffect(() => {
     if (props.initialExplanation !== undefined) {
@@ -479,117 +516,204 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
+    let streamConnection: EventSource | null = null;
+
+    const closeStream = () => {
+      if (streamConnection) {
+        streamConnection.close();
+        streamConnection = null;
+      }
+    };
+
+    const fetchViaSSE = async (): Promise<void> => {
+      if (typeof window === 'undefined' || typeof window.EventSource === 'undefined') {
+        throw new Error('SSE unavailable');
+      }
+
+      setStreamStatus('Conectando ao streaming...');
+      setStreamProgress(null);
+      const streamUrl = buildExplanationApiUrl(true);
+
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        const timeoutId = window.setTimeout(() => {
+          if (settled) return;
+          settled = true;
+          closeStream();
+          reject(new Error('stream_timeout'));
+        }, 65000);
+
+        const finish = () => {
+          clearTimeout(timeoutId);
+          closeStream();
+        };
+
+        const fail = (error: Error) => {
+          if (settled) return;
+          settled = true;
+          finish();
+          reject(error);
+        };
+
+        streamConnection = new EventSource(streamUrl);
+
+        streamConnection.addEventListener('status', (event: MessageEvent) => {
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload?.message) {
+              setStreamStatus(payload.message);
+            }
+            if (typeof payload?.progress === 'number') {
+              setStreamProgress(payload.progress);
+            }
+          } catch {
+            // ignore malformed status event
+          }
+        });
+
+        streamConnection.addEventListener('complete', (event: MessageEvent) => {
+          if (settled) return;
+          try {
+            const payload = JSON.parse(event.data);
+            applyExplanationPayload(payload);
+            setStreamStatus('Concluído');
+            setStreamProgress(100);
+            settled = true;
+            finish();
+            resolve();
+          } catch {
+            fail(new Error('stream_invalid_payload'));
+          }
+        });
+
+        streamConnection.addEventListener('error', (event: MessageEvent) => {
+          let message = 'stream_error';
+          try {
+            const payload = JSON.parse(event.data);
+            if (payload?.message) {
+              message = payload.message;
+            }
+          } catch {
+            // ignore malformed error payload
+          }
+          fail(new Error(message));
+        });
+
+        streamConnection.onerror = () => {
+          fail(new Error('stream_connection_error'));
+        };
+      });
+    };
+
+    const fetchViaHttp = async (cacheBust = false) => {
+      const apiUrl = buildExplanationApiUrl(false, cacheBust);
+      const response = await fetch(apiUrl, {
+        signal,
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`API responded with status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      applyExplanationPayload(data);
+    };
+
     async function fetchExplanation() {
       setLoading(true);
       try {
-        let apiUrl = `/api/explanation/${testamento}/${bookSlug}/${chapter}`;
-        if (verses) {
-          apiUrl += `?verses=${verses}`;
-        }
-        const response = await fetch(apiUrl, { 
-          signal,
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          }
-        });
-        if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
-
-        const data = await response.json();
-
-        const explanationContent = data.explanation;
-        setExplanation(normalizeExplanation(explanationContent));
-        setSource(data.origin || 'unknown');
-        setExplanationId(data.id || null);
-        if (data.id) fetchFeedbackStats(data.id);
+        await fetchViaSSE();
       } catch (error: any) {
-        if (error?.name === 'AbortError') return; // ignore aborted requests
-        console.error('Error fetching explanation:', error);
-        
-        // Detectar se é erro de conexão durante geração de IA
-        const isConnectionError = error?.message?.includes('Failed to fetch') || 
-                                 error?.message?.includes('ERR_CONNECTION_CLOSED') ||
-                                 error?.message?.includes('net::ERR_CONNECTION_CLOSED');
-        
-        if (isConnectionError) {
-          // Tentar buscar novamente após um delay - pode ter sido salvo no banco
-          console.log('Connection error detected, retrying in 3 seconds...');
-          setTimeout(async () => {
-            try {
-              // Reconstruir a URL da API para o retry
-              let retryApiUrl = `/api/explanation/${testamento}/${bookSlug}/${chapter}`;
-              if (verses) {
-                retryApiUrl += `?verses=${verses}`;
-              }
-              
-              const retryResponse = await fetch(retryApiUrl, { 
-                headers: {
-                  'Accept': 'application/json',
-                  'Content-Type': 'application/json',
+        if (error?.name === 'AbortError') return;
+
+        console.warn('SSE failed, falling back to HTTP:', error);
+        setStreamStatus('Conexão em tempo real indisponível, usando modo padrão...');
+        setStreamProgress(null);
+
+        try {
+          await fetchViaHttp();
+        } catch (httpError: any) {
+          if (httpError?.name === 'AbortError') return; // ignore aborted requests
+          console.error('Error fetching explanation:', httpError);
+
+          const isConnectionError = httpError?.message?.includes('Failed to fetch') ||
+            httpError?.message?.includes('ERR_CONNECTION_CLOSED') ||
+            httpError?.message?.includes('net::ERR_CONNECTION_CLOSED');
+
+          if (isConnectionError) {
+            setTimeout(async () => {
+              try {
+                const retryResponse = await fetch(buildExplanationApiUrl(false), {
+                  headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                  }
+                });
+
+                if (retryResponse.ok) {
+                  const retryData = await retryResponse.json();
+                  applyExplanationPayload(retryData);
+                  setLoading(false);
+
+                  return;
                 }
-              });
-              
-              if (retryResponse.ok) {
-                const retryData = await retryResponse.json();
-                setExplanation(normalizeExplanation(retryData.explanation));
-                setSource(retryData.origin || 'cache');
-                setExplanationId(retryData.id || null);
-                if (retryData.id) fetchFeedbackStats(retryData.id);
-                setLoading(false);
-                return;
+              } catch (retryError) {
+                console.error('Retry failed:', retryError);
               }
-            } catch (retryError) {
-              console.error('Retry failed:', retryError);
-            }
-            
-            // Se o retry falhou, mostrar erro com opção de tentar novamente
-            setExplanation({ 
-              error: 'connection_failed', 
-              message: 'A explicação pode ter sido gerada, mas houve um problema de conexão. Clique em "Tentar novamente" ou atualize a página.' 
-            });
-            setLoading(false);
-          }, 3000);
-          
-          return; // Não definir erro imediatamente, aguardar retry
+
+              setExplanation({
+                error: 'connection_failed',
+                message: 'A explicação pode ter sido gerada, mas houve um problema de conexão. Clique em "Tentar novamente" ou atualize a página.'
+              });
+              setLoading(false);
+            }, 3000);
+
+            return;
+          }
+
+          let errorMessage = 'Erro ao buscar a explicação. Por favor, tente novamente.';
+          if (httpError?.message?.includes('timeout')) {
+            errorMessage = 'A requisição demorou muito. Tente novamente em alguns instantes.';
+          }
+
+          setExplanation({
+            error: 'fetch_failed',
+            message: errorMessage
+          });
         }
-        
-        // Outros tipos de erro
-        let errorMessage = 'Erro ao buscar a explicação. Por favor, tente novamente.';
-        if (error?.message?.includes('timeout')) {
-          errorMessage = 'A requisição demorou muito. Tente novamente em alguns instantes.';
-        }
-        
-        setExplanation({ 
-          error: 'fetch_failed', 
-          message: errorMessage 
-        });
       } finally {
         if (!signal.aborted) setLoading(false);
+        closeStream();
       }
     }
     if (!didUseSSR.current && props.initialExplanation) {
       // First render with SSR data: use it and skip fetching
       setLoading(false);
       didUseSSR.current = true;
-      return () => controller.abort();
+      return () => {
+        closeStream();
+        controller.abort();
+      };
     }
     fetchExplanation();
-    return () => controller.abort();
+    return () => {
+      closeStream();
+      controller.abort();
+    };
   }, [testamento, bookSlug, chapter, verses]);
 
   // Manual refetch for Retry action (adds cache-busting param)
   const retryRefetch = async () => {
     setLoading(true);
     setExplanation(null);
+    setStreamStatus('Tentando novamente...');
+    setStreamProgress(null);
     try {
-      let apiUrl = `/api/explanation/${testamento}/${bookSlug}/${chapter}`;
-      const ts = `_ts=${Date.now()}`;
-      if (verses) {
-        apiUrl += `?verses=${encodeURIComponent(verses)}&${ts}`;
-      } else {
-        apiUrl += `?${ts}`;
-      }
-      const response = await fetch(apiUrl, {
+      const response = await fetch(buildExplanationApiUrl(false, true), {
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -597,11 +721,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       });
       if (!response.ok) throw new Error(`API responded with status: ${response.status}`);
       const data = await response.json();
-      const explanationContent = data.explanation;
-      setExplanation(normalizeExplanation(explanationContent));
-      setSource(data.origin || 'unknown');
-      setExplanationId(data.id || null);
-      if (data.id) fetchFeedbackStats(data.id);
+      applyExplanationPayload(data);
       scrollToTop();
     } catch (error) {
       console.error('Retry fetch failed:', error);
@@ -771,7 +891,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
             )}
           </header>
           {loading ? (
-            <DynamicLoading />
+            <DynamicLoading statusMessage={streamStatus} statusProgress={streamProgress} />
           ) : (
             <div className="bg-card text-card-foreground rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border">
               {isFallbackExplanation(explanation) ? (

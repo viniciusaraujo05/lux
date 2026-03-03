@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\StaticContentService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class AmpController extends Controller
 {
@@ -17,11 +18,9 @@ class AmpController extends Controller
     /**
      * Mostrar versão AMP da explicação bíblica (Conteúdo Estático para Indexação)
      */
-    public function showExplanation($testament, $book, $chapter, Request $request)
+    public function showExplanation($testament, $book, $chapter, ?string $slug = null, Request $request)
     {
         $verses = $request->query('verses');
-        $slug = $request->segment(5);
-
         // Se temos um slug (ex: 8-explicacao-biblica), tentar extrair o verso se necessário
         if ($slug && !$verses && preg_match('/^(\d+)/', $slug, $m)) {
             $verses = $m[1];
@@ -29,6 +28,12 @@ class AmpController extends Controller
 
         // Usar o serviço de conteúdo estático (rápido e confiável para bots/AMP)
         $data = $this->staticContentService->getExplanationFallback($testament, $book, (int)$chapter, $verses);
+
+        $canonicalUrl = url("/explicacao/{$testament}/{$book}/{$chapter}");
+        if ($verses) {
+            $versesSlug = Str::slug((string) $verses);
+            $canonicalUrl = url("/explicacao/{$testament}/{$book}/{$chapter}/{$versesSlug}-explicacao-biblica");
+        }
 
         return view('amp.explanation', [
             'testament' => $testament,
@@ -41,7 +46,7 @@ class AmpController extends Controller
             'intro' => $data['intro'] ?? '',
             'content' => $data['content'] ?? '',
             'sections' => $data['sections'] ?? [],
-            'canonicalUrl' => url("/explicacao/{$testament}/{$book}/{$chapter}" . ($verses ? "?verses={$verses}" : "")),
+            'canonicalUrl' => $canonicalUrl,
             'relatedLinks' => $data['related_links'] ?? [],
         ]);
     }

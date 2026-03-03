@@ -32,6 +32,16 @@ Route::get('/api/explanation/{testament}/{book}/{chapter}', function (string $te
         ->getExplanation($request, $testament, $bookOriginal, $chapter);
 });
 
+// Bible Explanation Streaming API Route (SSE)
+Route::get('/api/explanation-stream/{testament}/{book}/{chapter}', function (string $testament, string $book, string $chapter, \Illuminate\Http\Request $request) {
+    // Converter o slug para o nome original do livro
+    $bookOriginal = SlugService::slugParaLivro($book);
+
+    // Encaminhar para o controlador de streaming com o nome original
+    return app()->make(\App\Http\Controllers\StreamingExplanationController::class)
+        ->stream($request, $testament, $bookOriginal, (int) $chapter);
+});
+
 // Book Context API Route
 Route::get('/api/book-context/{testament}/{book}', function (string $testament, string $book, \Illuminate\Http\Request $request) {
     // Converter o slug para o nome original do livro
@@ -230,7 +240,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
     // Prefetch explanation for SSR initial props only on full page loads (not Inertia visits)
     $prefetch = null;
     if (! $request->header('X-Inertia')) {
-        $prefetch = app()->make(\App\Services\BibleExplanationService::class)
+        $prefetch = app()->make(\App\Services\BibleExplanationServiceRefactored::class)
             ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
     }
 
@@ -315,7 +325,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
         // Prefetch explanation for SSR initial props (verses mode) only on full loads
         $prefetch = null;
         if (! $request->header('X-Inertia')) {
-            $prefetch = app()->make(\App\Services\BibleExplanationService::class)
+            $prefetch = app()->make(\App\Services\BibleExplanationServiceRefactored::class)
                 ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
         }
         // SEO meta dinâmico (versículo)
@@ -424,8 +434,11 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
     $jsonLd = json_encode([$breadcrumbs, $article], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
     // Prefetch explanation for SSR initial props (chapter mode)
-    $prefetch = app()->make(\App\Services\BibleExplanationService::class)
-        ->getExplanation($testamento, $livroOriginal, (int) $capitulo, null);
+    $prefetch = null;
+    if (! $request->header('X-Inertia')) {
+        $prefetch = app()->make(\App\Services\BibleExplanationServiceRefactored::class)
+            ->getExplanation($testamento, $livroOriginal, (int) $capitulo, null);
+    }
 
     return Inertia::render('explicacao/index', [
         'testamento' => $testamento,

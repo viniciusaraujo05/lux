@@ -26,6 +26,10 @@ Analise {$passageRef} ({$testament} Testamento). Retorne JSON válido:
     "introducao": "string",
     "analises": [{"verso": "string", "analise": "string"}]
   },
+  "teologia_da_passagem": {
+    "introducao": "string",
+    "doutrinas": ["string"]
+  },
   "explicacao_do_versiculo": {
     "significado_profundo": "string",
     "contexto_original": "string",
@@ -47,7 +51,7 @@ Analise {$passageRef} ({$testament} Testamento). Retorne JSON válido:
   }
 }
 
-Regras: Português BR, conciso (2-3 frases/campo), máx 3-5 itens em arrays, perspectiva evangélica.
+Regras: Português BR, conciso (2-3 frases/campo), máx 3-5 itens em arrays, perspectiva evangélica. Em "teologia_da_passagem.doutrinas", traga pelo menos 2 doutrinas quando possível.
 EOD;
     }
 

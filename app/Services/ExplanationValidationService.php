@@ -50,10 +50,12 @@ class ExplanationValidationService
      */
     private function validateVerseSchema(array $data): bool
     {
+        // Backward compatibility: previous generations used analise_exegenetica (typo)
+        $hasAnalysis = array_key_exists('analise_exegetica', $data) || array_key_exists('analise_exegenetica', $data);
+
         $required = [
             'titulo_principal_e_texto_biblico',
             'contexto_detalhado',
-            'analise_exegetica',
             'explicacao_do_versiculo',
             'aplicacao_contemporanea',
         ];
@@ -64,6 +66,12 @@ class ExplanationValidationService
 
                 return false;
             }
+        }
+
+        if (! $hasAnalysis) {
+            Log::debug('Missing analysis key in verse schema');
+
+            return false;
         }
 
         return true;
@@ -120,6 +128,11 @@ class ExplanationValidationService
      */
     private function normalizeVerseSchema(array $data): array
     {
+        // Normalize old typo key to canonical key
+        if (! isset($data['analise_exegetica']) && isset($data['analise_exegenetica']) && is_array($data['analise_exegenetica'])) {
+            $data['analise_exegetica'] = $data['analise_exegenetica'];
+        }
+
         $defaults = [
             'titulo_principal_e_texto_biblico' => ['titulo' => '', 'texto' => ''],
             'contexto_detalhado' => [
@@ -131,6 +144,10 @@ class ExplanationValidationService
             'analise_exegetica' => [
                 'introducao' => '',
                 'analises' => [],
+            ],
+            'teologia_da_passagem' => [
+                'introducao' => '',
+                'doutrinas' => [],
             ],
             'explicacao_do_versiculo' => [
                 'significado_profundo' => '',
