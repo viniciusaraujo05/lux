@@ -4,7 +4,7 @@ import { Head, router } from '@inertiajs/react';
 import {
   ChevronLeft, ArrowRight, ArrowLeft, ThumbsUp, ThumbsDown, Heart, User, Loader2,
   BookOpen, Scale, Landmark, Users, Microscope, Cross, Target, Link, Gem,
-  AlertTriangle, FileText, CheckCircle, Key, Book, HelpCircle, Share2, Sparkles, RefreshCw
+  AlertTriangle, FileText, CheckCircle, Key, Book, HelpCircle, Share2, Sparkles, RefreshCw, ExternalLink
 } from 'lucide-react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -18,19 +18,19 @@ import SlugService from '@/services/SlugService';
 
 const DynamicLoading: FC<{ statusMessage?: string; statusProgress?: number | null }> = ({ statusMessage, statusProgress }) => {
   const messages = [
-    'Preparando contexto do livro...',
-    'Buscando comentários bíblicos...',
-    'Analisando o texto original...',
-    'Gerando a explicação...',
-    'Formatando o conteúdo...',
-    'Quase pronto...'
+    'Abrindo o texto com calma...',
+    'Reunindo o contexto da passagem...',
+    'Conectando referências bíblicas...',
+    'Organizando os pontos principais...',
+    'Preparando uma leitura clara...',
+    'Quase pronto para estudar...'
   ];
   const steps = [
-    'Contexto histórico e literário',
-    'Referências cruzadas',
-    'Análise exegética',
-    'Aplicações práticas',
-    'Revisão geral'
+    'Lendo a passagem',
+    'Situando no capítulo',
+    'Ligando referências',
+    'Trazendo sentido e aplicação',
+    'Revisando com cuidado'
   ];
   const [msgIndex, setMsgIndex] = useState(0);
   const [step, setStep] = useState(0);
@@ -52,26 +52,32 @@ const DynamicLoading: FC<{ statusMessage?: string; statusProgress?: number | nul
     : animatedProgress;
 
   return (
-    <Card className="w-full max-w-4xl mt-10 sm:mt-16 items-center py-8 sm:py-10">
+    <Card className="w-full max-w-4xl mt-10 sm:mt-16 items-center overflow-hidden border-primary/10 bg-gradient-to-br from-amber-50 via-card to-sky-50 py-8 shadow-sm dark:from-amber-950/20 dark:via-card dark:to-sky-950/20 sm:py-10">
       <CardContent className="flex flex-col items-center gap-4 sm:gap-5 px-6 sm:px-8 w-full">
-        <div className="h-14 w-14 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center shadow-lg">
-          <Sparkles className="h-7 w-7 text-white animate-pulse" />
-        </div>
-        <h2 className="text-lg sm:text-xl font-semibold text-foreground">Preparando sua explicação...</h2>
-        <p className="text-sm text-center text-muted-foreground">{statusMessage || messages[msgIndex]}</p>
-
-        <div className="w-full max-w-md mt-1">
-          <div className="h-2 bg-muted rounded-full overflow-hidden">
-            <div className="h-full bg-primary transition-all duration-500" style={{ width: `${progress}%` }} />
+        <div className="relative">
+          <div className="absolute inset-0 rounded-full bg-amber-300/30 blur-xl animate-pulse" />
+          <div className="relative h-16 w-16 rounded-full bg-gradient-to-br from-amber-500 to-stone-700 flex items-center justify-center shadow-lg ring-4 ring-white/70 dark:ring-white/10">
+            <BookOpen className="h-8 w-8 text-white" />
           </div>
         </div>
-        <p className="text-xs text-center text-muted-foreground mt-1">{progress}% concluído — {progress >= 80 ? 'já está quase pronto...' : 'estamos preparando com carinho...'}</p>
+        <div className="space-y-2 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300">Momento de estudo</p>
+          <h2 className="text-xl sm:text-2xl font-semibold text-foreground">Preparando uma leitura mais profunda</h2>
+          <p className="text-sm text-muted-foreground">{statusMessage || messages[msgIndex]}</p>
+        </div>
 
-        <ul className="w-full max-w-md text-sm text-muted-foreground space-y-2 mt-2">
+        <div className="w-full max-w-md mt-1">
+          <div className="h-2.5 bg-white/70 dark:bg-muted rounded-full overflow-hidden shadow-inner">
+            <div className="h-full bg-gradient-to-r from-amber-500 via-orange-400 to-sky-500 transition-all duration-500" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
+        <p className="text-xs text-center text-muted-foreground mt-1">{progress}% do caminho — {progress >= 80 ? 'a leitura está quase pronta...' : 'seguindo com cuidado, verso por verso...'}</p>
+
+        <ul className="w-full max-w-md text-sm text-muted-foreground space-y-2 mt-2 rounded-xl border border-border/60 bg-background/70 p-4 backdrop-blur">
           {steps.map((label, i) => (
             <li key={i} className="flex items-center gap-2">
-              <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${i < step ? 'bg-emerald-500 border-emerald-500 text-white' : i === step ? 'border-primary text-primary animate-pulse' : 'border-muted-foreground/30 text-muted-foreground/40'}`}>
-                {i < step ? <CheckCircle size={14} /> : <Loader2 size={12} className={i === step ? 'animate-spin' : ''} />}
+              <div className={`h-5 w-5 rounded-full border flex items-center justify-center ${i < step ? 'bg-emerald-500 border-emerald-500 text-white' : i === step ? 'border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-950/30 animate-pulse' : 'border-muted-foreground/30 text-muted-foreground/40'}`}>
+                {i < step ? <CheckCircle size={14} /> : <BookOpen size={12} />}
               </div>
               <span className={`${i <= step ? 'text-foreground' : ''}`}>{label}</span>
             </li>
@@ -83,7 +89,7 @@ const DynamicLoading: FC<{ statusMessage?: string; statusProgress?: number | nul
         </p>
         {showFirstUserMsg && (
           <p className="text-xs text-center text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/40 rounded-md px-3 py-2 mt-1">
-            Você pode ser a primeira pessoa a acessar a explicação deste versículo — a geração inicial pode levar um pouco mais. Nas próximas visitas, tudo será instantâneo 😊
+            Esta passagem ainda está sendo preparada pela primeira vez. Nas próximas visitas, ela abre bem mais rápido 😊
           </p>
         )}
       </CardContent>
@@ -97,11 +103,20 @@ interface BibleExplanationProps {
   livro: string;
   capitulo: string;
   versos?: string;
+  version?: string;
   // SSR initial props
   initialExplanation?: any;
   initialSource?: string;
   initialExplanationId?: number;
+  initialChapterVerses?: ChapterVerseText[];
 }
+
+interface ChapterVerseText {
+  number: number;
+  text: string;
+}
+
+type ExplanationTarget = 'chapter' | 'verse';
 
 interface VerseExplanation {
   titulo_principal_e_texto_biblico: { titulo: string; texto: string };
@@ -412,6 +427,12 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     };
   }, []);
 
+  function extractVersion() {
+    if (typeof window === 'undefined') return (props.version || 'nvi').toLowerCase();
+    const params = new URLSearchParams(window.location.search);
+    return (params.get('version') || props.version || 'nvi').toLowerCase();
+  }
+
   // Normalize possible stringified JSON or legacy HTML
   const normalizeExplanation = (value: any): ExplanationData | string | null => {
     if (!value) return null;
@@ -426,6 +447,24 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     return null;
   };
 
+  const initialVerses = (() => {
+    if (typeof window === 'undefined') return props.versos || null;
+    const params = new URLSearchParams(window.location.search);
+    const queryVerses = params.get('versiculos') || params.get('verses');
+    if (queryVerses) return queryVerses;
+    const pathParts = window.location.pathname.split('/');
+    if (pathParts.length > 5) {
+      const slug = pathParts[pathParts.length - 1];
+      const match = slug.match(/^(\d+(?:,\d+)*)-explicacao-biblica/);
+      if (match) return match[1];
+    }
+    return props.versos || null;
+  })();
+  const initialStandaloneVersePage = typeof window !== 'undefined'
+    ? window.location.pathname.split('/').filter(Boolean).length > 4
+    : Boolean(props.versos);
+  const shouldAutoLoadStandaloneVerse = initialStandaloneVersePage && Boolean(initialVerses) && !props.initialExplanation;
+
   const [loading, setLoading] = useState(!props.initialExplanation);
   const [explanation, setExplanation] = useState<ExplanationData | string | null>(normalizeExplanation(props.initialExplanation));
   const [source, setSource] = useState(props.initialSource || '');
@@ -435,11 +474,18 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'positive' | 'negative' | null>(null);
   const [showCelebration, setShowCelebration] = useState(false);
-  const [seoMetadata, setSeoMetadata] = useState({ title: '', description: '', keywords: '' });
-  const [relatedLinks, setRelatedLinks] = useState([]);
   const [feedbackStats, setFeedbackStats] = useState<{ positive_count: number; negative_count: number; total_count: number; positive_percentage: number; negative_percentage: number; } | null>(null);
   const [streamStatus, setStreamStatus] = useState('Conectando ao serviço...');
   const [streamProgress, setStreamProgress] = useState<number | null>(null);
+  const [version, setVersion] = useState<string>(extractVersion());
+  const [chapterVerses, setChapterVerses] = useState<ChapterVerseText[]>(props.initialChapterVerses || []);
+  const [chapterTextLoading, setChapterTextLoading] = useState<boolean>(!props.initialChapterVerses?.length);
+  const [shouldGenerateExplanation, setShouldGenerateExplanation] = useState<boolean>(shouldAutoLoadStandaloneVerse);
+  const [explanationTarget, setExplanationTarget] = useState<ExplanationTarget>(initialVerses ? 'verse' : 'chapter');
+  const [lookupLoading, setLookupLoading] = useState<boolean>(false);
+  const [readingWidthPercent, setReadingWidthPercent] = useState<number>(66);
+  const [isResizingPanels, setIsResizingPanels] = useState<boolean>(false);
+  const splitPaneRef = useRef<HTMLDivElement | null>(null);
 
   const isMobile = useMediaQuery('(max-width: 640px)');
   const { testamento, livro: book, capitulo: chapter } = props;
@@ -471,11 +517,52 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     }
     return props.versos || null;
   }
-  const [versesState, setVersesState] = useState<string | null>(extractVerses());
+  const [versesState, setVersesState] = useState<string | null>(initialVerses);
   const verses = versesState;
   const isChapterMode = !verses;
+  const isStandaloneVersePage = typeof window !== 'undefined'
+    ? window.location.pathname.split('/').filter(Boolean).length > 4
+    : Boolean(props.versos);
+  const isInlineReadingMode = !isStandaloneVersePage;
+  const shouldLoadExplanation = shouldGenerateExplanation || (isStandaloneVersePage && Boolean(verses) && !explanation);
+  const selectedVerseText = verses
+    ? chapterVerses.find((verse) => verse.number === Number(verses))?.text
+    : null;
+  const fullExplanationUrl = verses
+    ? `/explicacao/${testamento}/${bookSlug}/${chapter}/${verses}-explicacao-biblica?version=${version}`
+    : `/explicacao/${testamento}/${bookSlug}/${chapter}?version=${version}`;
 
-  const maxVerses = 50;
+  const maxVerses = chapterVerses.length || 50;
+
+  useEffect(() => {
+    if (!isResizingPanels) return;
+
+    const handlePointerMove = (event: PointerEvent) => {
+      const bounds = splitPaneRef.current?.getBoundingClientRect();
+      if (!bounds) return;
+
+      const nextPercent = ((event.clientX - bounds.left) / bounds.width) * 100;
+      setReadingWidthPercent(Math.min(76, Math.max(46, Math.round(nextPercent))));
+    };
+
+    const handlePointerUp = () => {
+      setIsResizingPanels(false);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
+
+    return () => {
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+  }, [isResizingPanels]);
 
   const buildExplanationApiUrl = (stream = false, cacheBust = false): string => {
     const basePath = stream ? '/api/explanation-stream' : '/api/explanation';
@@ -487,6 +574,22 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     if (cacheBust) {
       params.set('_ts', String(Date.now()));
     }
+    const query = params.toString();
+    if (query) {
+      apiUrl += `?${query}`;
+    }
+
+    return apiUrl;
+  };
+
+  const buildLookupApiUrl = (): string => {
+    let apiUrl = `/api/explanation/${testamento}/${bookSlug}/${chapter}`;
+    const params = new URLSearchParams();
+    if (verses) {
+      params.set('verses', verses);
+    }
+    params.set('version', version);
+    params.set('lookup', '1');
     const query = params.toString();
     if (query) {
       apiUrl += `?${query}`;
@@ -519,9 +622,57 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     // Keep verses in sync when SSR prop changes
     if (props.versos !== undefined) {
       setVersesState(props.versos || null);
+      setShouldGenerateExplanation(false);
+      setExplanationTarget(props.versos ? 'verse' : 'chapter');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.versos]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function lookupExistingExplanation() {
+      if (shouldGenerateExplanation || isStandaloneVersePage) {
+        return;
+      }
+
+      setLookupLoading(true);
+      try {
+        const response = await fetch(buildLookupApiUrl(), {
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Lookup responded with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data?.explanation) {
+          applyExplanationPayload(data);
+        } else {
+          setExplanation(null);
+          setExplanationId(null);
+          setSource('');
+        }
+      } catch (error: any) {
+        if (error?.name !== 'AbortError') {
+          console.error('Error looking up existing explanation:', error);
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLookupLoading(false);
+        }
+      }
+    }
+
+    lookupExistingExplanation();
+
+    return () => controller.abort();
+  }, [testamento, bookSlug, chapter, verses, version, shouldGenerateExplanation, isStandaloneVersePage]);
 
   // Client fetch with SSR-skip only on first hydration
   const didUseSSR = useRef(false);
@@ -702,6 +853,14 @@ function BibleExplanationContent(props: BibleExplanationProps) {
         closeStream();
       }
     }
+    if (!shouldLoadExplanation) {
+      setLoading(false);
+      return () => {
+        closeStream();
+        controller.abort();
+      };
+    }
+
     if (!didUseSSR.current && props.initialExplanation) {
       // First render with SSR data: use it and skip fetching
       setLoading(false);
@@ -716,7 +875,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       closeStream();
       controller.abort();
     };
-  }, [testamento, bookSlug, chapter, verses]);
+  }, [testamento, bookSlug, chapter, verses, shouldLoadExplanation]);
 
   // Manual refetch for Retry action (adds cache-busting param)
   const retryRefetch = async () => {
@@ -745,24 +904,65 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   // Canonical URL rewrite for verse mode
   useEffect(() => {
-    if (!verses) return;
+    if (typeof window === 'undefined') return;
     try {
       const slugifiedBook = bookSlug;
-      const slug = verses + '-explicacao-biblica';
-      const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}/${slug}`;
-      if (window.location.pathname !== expectedPath) {
-        window.history.replaceState({}, '', expectedPath);
+      const params = new URLSearchParams(window.location.search);
+      params.set('version', version);
+      if (verses && isStandaloneVersePage) {
+        const slug = verses + '-explicacao-biblica';
+        const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}/${slug}?${params.toString()}`;
+        const current = `${window.location.pathname}${window.location.search}`;
+        if (current !== expectedPath) {
+          window.history.replaceState({}, '', expectedPath);
+        }
+      } else {
+        const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}?${params.toString()}`;
+        const current = `${window.location.pathname}${window.location.search}`;
+        if (current !== expectedPath) {
+          window.history.replaceState({}, '', expectedPath);
+        }
       }
     } catch { /* noop */ }
-  }, [testamento, bookSlug, chapter, verses]);
+  }, [testamento, bookSlug, chapter, verses, version, isStandaloneVersePage]);
+
+  useEffect(() => {
+    const loadChapterText = async () => {
+      setChapterTextLoading(true);
+      try {
+        const response = await fetch(`/api/bible-text/${version}/${testamento}/${bookSlug}/${chapter}`, {
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+        if (!response.ok) throw new Error('Failed to load chapter text');
+        const data = await response.json();
+        setChapterVerses(Array.isArray(data?.verses) ? data.verses : []);
+      } catch (error) {
+        console.error('Error loading chapter text:', error);
+        setChapterVerses((current) => current.length > 0 ? current : []);
+      } finally {
+        setChapterTextLoading(false);
+      }
+    };
+
+    loadChapterText();
+  }, [version, testamento, bookSlug, chapter]);
 
   // Sync with browser back/forward navigation
   useEffect(() => {
     const onPop = () => {
       try {
         const v = extractVerses();
+        const nextVersion = extractVersion();
         setVersesState(v);
-        setLoading(true);
+        setVersion(nextVersion);
+        setShouldGenerateExplanation(false);
+        setExplanationTarget(v ? 'verse' : 'chapter');
+        setExplanation(null);
+        setExplanationId(null);
+        setLoading(false);
         // Volta para o topo ao navegar pelo histórico
         scrollToTop(false);
       } catch { /* noop */ }
@@ -783,14 +983,105 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   const navigateToVerse = (verseNumber: number) => {
     if (verseNumber < 1 || verseNumber > maxVerses) return;
-    const url = `/explicacao/${testamento}/${bookSlug}/${chapter}?verses=${verseNumber}`;
+    const url = `/explicacao/${testamento}/${bookSlug}/${chapter}?verses=${verseNumber}&version=${version}`;
     try {
       window.history.pushState({}, '', url);
     } catch { /* noop */ }
-    // Garantir que a visão comece pelo topo ao trocar de versículo
-    scrollToTop();
+    if (!isInlineReadingMode) {
+      scrollToTop();
+    }
     setVersesState(String(verseNumber));
+    setShouldGenerateExplanation(false);
+    setExplanationTarget('verse');
+    setExplanation(null);
+    setExplanationId(null);
+    setLoading(false);
+  };
+
+  const closeInlineVerse = () => {
+    const url = `/explicacao/${testamento}/${bookSlug}/${chapter}?version=${version}`;
+    try {
+      window.history.pushState({}, '', url);
+    } catch { /* noop */ }
+    setVersesState(null);
+    setShouldGenerateExplanation(false);
+    setExplanationTarget('chapter');
+    setExplanation(null);
+    setExplanationId(null);
+    setLoading(false);
+  };
+
+  const triggerExplanationGeneration = (target: ExplanationTarget) => {
+    setExplanationTarget(target);
+    if (target === 'chapter') {
+      setVersesState(null);
+    }
+    setShouldGenerateExplanation(true);
     setLoading(true);
+  };
+
+  const renderExplanationPanelContent = () => {
+    if (!verses) {
+      return (
+        <div className="space-y-3">
+          {shouldGenerateExplanation && loading ? (
+            <DynamicLoading statusMessage={streamStatus} statusProgress={streamProgress} />
+          ) : shouldGenerateExplanation && explanation ? (
+            <ExplanationRenderer data={explanation} isChapterMode={true} />
+          ) : lookupLoading ? (
+            <p className="text-sm text-muted-foreground">Procurando explicação já existente...</p>
+          ) : explanation ? (
+            <ExplanationRenderer data={explanation} isChapterMode={true} />
+          ) : (
+            <p className="text-sm text-muted-foreground">Clique em um verso para abrir a explicação aqui, ou use o botão no topo para entender o capítulo inteiro.</p>
+          )}
+        </div>
+      );
+    }
+
+    if (!shouldGenerateExplanation) {
+      return (
+        <div className="space-y-3">
+          {lookupLoading ? (
+            <p className="text-sm text-muted-foreground">Procurando explicação já existente...</p>
+          ) : explanation ? (
+            <ExplanationRenderer data={explanation} isChapterMode={false} />
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground">Versículo selecionado: {book} {chapter}:{verses}. Clique abaixo para abrir a explicação.</p>
+              <button
+                onClick={() => triggerExplanationGeneration('verse')}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+              >
+                <BookOpen size={16} />
+                Entender este verso
+              </button>
+              <a
+                href={`/explicacao/${testamento}/${bookSlug}/${chapter}/${verses}-explicacao-biblica?version=${version}`}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md border border-border hover:bg-muted transition-colors text-sm font-medium"
+              >
+                Abrir página completa
+              </a>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    if (loading) {
+      return <DynamicLoading statusMessage={streamStatus} statusProgress={streamProgress} />;
+    }
+
+    if (isFallbackExplanation(explanation)) {
+      return (
+        <div className="p-4 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 rounded-r-lg">
+          <p className="font-medium">{explanation.errorDetails.title}</p>
+          <p className="text-sm mt-1">{explanation.errorDetails.message}</p>
+        </div>
+      );
+    }
+
+    return <ExplanationRenderer data={explanation} isChapterMode={explanationTarget === 'chapter'} />;
   };
 
   const navigateToNextVerse = () => {
@@ -856,21 +1147,16 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   return (
     <>
-      <Head>
-        <title>{seoMetadata.title || `${book} ${chapter}${verses ? ':' + verses : ''} - Explicação Bíblica`}</title>
-        <meta name="description" content={seoMetadata.description || `Explicação detalhada de ${book} ${chapter}${verses ? ':' + verses : ''}.`} />
-      </Head>
       <AppLayout>
-        <div className="container max-w-4xl mx-auto p-2 sm:p-4">
-          <header className="mb-3 sm:mb-6 flex items-center justify-between bg-gradient-to-r from-card via-card to-primary/5 text-card-foreground shadow-sm rounded-lg p-2 sm:p-4 sticky top-2 z-10 border border-border/70">
-            <div className="flex items-center gap-4">
+        <div className="container max-w-7xl mx-auto px-2 py-2 sm:p-4">
+          <header className="mb-2 sm:mb-5 grid grid-cols-[auto_1fr_auto] items-center gap-2 bg-gradient-to-r from-card via-card to-primary/5 text-card-foreground shadow-sm rounded-xl p-2 sm:p-4 sticky top-1 sm:top-2 z-10 border border-border/70 backdrop-blur">
               <button onClick={() => {
                 try {
                   // Sempre voltar para a visão de versículos do capítulo atual
-                  // Seguindo o fluxo: Livros > Capítulos > Versículos > Explicação
+                  // No fluxo novo, voltamos para a lista de capítulos do livro.
                   const gridTestament = (props.testamento === 'antigo' ? 'velho' : 'novo');
                   const currentBookSlug = bookSlug;
-                  const versiculosUrl = `/biblia/${gridTestament}/${currentBookSlug}/${chapter}`;
+                  const versiculosUrl = `/biblia/${gridTestament}/${currentBookSlug}`;
                   
                   // Usar router.visit para navegação SPA consistente
                   router.visit(versiculosUrl, {
@@ -882,31 +1168,179 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                   // Fallback para navegação direta
                   const gridTestament = (props.testamento === 'antigo' ? 'velho' : 'novo');
                   const currentBookSlug = bookSlug;
-                  window.location.href = `/biblia/${gridTestament}/${currentBookSlug}/${chapter}`;
+                  window.location.href = `/biblia/${gridTestament}/${currentBookSlug}`;
                 }
-              }} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary/80 transition-colors font-medium" aria-label="Voltar para versículos">
+              }} className="inline-flex h-9 w-9 sm:w-auto items-center justify-center gap-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary/80 transition-colors font-medium sm:px-3" aria-label="Voltar para capítulos">
                 <ChevronLeft size={isMobile ? 18 : 22} />
+                <span className="hidden sm:inline">Capítulos</span>
               </button>
-              <h1 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200 truncate max-w-[150px] sm:max-w-full">
-                {book} {chapter}{verses && <span className="ml-2 text-xs sm:text-sm text-gray-600 dark:text-gray-400 hidden sm:inline">(Versículos: {verses})</span>}
-              </h1>
-            </div>
-            {verses && (
-              <div className="flex items-center space-x-2">
-                <button onClick={navigateToPreviousVerse} className="p-1 sm:p-2 rounded-full bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700" aria-label="Versículo anterior">
+              <div className="min-w-0 text-center sm:text-left">
+                <h1 className="truncate text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200">
+                  {book} {chapter}{verses && <span className="ml-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">:{verses}</span>}
+                </h1>
+                <p className="hidden sm:block text-xs text-muted-foreground">{isInlineReadingMode ? 'Leia o capítulo e toque em um verso para estudar.' : 'Página completa da explicação.'}</p>
+              </div>
+            <div className="flex items-center justify-end gap-1.5 sm:gap-3">
+              <button
+                onClick={() => triggerExplanationGeneration('chapter')}
+                className="hidden sm:inline-flex h-9 items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 text-sm font-medium text-primary hover:bg-primary/15 transition-colors"
+              >
+                <BookOpen size={16} />
+                Entender capítulo
+              </button>
+              <select
+                className="h-9 rounded-md border border-border bg-background px-2 text-xs sm:text-sm shadow-sm"
+                value={version}
+                onChange={(event) => {
+                  const nextVersion = event.target.value;
+                  setVersion(nextVersion);
+                  setShouldGenerateExplanation(false);
+                  setExplanation(null);
+                  setExplanationId(null);
+                }}
+              >
+                <option value="acf">ACF</option>
+                <option value="nvi">NVI</option>
+                <option value="aa">AA</option>
+              </select>
+              {verses && (
+              <div className="flex items-center gap-1">
+                <button onClick={navigateToPreviousVerse} className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700" aria-label="Versículo anterior">
                   <ArrowLeft size={isMobile ? 16 : 18} />
                 </button>
-                <button onClick={navigateToNextVerse} className="p-1 sm:p-2 rounded-full bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700" aria-label="Próximo versículo">
+                <button onClick={navigateToNextVerse} className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700" aria-label="Próximo versículo">
                   <ArrowRight size={isMobile ? 16 : 18} />
                 </button>
               </div>
-            )}
+              )}
+            </div>
+            <div className="col-span-3 flex sm:hidden">
+              <button
+                onClick={() => triggerExplanationGeneration('chapter')}
+                className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
+              >
+                <BookOpen size={15} />
+                Entender capítulo
+              </button>
+            </div>
           </header>
-          {loading ? (
-            <DynamicLoading statusMessage={streamStatus} statusProgress={streamProgress} />
+          {isInlineReadingMode ? (
+            <div
+              ref={splitPaneRef}
+              className="flex flex-col lg:flex-row gap-3 sm:gap-4 mt-2 sm:mt-4"
+            >
+              <div
+                className="bg-card text-card-foreground rounded-xl p-3 sm:p-6 shadow-sm border border-border/80"
+                style={!isMobile ? { flexBasis: `${readingWidthPercent}%` } : undefined}
+              >
+                <div className="mb-3 sm:mb-4 flex items-center justify-between gap-3">
+                  <h2 className="text-base sm:text-lg font-semibold">Texto bíblico ({version.toUpperCase()})</h2>
+                  {chapterTextLoading && chapterVerses.length > 0 && (
+                    <span className="text-xs text-muted-foreground">Atualizando...</span>
+                  )}
+                </div>
+                {chapterTextLoading && chapterVerses.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Carregando capítulo...</p>
+                ) : (
+                  <div className={`space-y-2.5 sm:space-y-3 transition-opacity duration-200 ${chapterTextLoading ? 'opacity-60' : 'opacity-100'}`}>
+                    {chapterVerses.map((verse) => {
+                      const isSelectedVerse = Number(verses) === verse.number;
+
+                      return (
+                        <div key={verse.number} className="space-y-2">
+                          <button
+                            className={`w-full text-left rounded-lg p-3 sm:p-3.5 border transition-colors leading-7 text-[15px] sm:text-base ${isSelectedVerse ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-primary/5'}`}
+                            onClick={() => navigateToVerse(verse.number)}
+                          >
+                            <span className="font-semibold mr-2">{verse.number}</span>
+                            <span>{verse.text}</span>
+                          </button>
+                          {isMobile && isSelectedVerse && (
+                            <div className="rounded-lg border border-primary/20 bg-background p-3 shadow-sm">
+                              <div className="mb-3 flex items-center justify-between gap-3">
+                                <h3 className="text-sm font-semibold">Explicação do verso</h3>
+                                <div className="flex items-center gap-2">
+                                  <a
+                                    href={fullExplanationUrl}
+                                    aria-label="Abrir página completa da explicação"
+                                    title="Abrir página completa"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted transition-colors"
+                                  >
+                                    <ExternalLink size={15} />
+                                  </a>
+                                  <button
+                                    onClick={closeInlineVerse}
+                                    className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted transition-colors"
+                                  >
+                                    Fechar
+                                  </button>
+                                </div>
+                              </div>
+                              {renderExplanationPanelContent()}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+              {!isMobile && (
+                <button
+                  type="button"
+                  aria-label="Redimensionar leitura e explicação"
+                  onPointerDown={(event) => {
+                    event.preventDefault();
+                    setIsResizingPanels(true);
+                  }}
+                  className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-stretch justify-center rounded-full bg-transparent hover:bg-primary/10 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                >
+                  <span className="my-8 w-1 rounded-full bg-border" />
+                </button>
+              )}
+              <aside
+                className={`${isMobile && verses ? 'hidden' : ''} bg-card text-card-foreground rounded-xl p-3 sm:p-6 shadow-sm border border-border/80`}
+                style={!isMobile ? { flexBasis: `${100 - readingWidthPercent}%` } : undefined}
+              >
+                <div className="flex items-center justify-between gap-3 mb-4">
+                  <h2 className="text-base sm:text-lg font-semibold">
+                    {explanationTarget === 'chapter' ? 'Explicação do capítulo' : 'Explicação do verso'}
+                  </h2>
+                  <a
+                    href={fullExplanationUrl}
+                    aria-label="Abrir página completa da explicação"
+                    title="Abrir página completa"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border hover:bg-muted transition-colors"
+                  >
+                    <ExternalLink size={16} />
+                  </a>
+                </div>
+                {renderExplanationPanelContent()}
+              </aside>
+            </div>
           ) : (
-            <div className="bg-card text-card-foreground rounded-lg p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border/80 sm:text-[16.5px] leading-8">
-              {isFallbackExplanation(explanation) ? (
+            <div className="bg-card text-card-foreground rounded-xl p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border/80 sm:text-[16.5px] leading-8">
+              {verses && selectedVerseText && (
+                <div className="mb-6 rounded-lg border border-primary/15 bg-primary/5 p-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-2">Texto bíblico</p>
+                  <h2 className="text-lg font-semibold mb-2">{book} {chapter}:{verses}</h2>
+                  <p className="text-base leading-8 text-foreground">{selectedVerseText}</p>
+                </div>
+              )}
+              {!shouldLoadExplanation && !explanation ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-4">Versículo selecionado: {book} {chapter}:{verses}. A explicação só é gerada quando você pedir.</p>
+                  <button
+                    onClick={() => triggerExplanationGeneration('verse')}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                  >
+                    <BookOpen size={16} />
+                    Entender este verso
+                  </button>
+                </>
+              ) : loading ? (
+                <DynamicLoading statusMessage={streamStatus} statusProgress={streamProgress} />
+              ) : isFallbackExplanation(explanation) ? (
                 <div className="p-5 sm:p-6 bg-amber-50 dark:bg-amber-900/30 border-l-4 border-amber-500 dark:border-amber-400 rounded-r-lg">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-300 mt-0.5" />
@@ -1191,7 +1625,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                   disabled={!verses || parseInt(verses.split(',')[0]) <= 1}
                 >
                   <ArrowLeft size={isMobile ? 14 : 16} />
-                  <span className="hidden xs:inline">Anterior</span>
+                  <span className="hidden sm:inline">Anterior</span>
                 </button>
                 <button
                   onClick={() => window.history.back()}
@@ -1205,7 +1639,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                   className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-xs sm:text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={!verses}
                 >
-                  <span className="hidden xs:inline">Próximo</span>
+                  <span className="hidden sm:inline">Próximo</span>
                   <ArrowRight size={isMobile ? 14 : 16} />
                 </button>
               </div>

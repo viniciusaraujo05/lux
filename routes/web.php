@@ -1,6 +1,8 @@
 <?php
 
 use App\Http\Controllers\SeoController;
+use App\Services\BibleTextService;
+use App\Services\ExplanationQueryService;
 use App\Services\SlugService;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -11,6 +13,46 @@ $normalizeBibleTestament = static function (string $testamento): ?string {
         'novo' => 'novo',
         default => null,
     };
+};
+
+$findExistingExplanation = static function (string $testamento, string $livroOriginal, int $capitulo, ?string $verses, string $version): ?array {
+    $existing = app(ExplanationQueryService::class)->findForDisplay($testamento, $livroOriginal, $capitulo, $verses, $version);
+    if (! $existing) {
+        return null;
+    }
+
+    $decoded = json_decode($existing->explanation_text, true);
+
+    return [
+        'explanation' => json_last_error() === JSON_ERROR_NONE ? $decoded : $existing->explanation_text,
+        'origin' => $existing->source ?? 'database',
+        'id' => $existing->id,
+    ];
+};
+
+$getChapterVerses = static function (string $version, string $livroSlug, int $capitulo): array {
+    try {
+        return app(BibleTextService::class)->getChapter($version, $livroSlug, $capitulo)['verses'] ?? [];
+    } catch (\Throwable) {
+        return [];
+    }
+};
+
+$getVerseSnippet = static function (array $chapterVerses, ?string $verses): ?string {
+    if (! $verses || str_contains($verses, ',') || str_contains($verses, '-')) {
+        return null;
+    }
+
+    $verseNumber = (int) $verses;
+    foreach ($chapterVerses as $verse) {
+        if ((int) ($verse['number'] ?? 0) === $verseNumber) {
+            $text = trim((string) ($verse['text'] ?? ''));
+
+            return $text !== '' ? \Illuminate\Support\Str::limit($text, 150, '') : null;
+        }
+    }
+
+    return null;
 };
 
 Route::get('/', function () {
@@ -71,19 +113,23 @@ Route::get('/api/seo/{testament}/{book}/{chapter}', function (string $testament,
     if ($verses) {
         $title .= ':'.$verses;
     }
-    $title .= ' - Explicação Bíblica | Verso a verso';
+    $title .= $verses
+        ? ' - Versículo bíblico com explicação | Verso a verso'
+        : ' - Bíblia comentada verso a verso | Verso a verso';
 
-    $description = 'Estudo detalhado de '.ucfirst($bookOriginal).' '.$chapter;
+    $description = 'Leia '.ucfirst($bookOriginal).' '.$chapter;
     if ($verses) {
         $description .= ':'.$verses;
     }
-    $description .= ' com contexto histórico, análise teológica e aplicações práticas. Entenda a Bíblia profundamente.';
+    $description .= $verses
+        ? ' e abra a explicação do versículo quando quiser.'
+        : ' completo na Bíblia com explicações de capítulo e versículo sob demanda.';
 
     $keywords = 'Bíblia, '.ucfirst($bookOriginal).', '.$chapter;
     if ($verses) {
         $keywords .= ', versículo '.str_replace(',', ', versículo ', $verses);
     }
-    $keywords .= ', explicação bíblica, estudo bíblico, teologia, contexto histórico';
+    $keywords .= ', bíblia online, texto bíblico, explicação bíblica, estudo bíblico';
 
     return response()->json([
         'title' => $title,
@@ -95,6 +141,7 @@ Route::get('/api/seo/{testament}/{book}/{chapter}', function (string $testament,
 // Feedback API Routes
 Route::post('/api/feedback', [\App\Http\Controllers\ExplanationFeedbackController::class, 'store']);
 Route::get('/api/feedback/stats/{id}', [\App\Http\Controllers\ExplanationFeedbackController::class, 'getStats']);
+Route::get('/api/bible-text/{version}/{testament}/{book}/{chapter}', [\App\Http\Controllers\BibleTextController::class, 'getChapterText']);
 
 // Bible Navigation Routes
 Route::get('/biblia', function () {
@@ -138,18 +185,9 @@ Route::get('/biblia/{testamento}/{livro}/{capitulo}', function (string $testamen
     if (! $normalizedTestament) {
         abort(404);
     }
-    if ($testamento !== $normalizedTestament) {
-        return redirect("/biblia/{$normalizedTestament}/{$livro}/{$capitulo}", 301);
-    }
+    $explicacaoTestamento = $normalizedTestament === 'velho' ? 'antigo' : 'novo';
 
-    // Converter o slug para o nome original do livro
-    $livroOriginal = SlugService::slugParaLivro($livro);
-
-    return Inertia::render('welcome', [
-        'testamento' => $normalizedTestament,
-        'livro' => $livroOriginal,
-        'capitulo' => $capitulo,
-    ]);
+    return redirect("/explicacao/{$explicacaoTestamento}/{$livro}/{$capitulo}", 301);
 });
 
 // SEO Routes
@@ -269,33 +307,45 @@ Route::get('/contexto/{testamento}/{livro}', function (string $testamento, strin
 })->where('testamento', '^(antigo|novo)$');
 
 // Bible Explanation Page Routes (capítulo)
-Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo, \Illuminate\Http\Request $request) {
+Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $testamento, string $livro, string $capitulo, \Illuminate\Http\Request $request) use ($findExistingExplanation, $getChapterVerses, $getVerseSnippet) {
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
 
     // Versículos por query param (suporta SSR canônico com ?verses=)
     $verses = $request->query('verses');
+    $version = strtolower((string) $request->query('version', 'nvi'));
+    $chapterVerses = $getChapterVerses($version, $livro, (int) $capitulo);
+    $verseSnippet = $getVerseSnippet($chapterVerses, $verses);
 
-    // Prefetch explanation for SSR initial props only on full page loads (not Inertia visits)
+    // Fluxo novo: só carrega explicação existente; nunca gera IA no carregamento da página
     $prefetch = null;
     if (! $request->header('X-Inertia')) {
-        $prefetch = app()->make(\App\Services\BibleExplanationServiceRefactored::class)
-            ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
+        $prefetch = $findExistingExplanation($testamento, $livroOriginal, (int) $capitulo, $verses ?: null, $version);
     }
 
-    // SEO meta dinâmico (capítulo)
+    // SEO meta dinâmico (leitura primeiro, explicação sob demanda)
     $titleBase = ucfirst($livroOriginal).' '.$capitulo;
-    $title = $titleBase.' - Explicação Bíblica | Verso a verso';
-    $description = 'Explicação bíblica de '.$titleBase.' com contexto histórico, análise teológica, referências cruzadas e aplicação prática.';
+    if ($verses) {
+        $titleBase .= ':'.$verses;
+    }
+    $title = $verses
+        ? $titleBase.' - Versículo bíblico com explicação | Verso a verso'
+        : $titleBase.' - Bíblia comentada verso a verso | Verso a verso';
+    $description = $verses
+        ? 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').'. Veja a explicação bíblica com contexto, sentido da passagem e aplicação prática.'
+        : 'Leia '.ucfirst($livroOriginal).' '.$capitulo.' completo na Bíblia, escolha a versão e abra explicações do capítulo ou de cada versículo quando quiser.';
     $keywords = implode(', ', [
-        'explicação bíblica',
+        'bíblia online',
         $titleBase,
+        'texto bíblico',
+        'explicação bíblica',
         'comentário '.$titleBase,
         'estudo bíblico',
-        'contexto histórico',
-        'teologia',
+        'versículo por versículo',
     ]);
-    $canonicalUrl = url("/explicacao/{$testamento}/{$livro}/{$capitulo}");
+    $canonicalUrl = $verses
+        ? url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$verses}-explicacao-biblica")
+        : url("/explicacao/{$testamento}/{$livro}/{$capitulo}");
     $bibleTestamento = $testamento === 'antigo' ? 'velho' : 'novo';
 
     $breadcrumbs = [
@@ -306,13 +356,20 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
             ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
             ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$bibleTestamento}")],
             ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$bibleTestamento}/{$livro}")],
-            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$bibleTestamento}/{$livro}/{$capitulo}")],
+            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}")],
         ],
     ];
+    if ($verses) {
+        $breadcrumbs['itemListElement'][] = ['@type' => 'ListItem', 'position' => 6, 'name' => 'Verso '.$verses, 'item' => $canonicalUrl];
+    }
     $article = [
         '@context' => 'https://schema.org',
         '@type' => 'Article',
-        'headline' => 'Explicação de '.$titleBase,
+        'headline' => $verses ? 'Explicação de '.$titleBase : 'Leitura e estudo de '.$titleBase,
+        'description' => $description,
+        'about' => $titleBase,
+        'articleSection' => $verses ? 'Explicação de versículo bíblico' : 'Leitura bíblica comentada',
+        'articleBody' => $verseSnippet ?: ('Leia '.ucfirst($livroOriginal).' '.$capitulo.' completo com explicações bíblicas sob demanda.'),
         'mainEntityOfPage' => $canonicalUrl,
         'inLanguage' => 'pt-BR',
         'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
@@ -334,6 +391,8 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
         'initialExplanation' => $prefetch['explanation'] ?? null,
         'initialSource' => $prefetch['origin'] ?? 'unknown',
         'initialExplanationId' => $prefetch['id'] ?? null,
+        'version' => $version,
+        'initialChapterVerses' => $chapterVerses,
     ];
     if (! empty($verses)) {
         $pageProps['versos'] = $verses;
@@ -347,14 +406,18 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
         'robots' => 'index, follow',
         'jsonLd' => $jsonLd,
         'ogType' => 'article',
-        'ampUrl' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}"),
+        'ampUrl' => $verses
+            ? url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$verses}-explicacao-biblica")
+            : url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}"),
     ]);
 })->where('testamento', '^(antigo|novo)$');
 
 // URL amigável para SEO com slug - rota para versículos específicos
-Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (string $testamento, string $livro, string $capitulo, string $slug, \Illuminate\Http\Request $request) {
+Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (string $testamento, string $livro, string $capitulo, string $slug, \Illuminate\Http\Request $request) use ($findExistingExplanation, $getChapterVerses, $getVerseSnippet) {
     // Converter o slug para o nome original do livro
     $livroOriginal = SlugService::slugParaLivro($livro);
+    $version = strtolower((string) $request->query('version', 'nvi'));
+    $chapterVerses = $getChapterVerses($version, $livro, (int) $capitulo);
 
     // Extrair os versículos do slug (normalmente o primeiro segmento antes do primeiro hífen)
     // Normalizar slug para capturar formatos como "5:5", "5-5", "5"
@@ -362,16 +425,16 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
     if (preg_match('/^(\d+)(?:[-](\d+))?/', $normalizedSlug, $versesMatch)) {
         $verses = isset($versesMatch[2]) ? ($versesMatch[1].'-'.$versesMatch[2]) : $versesMatch[1];
 
-        // Prefetch explanation for SSR initial props (verses mode) only on full loads
+        // Fluxo novo: só carrega explicação existente; nunca gera IA no carregamento da página
         $prefetch = null;
         if (! $request->header('X-Inertia')) {
-            $prefetch = app()->make(\App\Services\BibleExplanationServiceRefactored::class)
-                ->getExplanation($testamento, $livroOriginal, (int) $capitulo, $verses);
+            $prefetch = $findExistingExplanation($testamento, $livroOriginal, (int) $capitulo, $verses, $version);
         }
         // SEO meta dinâmico (versículo)
         $titleBase = ucfirst($livroOriginal).' '.$capitulo.':'.$verses;
-        $title = $titleBase.' - Explicação Bíblica | Verso a verso';
-        $description = 'Explicação bíblica de '.$titleBase.' com análise do contexto, exegese e aplicação prática.';
+        $verseSnippet = $getVerseSnippet($chapterVerses, $verses);
+        $title = $titleBase.' - Explicação bíblica do versículo | Verso a verso';
+        $description = 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').'. Veja a explicação bíblica do versículo com contexto, sentido da passagem e aplicação prática.';
         $keywords = implode(', ', [
             'explicação bíblica',
             $titleBase,
@@ -380,7 +443,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'contexto histórico',
             'teologia',
         ]);
-        $canonicalUrl = url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}");
+        $canonicalUrl = url("/explicacao/{$testamento}/{$livro}/{$capitulo}/{$verses}-explicacao-biblica");
         $bibleTestamento = $testamento === 'antigo' ? 'velho' : 'novo';
 
         $breadcrumbs = [
@@ -391,7 +454,7 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
                 ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
                 ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$bibleTestamento}")],
                 ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$bibleTestamento}/{$livro}")],
-                ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$bibleTestamento}/{$livro}/{$capitulo}")],
+                ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}")],
                 ['@type' => 'ListItem', 'position' => 6, 'name' => 'Verso(s) '.$verses, 'item' => $canonicalUrl],
             ],
         ];
@@ -399,6 +462,10 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             '@context' => 'https://schema.org',
             '@type' => 'Article',
             'headline' => 'Explicação de '.$titleBase,
+            'description' => $description,
+            'about' => $titleBase,
+            'articleSection' => 'Explicação de versículo bíblico',
+            'articleBody' => $verseSnippet ?: 'Página de explicação bíblica do versículo com leitura, contexto e aplicação prática.',
             'mainEntityOfPage' => $canonicalUrl,
             'inLanguage' => 'pt-BR',
             'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
@@ -421,6 +488,8 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'initialExplanation' => $prefetch['explanation'] ?? null,
             'initialSource' => $prefetch['origin'] ?? 'unknown',
             'initialExplanationId' => $prefetch['id'] ?? null,
+            'version' => $version,
+            'initialChapterVerses' => $chapterVerses,
         ])->withViewData([
             'title' => $title,
             'description' => $description,
@@ -428,14 +497,14 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             'canonicalUrl' => $canonicalUrl,
             'robots' => 'index, follow',
             'jsonLd' => $jsonLd,
-            'ampUrl' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$slug}"),
+            'ampUrl' => url("/amp/explicacao/{$testamento}/{$livro}/{$capitulo}/{$verses}-explicacao-biblica"),
         ]);
     }
 
     // Se não houver versículos no slug, é uma explicação de capítulo completo
     $titleBase = ucfirst($livroOriginal).' '.$capitulo;
-    $title = $titleBase.' - Explicação Bíblica | Verso a verso';
-    $description = 'Explicação bíblica de '.$titleBase.' com contexto histórico, análise teológica, referências cruzadas e aplicação prática.';
+    $title = $titleBase.' - Bíblia comentada verso a verso | Verso a verso';
+    $description = 'Leia '.$titleBase.' completo na Bíblia, escolha a versão e abra explicações do capítulo ou de cada versículo quando quiser.';
     $keywords = implode(', ', [
         'explicação bíblica',
         $titleBase,
@@ -455,13 +524,17 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
             ['@type' => 'ListItem', 'position' => 2, 'name' => 'Bíblia', 'item' => url('/biblia')],
             ['@type' => 'ListItem', 'position' => 3, 'name' => ucfirst($testamento), 'item' => url("/biblia/{$bibleTestamento}")],
             ['@type' => 'ListItem', 'position' => 4, 'name' => $livroOriginal, 'item' => url("/biblia/{$bibleTestamento}/{$livro}")],
-            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/biblia/{$bibleTestamento}/{$livro}/{$capitulo}")],
+            ['@type' => 'ListItem', 'position' => 5, 'name' => 'Capítulo '.$capitulo, 'item' => url("/explicacao/{$testamento}/{$livro}/{$capitulo}")],
         ],
     ];
     $article = [
         '@context' => 'https://schema.org',
         '@type' => 'Article',
         'headline' => 'Explicação de '.$titleBase,
+        'description' => $description,
+        'about' => $titleBase,
+        'articleSection' => 'Leitura bíblica comentada',
+        'articleBody' => 'Leia '.$titleBase.' completo com explicações bíblicas sob demanda por capítulo ou versículo.',
         'mainEntityOfPage' => $canonicalUrl,
         'inLanguage' => 'pt-BR',
         'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
@@ -475,11 +548,10 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
     ];
     $jsonLd = json_encode([$breadcrumbs, $article], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-    // Prefetch explanation for SSR initial props (chapter mode)
+    // Fluxo novo: só carrega explicação existente; nunca gera IA no carregamento da página
     $prefetch = null;
     if (! $request->header('X-Inertia')) {
-        $prefetch = app()->make(\App\Services\BibleExplanationServiceRefactored::class)
-            ->getExplanation($testamento, $livroOriginal, (int) $capitulo, null);
+        $prefetch = $findExistingExplanation($testamento, $livroOriginal, (int) $capitulo, null, $version);
     }
 
     return Inertia::render('explicacao/index', [
@@ -490,6 +562,8 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
         'initialExplanation' => $prefetch['explanation'] ?? null,
         'initialSource' => $prefetch['origin'] ?? 'unknown',
         'initialExplanationId' => $prefetch['id'] ?? null,
+        'version' => $version,
+        'initialChapterVerses' => $chapterVerses,
     ])->withViewData([
         'title' => $title,
         'description' => $description,

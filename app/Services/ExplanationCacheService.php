@@ -79,17 +79,17 @@ class ExplanationCacheService
     /**
      * Build cache key for explanation
      */
-    public function buildKey(string $testament, string $book, int $chapter, ?string $verses = null): string
+    public function buildKey(string $testament, string $book, int $chapter, ?string $verses = null, string $version = 'nvi'): string
     {
-        return "bible_explanation:{$testament}:{$book}:{$chapter}:".($verses ?? 'all');
+        return "bible_explanation:v2:{$testament}:{$book}:{$chapter}:".($verses ?? 'all');
     }
 
     /**
      * Build lock key for explanation
      */
-    public function buildLockKey(string $testament, string $book, int $chapter, ?string $verses = null): string
+    public function buildLockKey(string $testament, string $book, int $chapter, ?string $verses = null, string $version = 'nvi'): string
     {
-        return "bible_explanation:lock:{$testament}:{$book}:{$chapter}:".($verses ?? 'all');
+        return "bible_explanation:lock:v2:{$testament}:{$book}:{$chapter}:".($verses ?? 'all');
     }
 
     /**
@@ -124,7 +124,8 @@ class ExplanationCacheService
                 $passage['testament'],
                 $passage['book'],
                 $passage['chapter'],
-                $passage['verses'] ?? null
+                $passage['verses'] ?? null,
+                $passage['version'] ?? 'nvi'
             );
 
             // Check if already cached
@@ -140,9 +141,9 @@ class ExplanationCacheService
     /**
      * Clear cache for specific explanation
      */
-    public function forget(string $testament, string $book, int $chapter, ?string $verses = null): void
+    public function forget(string $testament, string $book, int $chapter, ?string $verses = null, string $version = 'nvi'): void
     {
-        $cacheKey = $this->buildKey($testament, $book, $chapter, $verses);
+        $cacheKey = $this->buildKey($testament, $book, $chapter, $verses, $version);
 
         try {
             Cache::forget($cacheKey);

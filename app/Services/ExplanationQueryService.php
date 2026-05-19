@@ -9,10 +9,11 @@ class ExplanationQueryService
     /**
      * Find explanation in database
      */
-    public function find(string $testament, string $book, int $chapter, ?string $verses = null): ?BibleExplanation
+    public function find(string $testament, string $book, int $chapter, ?string $verses = null, string $version = 'nvi'): ?BibleExplanation
     {
         $query = BibleExplanation::select(['id', 'explanation_text', 'source', 'access_count'])
             ->where([
+                'version' => $version,
                 'testament' => $testament,
                 'book' => $book,
                 'chapter' => $chapter,
@@ -30,6 +31,35 @@ class ExplanationQueryService
     }
 
     /**
+     * Find an explanation for display, preferring the requested version
+     * but falling back to any existing version for the same passage.
+     */
+    public function findForDisplay(string $testament, string $book, int $chapter, ?string $verses = null, string $version = 'nvi'): ?BibleExplanation
+    {
+        $preferred = $this->find($testament, $book, $chapter, $verses, $version);
+        if ($preferred) {
+            return $preferred;
+        }
+
+        $query = BibleExplanation::select(['id', 'explanation_text', 'source', 'access_count', 'version'])
+            ->where([
+                'testament' => $testament,
+                'book' => $book,
+                'chapter' => $chapter,
+            ]);
+
+        if ($verses === null) {
+            $query->where(function ($q) {
+                $q->whereNull('verses')->orWhere('verses', '');
+            });
+        } else {
+            $query->where('verses', $verses);
+        }
+
+        return $query->orderByRaw("CASE WHEN version = ? THEN 0 ELSE 1 END", [$version])->first();
+    }
+
+    /**
      * Create new explanation
      */
     public function create(
@@ -37,10 +67,12 @@ class ExplanationQueryService
         string $book,
         int $chapter,
         ?string $verses,
+        string $version,
         string $explanationJson,
         string $source
     ): BibleExplanation {
         return BibleExplanation::create([
+            'version' => $version,
             'testament' => $testament,
             'book' => $book,
             'chapter' => $chapter,

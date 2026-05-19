@@ -27,9 +27,10 @@ class StreamingExplanationController extends Controller
     public function stream(Request $request, string $testament, string $book, int $chapter)
     {
         $verses = $request->query('verses');
+        $version = strtolower((string) $request->query('version', 'nvi'));
         $startTime = microtime(true);
 
-        return new StreamedResponse(function () use ($testament, $book, $chapter, $verses, $startTime) {
+        return new StreamedResponse(function () use ($testament, $book, $chapter, $verses, $version, $startTime) {
             // Set headers for SSE
             header('Content-Type: text/event-stream');
             header('Cache-Control: no-cache');
@@ -49,14 +50,14 @@ class StreamingExplanationController extends Controller
                     'progress' => 10,
                 ]);
 
-                // A chamada abaixo pode bloquear por vários segundos em geração por IA.
+                // A chamada abaixo pode bloquear por vários segundos durante a preparação.
                 // Enviamos um status antes para o cliente refletir a fase atual.
                 $this->sendEvent('status', [
-                    'message' => 'Consultando banco e iniciando geração com IA...',
+                    'message' => 'Buscando a passagem e preparando o estudo...',
                     'progress' => 30,
                 ]);
 
-                $result = $this->explanationService->getExplanation($testament, $book, $chapter, $verses);
+                $result = $this->explanationService->getExplanation($testament, $book, $chapter, $verses, $version);
 
                 if ($result['origin'] === 'cache' || $result['origin'] === 'db') {
                     // Send cached result immediately
@@ -67,14 +68,14 @@ class StreamingExplanationController extends Controller
 
                     $this->sendEvent('complete', $result);
                 } else {
-                    // Resultado gerado por IA: enviar fases finais antes de concluir
+                    // Resultado preparado: enviar fases finais antes de concluir
                     $this->sendEvent('status', [
-                        'message' => 'Resposta da IA recebida, validando conteúdo...',
+                        'message' => 'Organizando a explicação...',
                         'progress' => 75,
                     ]);
 
                     $this->sendEvent('status', [
-                        'message' => 'Salvando e finalizando...',
+                        'message' => 'Revisando e finalizando...',
                         'progress' => 90,
                     ]);
 

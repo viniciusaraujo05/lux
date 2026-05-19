@@ -55,15 +55,15 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
     const getInitials = useInitials();
     return (
         <>
-            <div className="border-sidebar-border/80 border-b relative">
+            <div className="border-sidebar-border/80 border-b relative bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70 sticky top-0 z-40">
                 <ThemeToggleButton />
-                <div className="mx-auto flex h-16 items-center px-4 md:max-w-7xl">
-                    <Link href="/" prefetch className="flex items-center space-x-2 px-3 py-2 rounded-lg hover:bg-primary/10 transition-colors">
+                <div className="mx-auto flex h-14 sm:h-16 items-center px-3 sm:px-4 md:max-w-7xl">
+                    <Link href="/" prefetch className="flex min-w-0 items-center space-x-2 rounded-lg px-2 sm:px-3 py-2 hover:bg-primary/10 transition-colors">
                         <AppLogo />
                     </Link>
 
                     {/* Desktop Navigation */}
-                    <div className="ml-6 hidden h-full items-center space-x-2 lg:flex">
+                    <div className="ml-4 hidden h-full items-center space-x-2 lg:flex">
                         <nav className="flex h-full items-stretch space-x-2">
                             {mainNavItems.map((item, index) => (
                                 <div key={index} className="relative flex h-full items-center">
@@ -85,11 +85,15 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                         </nav>
                     </div>
 
-                    <div className="ml-auto flex items-center space-x-2">
+                    <div className="ml-auto flex items-center space-x-1 sm:space-x-2">
                         <div className="relative flex items-center space-x-1">
-                            <Button variant="ghost" size="icon" className="group h-9 w-9 cursor-pointer">
+                            <Link
+                                href="/biblia"
+                                className="group inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                                aria-label="Buscar na Bíblia"
+                            >
                                 <Search className="!size-5 opacity-80 group-hover:opacity-100" />
-                            </Button>
+                            </Link>
                             <div className="hidden lg:flex">
                                 {rightNavItems.map((item) => (
                                     <TooltipProvider key={item.title} delayDuration={0}>
@@ -113,9 +117,9 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                                 ))}
                             </div>
                         </div>
-                        <DropdownMenu>
+                        {auth.user ? <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" className="size-10 rounded-full p-1">
+                                <Button variant="ghost" className="size-9 sm:size-10 rounded-full p-1">
                                     <Avatar className="size-8 overflow-hidden rounded-full">
                                         <AvatarImage src={auth.user.avatar} alt={auth.user.name} />
                                         <AvatarFallback className="rounded-lg bg-neutral-200 text-black dark:bg-neutral-700 dark:text-white">
@@ -127,7 +131,7 @@ export function AppHeader({ breadcrumbs = [] }: AppHeaderProps) {
                             <DropdownMenuContent className="w-56" align="end">
                                 <UserMenuContent user={auth.user} />
                             </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DropdownMenu> : null}
                     </div>
                 </div>
             </div>

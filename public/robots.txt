@@ -1,7 +1,11 @@
 User-agent: *
 Allow: /
 Disallow: /admin
-Disallow: /api
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /settings
+Disallow: /login
+Disallow: /register
 
 Sitemap: https://versoaverso.site/sitemap.xml
 Sitemap: https://versoaverso.site/sitemap-principal.xml

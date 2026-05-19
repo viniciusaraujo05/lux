@@ -32,14 +32,14 @@ class BibleExplanationServiceRefactored
     /**
      * Get explanation with optimized caching and generation
      */
-    public function getExplanation(string $testament, string $book, int $chapter, ?string $verses = null): array
+    public function getExplanation(string $testament, string $book, int $chapter, ?string $verses = null, string $version = 'nvi'): array
     {
         // Normalize verses
         $verses = $this->queryService->normalizeVerses($verses);
 
         // Build cache key
-        $cacheKey = $this->cacheService->buildKey($testament, $book, $chapter, $verses);
-        $lockKey = $this->cacheService->buildLockKey($testament, $book, $chapter, $verses);
+        $cacheKey = $this->cacheService->buildKey($testament, $book, $chapter, $verses, $version);
+        $lockKey = $this->cacheService->buildLockKey($testament, $book, $chapter, $verses, $version);
 
         // 1. Try cache first
         $cached = $this->cacheService->get($cacheKey);
@@ -48,7 +48,7 @@ class BibleExplanationServiceRefactored
         }
 
         // 2. Try database
-        $explanation = $this->queryService->find($testament, $book, $chapter, $verses);
+        $explanation = $this->queryService->findForDisplay($testament, $book, $chapter, $verses, $version);
         if ($explanation) {
             $explanation->incrementAccessCount();
 
@@ -61,7 +61,7 @@ class BibleExplanationServiceRefactored
         }
 
         // 3. Generate new explanation with lock to prevent duplicate API calls
-        return $this->generateWithLock($lockKey, $cacheKey, $testament, $book, $chapter, $verses);
+        return $this->generateWithLock($lockKey, $cacheKey, $testament, $book, $chapter, $verses, $version);
     }
 
     /**
@@ -73,7 +73,8 @@ class BibleExplanationServiceRefactored
         string $testament,
         string $book,
         int $chapter,
-        ?string $verses
+        ?string $verses,
+        string $version
     ): array {
         $result = null;
 
@@ -84,7 +85,8 @@ class BibleExplanationServiceRefactored
                 $testament,
                 $book,
                 $chapter,
-                $verses
+                $verses,
+                $version
             ) {
                 // Re-check cache inside lock
                 $cached = $this->cacheService->get($cacheKey);
@@ -95,7 +97,7 @@ class BibleExplanationServiceRefactored
                 }
 
                 // Re-check database inside lock
-                $explanation = $this->queryService->find($testament, $book, $chapter, $verses);
+                $explanation = $this->queryService->findForDisplay($testament, $book, $chapter, $verses, $version);
                 if ($explanation) {
                     $explanation->incrementAccessCount();
                     $result = $this->formatExplanationResult($explanation, 'db');
@@ -125,6 +127,7 @@ class BibleExplanationServiceRefactored
                     $book,
                     $chapter,
                     $verses,
+                    $version,
                     $generationResult['json'],
                     $cacheKey
                 );
@@ -162,7 +165,7 @@ class BibleExplanationServiceRefactored
                 return $cached;
             }
 
-            $explanation = $this->queryService->find($testament, $book, $chapter, $verses);
+            $explanation = $this->queryService->findForDisplay($testament, $book, $chapter, $verses, $version);
             if ($explanation) {
                 $explanation->incrementAccessCount();
 
@@ -181,6 +184,7 @@ class BibleExplanationServiceRefactored
                         'book' => $book,
                         'chapter' => $chapter,
                         'verses' => $verses,
+                        'version' => $version,
                     ],
                     'errorDetails' => [
                         'title' => 'Processando Solicitação',
@@ -208,6 +212,7 @@ class BibleExplanationServiceRefactored
         string $book,
         int $chapter,
         ?string $verses,
+        string $version,
         string $explanationJson,
         string $cacheKey
     ): ?BibleExplanation {
@@ -219,6 +224,7 @@ class BibleExplanationServiceRefactored
                 $book,
                 $chapter,
                 $verses,
+                $version,
                 $explanationJson,
                 $source
             );
@@ -236,7 +242,7 @@ class BibleExplanationServiceRefactored
                 ]);
 
                 // Fetch the existing one
-                $existing = $this->queryService->find($testament, $book, $chapter, $verses);
+                $existing = $this->queryService->findForDisplay($testament, $book, $chapter, $verses, $version);
                 if ($existing) {
                     $existing->incrementAccessCount();
 
@@ -286,8 +292,8 @@ class BibleExplanationServiceRefactored
     /**
      * Clear cache for specific explanation
      */
-    public function clearCache(string $testament, string $book, int $chapter, ?string $verses = null): void
+    public function clearCache(string $testament, string $book, int $chapter, ?string $verses = null, string $version = 'nvi'): void
     {
-        $this->cacheService->forget($testament, $book, $chapter, $verses);
+        $this->cacheService->forget($testament, $book, $chapter, $verses, $version);
     }
 }

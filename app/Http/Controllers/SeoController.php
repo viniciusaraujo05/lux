@@ -2,11 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\BibleExplanation;
-use App\Services\SlugService;
+use App\Services\BibleTextService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Response;
-use Illuminate\Support\Str;
 
 class SeoController extends Controller
 {
@@ -175,7 +173,6 @@ class SeoController extends Controller
         $data = $this->getLivrosData();
         $livros = $data['livros'][$testamento];
         $capitulos = $data['capitulos'];
-        $bibleTestamento = $this->toBibleTestament($testamento);
         $urls = [];
 
         foreach ($livros as $livro) {
@@ -183,15 +180,7 @@ class SeoController extends Controller
             $totalCapitulos = $capitulos[$livro] ?? 30;
 
             for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
-                // URL de leitura do capítulo
-                $urls[] = [
-                    'loc' => url("/biblia/{$bibleTestamento}/{$livroSlug}/{$capitulo}"),
-                    'priority' => '0.7',
-                    'changefreq' => 'monthly',
-                    'lastmod' => now()->toIso8601String(),
-                ];
-
-                // URL de explicação do capítulo completo
+                // URL canônica de leitura do capítulo com explicações sob demanda
                 $urls[] = [
                     'loc' => url("/explicacao/{$testamento}/{$livroSlug}/{$capitulo}"),
                     'priority' => '0.9',
@@ -199,40 +188,15 @@ class SeoController extends Controller
                     'lastmod' => now()->toIso8601String(),
                 ];
 
-                // Versão SEO-friendly da URL de explicação
-                $tituloSEO = $this->getTituloSEO($testamento, $livro, $capitulo);
-                if ($tituloSEO) {
+                foreach ($this->getVerseNumbers($livroSlug, $capitulo) as $versiculo) {
                     $urls[] = [
-                        'loc' => url("/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$tituloSEO}"),
-                        'priority' => '0.9',
-                        'changefreq' => 'weekly',
+                        'loc' => url("/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$versiculo}-explicacao-biblica"),
+                        'priority' => '0.85',
+                        'changefreq' => 'monthly',
                         'lastmod' => now()->toIso8601String(),
                     ];
                 }
             }
-        }
-
-        // Adiciona explicações de versículos específicos do banco de dados
-        $explicacoes = BibleExplanation::where('verses', '!=', null)
-            ->where('testament', $testamento)
-            ->orderBy('book')
-            ->orderBy('chapter')
-            ->get();
-
-        foreach ($explicacoes as $explicacao) {
-            $livro = $explicacao->book;
-            $livroSlug = $this->normalizeBookSlug(SlugService::livroParaSlug((string) $livro));
-            $capitulo = $explicacao->chapter;
-            $versiculos = $explicacao->verses;
-
-            // URL SEO-friendly
-            $slug = Str::slug($versiculos);
-            $urls[] = [
-                'loc' => url("/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$slug}-explicacao-biblica"),
-                'priority' => '0.9',
-                'changefreq' => 'weekly',
-                'lastmod' => now()->toIso8601String(),
-            ];
         }
 
         return view('seo.sitemap', ['urls' => $urls])->render();
@@ -256,7 +220,7 @@ class SeoController extends Controller
                     $totalCapitulos = $capitulos[$livro] ?? 30;
 
                     for ($capitulo = 1; $capitulo <= $totalCapitulos; $capitulo++) {
-                        // URL AMP para explicação de capítulo completo
+                        // URL AMP canônica para capítulo
                         $urls[] = [
                             'loc' => url("/amp/explicacao/{$testamento}/{$livroSlug}/{$capitulo}"),
                             'priority' => '0.9',
@@ -264,41 +228,16 @@ class SeoController extends Controller
                             'lastmod' => now()->toIso8601String(),
                         ];
 
-                        // URL AMP para versão SEO-friendly
-                        $tituloSEO = $this->getTituloSEO($testamento, $livro, $capitulo);
-                        if ($tituloSEO) {
+                        foreach ($this->getVerseNumbers($livroSlug, $capitulo) as $versiculo) {
                             $urls[] = [
-                                'loc' => url("/amp/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$tituloSEO}"),
-                                'priority' => '0.9',
-                                'changefreq' => 'weekly',
+                                'loc' => url("/amp/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$versiculo}-explicacao-biblica"),
+                                'priority' => '0.85',
+                                'changefreq' => 'monthly',
                                 'lastmod' => now()->toIso8601String(),
                             ];
                         }
                     }
                 }
-            }
-
-            // Adiciona URLs AMP de versículos específicos
-            $explicacoes = BibleExplanation::where('verses', '!=', null)
-                ->orderBy('testament')
-                ->orderBy('book')
-                ->orderBy('chapter')
-                ->get();
-
-            foreach ($explicacoes as $explicacao) {
-                $testamento = $explicacao->testament;
-                $livro = $explicacao->book;
-                $livroSlug = $this->normalizeBookSlug(SlugService::livroParaSlug((string) $livro));
-                $capitulo = $explicacao->chapter;
-                $versiculos = $explicacao->verses;
-                $slug = Str::slug($versiculos);
-
-                $urls[] = [
-                    'loc' => url("/amp/explicacao/{$testamento}/{$livroSlug}/{$capitulo}/{$slug}-explicacao-biblica"),
-                    'priority' => '0.9',
-                    'changefreq' => 'weekly',
-                    'lastmod' => now()->toIso8601String(),
-                ];
             }
 
             return view('seo.sitemap', ['urls' => $urls])->render();
@@ -325,6 +264,11 @@ class SeoController extends Controller
         $content = implode("\n", [
             'User-agent: *',
             'Allow: /',
+            'Disallow: /api/',
+            'Disallow: /dashboard',
+            'Disallow: /settings',
+            'Disallow: /login',
+            'Disallow: /register',
             '',
             'Sitemap: '.url('/sitemap.xml'),
             'Sitemap: '.url('/sitemap-principal.xml'),
@@ -386,5 +330,20 @@ class SeoController extends Controller
     private function toBibleTestament(string $testamento): string
     {
         return $testamento === 'antigo' ? 'velho' : 'novo';
+    }
+
+    private function getVerseNumbers(string $livroSlug, int $capitulo): array
+    {
+        try {
+            $chapter = app(BibleTextService::class)->getChapter('nvi', $livroSlug, $capitulo);
+            $count = count($chapter['verses'] ?? []);
+            if ($count > 0) {
+                return range(1, $count);
+            }
+        } catch (\Throwable $e) {
+            // Keep sitemap generation resilient if a local Bible JSON is unavailable.
+        }
+
+        return [];
     }
 }

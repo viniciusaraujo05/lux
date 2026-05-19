@@ -476,38 +476,31 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     }
   };
 
-  // Função para navegar para os versículos de um capítulo
-  const navigateToVerses = async (chapter: number) => {
-    setLoading(true);
+  // No novo fluxo, o clique no capítulo abre a leitura completa do capítulo.
+  const navigateToChapterReading = (chapter: number) => {
+    if (!selectedBook) return;
+
+    const bookSlug = slugService.livroParaSlug(selectedBook);
+    const expTestament = toExplanationTestament(activeTestament);
+
     setSelectedChapter(chapter);
     setSelectedVerses([]);
     setSelectionMode(false);
-    
-    try {
-      if (!selectedBook) throw new Error('Nenhum livro selecionado');
-      
-      // Converter o nome do livro para slug para URL limpa
-      const bookSlug = selectedBook ? slugService.livroParaSlug(selectedBook) : '';
-      
-      // Atualizar a URL do navegador
-      window.history.pushState(
-        { testament: activeTestament, book: selectedBook, chapter },
-        '',
-        `/biblia/${activeTestament}/${bookSlug}/${chapter}`
-      );
-      // Garantir que a visão comece pelo topo
-      forceScrollTop(false);
-      
-      // Garantir que o testamento seja do tipo correto
-      const testament = activeTestament as 'velho' | 'novo';
-      const chapterVerses = await bibleService.getVersiculos(selectedBook, chapter, testament);
-      setVerses(chapterVerses);
-      setLoading(false);
-    } catch (err) {
-      console.error('Erro ao carregar versículos:', err);
-      setError('Não foi possível carregar os versículos. Por favor, tente novamente mais tarde.');
-      setLoading(false);
-    }
+    persistNavState({ chapter, selectedVerses: [] });
+    setNavigating(true);
+    forceScrollTop(false);
+    if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+
+    router.visit(`/explicacao/${expTestament}/${bookSlug}/${chapter}`, {
+      preserveScroll: false,
+      onFinish: () => {
+        setNavigating(false);
+        forceScrollTop(false);
+      },
+      onError: () => {
+        setNavigating(false);
+      },
+    });
   };
 
   // Função para voltar para a visualização anterior
@@ -577,12 +570,12 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
     const renderBookCard = (book: string) => (
       <motion.div
         key={book}
-        whileHover={{ y: -3, scale: 1.03, boxShadow: "0 8px 30px rgba(56,123,255,0.22)" }}
+        whileHover={{ y: -2, scale: 1.015, boxShadow: "0 8px 24px rgba(56,123,255,0.16)" }}
         whileTap={{ scale: 0.97 }}
         transition={{ type: 'spring', stiffness: 300 }}
       >
         <Card
-          className={`bible-card overflow-hidden transition-all cursor-pointer ${
+          className={`bible-card overflow-hidden transition-all cursor-pointer rounded-xl ${
             selectedBook === book
               ? 'border-2 border-primary shadow-lg shadow-primary/20'
               : 'border border-border/80 hover:border-primary/40'
@@ -594,7 +587,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
           }}
         >
           <CardContent className="p-0">
-            <button className="w-full h-full p-4 sm:p-5 text-left font-semibold text-sm sm:text-[15px] focus:outline-none always-visible">
+            <button className="w-full h-full px-3 py-3 sm:p-4 text-left font-semibold text-sm sm:text-[15px] focus:outline-none always-visible">
               <span className="leading-tight">{book}</span>
             </button>
           </CardContent>
@@ -604,11 +597,11 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
     return (
       <div>
-        <div className="sticky top-2 z-20 mb-4 rounded-xl border border-border/70 bg-background/90 backdrop-blur-md p-2 shadow-md">
+        <div className="sticky top-1 sm:top-2 z-20 mb-3 sm:mb-4 rounded-xl border border-border/70 bg-background/90 backdrop-blur-md p-1.5 sm:p-2 shadow-md">
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setActiveTestament('velho')}
-              className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTestament === 'velho'
                   ? 'bg-primary text-primary-foreground shadow'
                   : 'bg-card text-muted-foreground hover:text-foreground hover:bg-accent'
@@ -618,7 +611,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             </button>
             <button
               onClick={() => setActiveTestament('novo')}
-              className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all ${
+              className={`px-2 sm:px-4 py-2.5 rounded-lg text-xs sm:text-sm font-semibold transition-all ${
                 activeTestament === 'novo'
                   ? 'bg-primary text-primary-foreground shadow'
                   : 'bg-card text-muted-foreground hover:text-foreground hover:bg-accent'
@@ -629,17 +622,17 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
           </div>
         </div>
 
-        <div className="mb-6 flex justify-center">
+        <div className="mb-4 sm:mb-6 flex justify-center">
           <div className="relative w-full max-w-md">
             <input
               type="text"
-              className="w-full px-4 py-3.5 pl-12 rounded-xl border border-border/70 bg-card text-foreground placeholder:text-muted-foreground/90 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-sm shadow-sm"
+              className="w-full px-4 py-3 pl-11 sm:py-3.5 sm:pl-12 rounded-xl border border-border/70 bg-card text-foreground placeholder:text-muted-foreground/90 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none text-sm shadow-sm"
               placeholder="Buscar livro, capítulo ou tema..."
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
               aria-label="Pesquisar livro"
             />
-            <Search className="absolute left-4 top-4 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-3.5 sm:left-4 top-3.5 sm:top-4 h-5 w-5 text-muted-foreground" />
           </div>
         </div>
         
@@ -647,8 +640,8 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
           <div className="text-center text-muted-foreground py-8">Nenhum livro encontrado.</div>
         ) : (
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-primary">{activeLabel}</h3>
-            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4">
+            <h3 className="text-base sm:text-lg font-semibold text-primary">{activeLabel}</h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-2 sm:gap-3">
               {booksForActiveTestament.map(renderBookCard)}
             </div>
           </div>
@@ -742,11 +735,11 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       
       case 'capitulos':
         return (
-          <div className="always-visible space-y-6">
+          <div className="always-visible space-y-4 sm:space-y-6">
             {/* Botão para explicar contexto do livro */}
             <div className="flex justify-center">
               <motion.button
-                className="px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
                 whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
@@ -780,13 +773,13 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             </div>
 
             {/* Grid de capítulos */}
-            <div className="grid grid-cols-4 xs:grid-cols-5 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2 sm:gap-3">
+            <div className="grid grid-cols-5 sm:grid-cols-7 md:grid-cols-9 lg:grid-cols-12 gap-2 sm:gap-3">
               {chapters.map((chapter) => {
                 const isSelected = selectedChapter === chapter;
                 return (
                   <motion.button
                     key={chapter}
-                    className={`relative p-3 sm:p-4 rounded-xl border text-sm sm:text-base transition-all cursor-pointer font-semibold text-center focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    className={`relative h-11 sm:h-12 rounded-xl border text-sm sm:text-base transition-all cursor-pointer font-semibold text-center focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                       isSelected
                         ? 'bg-primary text-primary-foreground border-primary shadow-md'
                         : 'bg-card hover:bg-accent border-border text-foreground hover:border-primary/30'
@@ -794,7 +787,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                     whileHover={{ scale: 1.05, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                    onClick={() => navigateToVerses(chapter)}
+                    onClick={() => navigateToChapterReading(chapter)}
                   >
                     {chapter}
                     {isSelected && (
@@ -809,7 +802,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
       
       case 'contexto':
         return (
-          <div className="always-visible space-y-6">
+          <div className="always-visible space-y-4 sm:space-y-6">
             {contextLoading ? (
               <div className="flex justify-center items-center py-12">
                 <div className="flex flex-col items-center space-y-4">
@@ -854,9 +847,9 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         return (
           <div className="always-visible space-y-6">
             {/* Botões de ação */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center items-center">
               <motion.button
-                className="w-full sm:w-auto px-6 py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+                className="w-full sm:w-auto px-4 sm:px-6 py-2.5 sm:py-3 rounded-lg font-semibold shadow-md flex items-center justify-center gap-2 border border-primary bg-primary text-primary-foreground hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all text-sm"
                 whileHover={{ scale: 1.03, boxShadow: "0 4px 20px rgba(0,0,0,0.1)" }}
                 whileTap={{ scale: 0.97 }}
                 transition={{ type: 'spring', stiffness: 400 }}
@@ -882,14 +875,14 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
                 {navigating ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>Indo para explicação...</span>
+                    <span>Abrindo...</span>
                   </>
                 ) : (
                   <>
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" className="w-5 h-5">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
-                    Explicar Capítulo
+                    Abrir capítulo
                   </>
                 )}
               </motion.button>
@@ -941,13 +934,13 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
             )} */}
 
             {/* Grid de versículos - melhorado para mobile */}
-            <div className="grid grid-cols-5 xs:grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 xl:grid-cols-15 gap-2 sm:gap-3">
+            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-2 sm:gap-3">
               {verses.map((verse) => {
                 const isSelected = selectedVerses.includes(verse);
                 return (
                   <motion.button
                     key={verse}
-                    className={`relative p-3 sm:p-4 rounded-xl border text-sm sm:text-base font-semibold transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 ${
+                    className={`relative h-10 sm:h-12 rounded-xl border text-sm sm:text-base font-semibold transition-all cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-blue-400 ${
                       isSelected
                         ? 'bg-primary text-primary-foreground border-primary shadow-md'
                         : 'bg-card hover:bg-accent border-border hover:border-primary/30'
@@ -1008,9 +1001,9 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
   const currentStepIndex = navState === 'livros' ? 0 : navState === 'capitulos' ? 1 : 2;
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-3 sm:p-4 shadow-sm">
-        <div className="mb-3 flex flex-wrap items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground text-center">
+    <div className="flex flex-col space-y-3 sm:space-y-4">
+      <div className="rounded-xl border border-border bg-gradient-to-br from-card via-card to-primary/5 p-2.5 sm:p-4 shadow-sm">
+        <div className="mb-2 sm:mb-3 flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 text-[11px] sm:text-sm text-muted-foreground text-center">
           {steps.map((step, idx) => (
             <div key={step.key} className="inline-flex items-center gap-2">
               <span
@@ -1028,20 +1021,20 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
           ))}
         </div>
 
-        <div className="flex items-center justify-between bg-card/80 backdrop-blur-sm shadow-sm rounded-md p-3">
+        <div className="flex items-center justify-between bg-card/80 backdrop-blur-sm shadow-sm rounded-lg p-2 sm:p-3">
         {navState !== 'livros' ? (
           <button 
             onClick={navigateBack}
-            className="p-2 rounded-full hover:bg-muted transition-all"
+            className="inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-muted transition-all"
             aria-label="Voltar"
           >
             <ChevronLeft size={20} />
           </button>
         ) : (
-          <div className="w-10">{/* Espaçador */}</div>
+          <div className="w-9">{/* Espaçador */}</div>
         )}
         
-        <div className="flex items-center font-medium">
+        <div className="flex min-w-0 items-center font-medium text-sm sm:text-base">
           {(() => {
             switch (navState) {
               case 'testamentos': return <Book className="mr-2" size={18} />;
@@ -1051,7 +1044,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
               default: return <Book className="mr-2" size={18} />;
             }
           })()}
-          <span>
+          <span className="truncate">
             {(() => {
               switch (navState) {
                 case 'testamentos': return 'Bíblia Sagrada';
@@ -1066,7 +1059,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
 
         <button 
           onClick={() => window.location.href = '/biblia'}
-          className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm font-medium text-sm"
+          className="flex h-9 items-center gap-2 px-2.5 sm:px-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-all shadow-sm font-medium text-sm"
           aria-label="Início"
         >
           <Home size={18} />
@@ -1075,7 +1068,7 @@ export default function BibleBooksGrid({ initialTestament, initialBook, initialC
         </div>
 
         {(selectedBook || selectedChapter) && (
-          <div className="mt-3 rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-xs sm:text-sm text-muted-foreground">
+          <div className="mt-2 sm:mt-3 rounded-lg border border-border/60 bg-background/70 px-3 py-2 text-xs sm:text-sm text-muted-foreground">
             <span className="font-semibold text-foreground">Seleção atual:</span>{' '}
             {selectedBook ?? 'Livro'}{selectedChapter ? ` ${selectedChapter}` : ''}{selectedVerses.length ? ` • ${selectedVerses.length} verso(s)` : ''}
           </div>

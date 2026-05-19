@@ -38,7 +38,15 @@
             }
         </style>
 
-        <title inertia>{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}</title>
+        @php
+            $resolvedCanonicalUrl = $canonicalUrl ?? url()->current();
+            $baseAppName = config('app.name', 'A Bíblia explicada, Verso a Verso');
+            $resolvedTitle = isset($title)
+                ? (str_contains($title, 'Verso a verso') || str_contains($title, 'Verso a Verso') ? $title : $title . ' - ' . $baseAppName)
+                : $baseAppName;
+        @endphp
+
+        <title inertia>{{ $resolvedTitle }}</title>
         
         <!-- Google AdSense -->
         <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1406842788891515"
@@ -49,10 +57,6 @@
                 enable_page_level_ads: true
             });
         </script>
-        
-        @php
-            $resolvedCanonicalUrl = $canonicalUrl ?? url()->current();
-        @endphp
 
         <!-- Meta tags para SEO -->
         <meta name="description" content="{{ isset($description) ? $description : 'Verso a Verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
@@ -69,7 +73,7 @@
         <meta property="og:type" content="{{ $ogType ?? 'website' }}">
         <meta property="og:locale" content="pt_BR">
         <meta property="og:url" content="{{ $resolvedCanonicalUrl }}">
-        <meta property="og:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}">
+        <meta property="og:title" content="{{ $resolvedTitle }}">
         <meta property="og:description" content="{{ isset($description) ? $description : 'Verso a verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta property="og:image" content="{{ asset('logo.svg') }}">
         @if(($ogType ?? null) === 'article')
@@ -80,7 +84,7 @@
         <!-- Twitter -->
         <meta property="twitter:card" content="summary_large_image">
         <meta property="twitter:url" content="{{ $resolvedCanonicalUrl }}">
-        <meta property="twitter:title" content="{{ isset($title) ? $title . ' - ' : '' }}{{ config('app.name', 'A Bíblia explicada, Verso a Verso') }}">
+        <meta property="twitter:title" content="{{ $resolvedTitle }}">
         <meta property="twitter:description" content="{{ isset($description) ? $description : 'Verso a verso oferece explicações detalhadas sobre passagens bíblicas, estudo versículo por versículo, contexto histórico e aplicações para a vida atual.' }}">
         <meta property="twitter:image" content="{{ asset('logo.svg') }}">
         

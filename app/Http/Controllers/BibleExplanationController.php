@@ -25,30 +25,21 @@ class BibleExplanationController extends Controller
     public function getExplanation(Request $request, $testament, $book, $chapter)
     {
         $verses = $request->query('verses');
+        $version = strtolower((string) $request->query('version', 'nvi'));
+        $lookupOnly = $request->boolean('lookup');
         $bookName = $this->slugToBookName($book);
 
-        // Verificar cache primeiro para resposta rápida
-        $cacheKey = "bible_explanation:{$testament}:{$bookName}:{$chapter}:".($verses ?? 'all');
+        // Verificar cache primeiro para resposta rápida.
+        // A explicação é da passagem, não da tradução bíblica selecionada.
+        $cacheKey = "bible_explanation:v2:{$testament}:{$bookName}:{$chapter}:".($verses ?? 'all');
 
         if (\Illuminate\Support\Facades\Cache::has($cacheKey)) {
             return response()->json(\Illuminate\Support\Facades\Cache::get($cacheKey));
         }
 
         // Verificar se existe no banco de dados
-        $existing = \App\Models\BibleExplanation::select(['id', 'explanation_text', 'source', 'access_count'])
-            ->where([
-                'testament' => $testament,
-                'book' => $bookName,
-                'chapter' => (int) $chapter,
-            ])
-            ->when($verses === null, function ($query) {
-                $query->where(function ($q) {
-                    $q->whereNull('verses')->orWhere('verses', '');
-                });
-            }, function ($query) use ($verses) {
-                $query->where('verses', $verses);
-            })
-            ->first();
+        $existing = app()->make(\App\Services\ExplanationQueryService::class)
+            ->findForDisplay($testament, $bookName, (int) $chapter, $verses, $version);
 
         if ($existing) {
             $existing->increment('access_count');
@@ -71,12 +62,23 @@ class BibleExplanationController extends Controller
             return response()->json($result);
         }
 
+        if ($lookupOnly) {
+            return response()->json([
+                'id' => null,
+                'origin' => 'missing',
+                'explanation' => null,
+                'source' => null,
+                'exists' => false,
+            ]);
+        }
+
         // Se não existe, usar o serviço normal (que pode ser demorado)
         $result = $this->explanationService->getExplanation(
             $testament,
             $bookName,
             (int) $chapter,
-            $verses
+            $verses,
+            $version
         );
 
         return response()->json($result);

@@ -26,6 +26,7 @@ class BibleExplanation extends Model
         'book',
         'chapter',
         'verses',
+        'version',
         'explanation_text',
         'source',
         'access_count',
