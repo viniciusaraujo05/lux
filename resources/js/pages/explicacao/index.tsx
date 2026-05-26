@@ -480,6 +480,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   const [lookupLoading, setLookupLoading] = useState<boolean>(false);
   const [readingWidthPercent, setReadingWidthPercent] = useState<number>(66);
   const [isResizingPanels, setIsResizingPanels] = useState<boolean>(false);
+  const [isMobileChapterExplanationOpen, setIsMobileChapterExplanationOpen] = useState<boolean>(false);
   const splitPaneRef = useRef<HTMLDivElement | null>(null);
 
   const isMobile = useMediaQuery('(max-width: 640px)');
@@ -1049,6 +1050,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     setExplanationTarget('chapter');
     setExplanation(null);
     setExplanationId(null);
+    setIsMobileChapterExplanationOpen(false);
     setLoading(false);
   };
 
@@ -1056,6 +1058,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     setExplanationTarget(target);
     if (target === 'chapter') {
       setVersesState(null);
+      setIsMobileChapterExplanationOpen(false);
     }
     setShouldGenerateExplanation(true);
     setLoading(true);
@@ -1272,20 +1275,31 @@ function BibleExplanationContent(props: BibleExplanationProps) {
               >
                 {shouldShowTopChapterExplanation && (
                   <section className="mb-4 rounded-2xl border border-zinc-200 bg-background p-4 shadow-sm dark:border-zinc-800 sm:mb-6 sm:p-5">
-                    <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className={`${isMobileChapterExplanationOpen ? 'mb-4' : ''} flex items-start justify-between gap-3`}>
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Explicação do capítulo</p>
                         <h2 className="mt-1 text-xl font-bold text-foreground">{book} {chapter}</h2>
+                        {!isMobileChapterExplanationOpen && (
+                          <p className="mt-1 text-sm text-muted-foreground">Toque em abrir para ver a explicação acima dos versículos.</p>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
-                        <a
-                          href={fullExplanationUrl}
-                          aria-label="Abrir página completa da explicação"
-                          title="Abrir página completa"
-                          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border hover:bg-muted transition-colors"
+                        {isMobileChapterExplanationOpen && (
+                          <a
+                            href={fullExplanationUrl}
+                            aria-label="Abrir página completa da explicação"
+                            title="Abrir página completa"
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border hover:bg-muted transition-colors"
+                          >
+                            <ExternalLink size={16} />
+                          </a>
+                        )}
+                        <button
+                          onClick={() => setIsMobileChapterExplanationOpen((value) => !value)}
+                          className="rounded-full bg-black px-3 py-2 text-xs font-semibold text-white transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
                         >
-                          <ExternalLink size={16} />
-                        </a>
+                          {isMobileChapterExplanationOpen ? 'Recolher' : 'Abrir'}
+                        </button>
                         <button
                           onClick={closeChapterExplanation}
                           className="rounded-full border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-muted"
@@ -1294,7 +1308,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                         </button>
                       </div>
                     </div>
-                    {renderExplanationPanelContent()}
+                    {isMobileChapterExplanationOpen && renderExplanationPanelContent()}
                   </section>
                 )}
                 <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
