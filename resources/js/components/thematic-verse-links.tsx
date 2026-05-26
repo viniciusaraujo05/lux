@@ -35,7 +35,7 @@ export default function ThematicVerseLinks() {
         {BIBLICAL_THEME_LINKS.map(([slug, label]) => (
           <a
             key={slug}
-            href={`/temas/${slug}`}
+            href={`/temas/${slug}?gerar=1`}
             className="rounded-full border border-border bg-background px-3.5 py-2 text-sm font-semibold shadow-sm transition hover:border-foreground/30 hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black"
           >
             {label}

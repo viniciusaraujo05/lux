@@ -548,6 +548,19 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     : buildChapterUrl();
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !isStandaloneVersePage || !verses || explanation) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gerar') !== '1') return;
+
+    params.delete('gerar');
+    const nextQuery = params.toString();
+    window.history.replaceState({}, '', `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`);
+    setExplanationTarget('verse');
+    setShouldGenerateExplanation(true);
+    setLoading(true);
+  }, [isStandaloneVersePage, verses, explanation]);
+
+  useEffect(() => {
     if (!isResizingPanels) return;
 
     const handlePointerMove = (event: PointerEvent) => {

@@ -31,7 +31,7 @@ export default function ThemesIndex({ topics }: { topics: Topic[] }) {
             {topics.map((topic) => (
               <a
                 key={topic.slug}
-                href={`/temas/${topic.slug}`}
+                href={`/temas/${topic.slug}?gerar=1`}
                 className="group rounded-2xl border border-border/70 bg-card p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-foreground/20 hover:shadow-md"
               >
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-black text-white dark:bg-white dark:text-black">

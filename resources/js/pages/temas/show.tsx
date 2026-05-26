@@ -1,7 +1,7 @@
 import AppLayout from '@/layouts/app-layout';
 import Footer from '@/components/footer';
-import { ArrowRight, BookOpen, CheckCircle2, Loader2, ScrollText, Sparkles } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, BookOpen, CheckCircle2, Loader2, ScrollText } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 interface Topic {
   slug: string;
@@ -42,36 +42,57 @@ interface Props {
   topics: Topic[];
 }
 
-const explanationUrl = (verse: ThemeVerse) => `/explicacao/${verse.testamento}/${verse.livro_slug}/${verse.capitulo}/${verse.versos}-explicacao-biblica`;
+const explanationUrl = (verse: ThemeVerse) => `/explicacao/${verse.testamento}/${verse.livro_slug}/${verse.capitulo}/${verse.versos}-explicacao-biblica?gerar=1`;
 
 export default function ThemeShow({ topic, study: initialStudy, origin, topics }: Props) {
   const [study, setStudy] = useState(initialStudy);
   const [currentOrigin, setCurrentOrigin] = useState(origin);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isEnhancingStudy, setIsEnhancingStudy] = useState(false);
+  const [generationError, setGenerationError] = useState<string | null>(null);
 
-  const generateStudy = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(`/api/temas/${topic.slug}/gerar`, {
-        method: 'POST',
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
-        },
-      });
-      if (!response.ok) throw new Error('Não foi possível gerar o estudo agora.');
-      const data = await response.json();
-      setStudy(data.study);
-      setCurrentOrigin(data.origin);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao gerar estudo.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('gerar') !== '1' || currentOrigin === 'database') return;
+
+    const controller = new AbortController();
+
+    const generateStudy = async () => {
+      setIsEnhancingStudy(true);
+      setGenerationError(null);
+      try {
+        const response = await fetch(`/api/temas/${topic.slug}/gerar`, {
+          method: 'POST',
+          signal: controller.signal,
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '',
+          },
+        });
+        if (!response.ok) throw new Error('Não foi possível carregar o estudo completo agora.');
+        const data = await response.json();
+        if (data?.study) {
+          setStudy(data.study);
+          setCurrentOrigin(data.origin || 'generated');
+          params.delete('gerar');
+          const nextQuery = params.toString();
+          window.history.replaceState({}, '', `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`);
+        }
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return;
+        setGenerationError(error instanceof Error ? error.message : 'Não foi possível carregar o estudo completo agora.');
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsEnhancingStudy(false);
+        }
+      }
+    };
+
+    generateStudy();
+
+    return () => controller.abort();
+  }, [topic.slug, currentOrigin]);
 
   return (
     <AppLayout>
@@ -93,15 +114,13 @@ export default function ThemeShow({ topic, study: initialStudy, origin, topics }
                   Ver lista de versículos
                   <ArrowRight className="h-4 w-4" />
                 </a>
-                <button
-                  onClick={generateStudy}
-                  disabled={loading}
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-white/25 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60 dark:border-black/25 dark:text-black dark:hover:bg-black/10"
-                >
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-                  {currentOrigin === 'database' ? 'Atualizar estudo' : 'Gerar estudo completo'}
-                </button>
               </div>
+              {isEnhancingStudy && (
+                <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/20 px-3 py-2 text-sm font-semibold text-white/80 dark:border-black/20 dark:text-black/70">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Preparando um estudo mais completo...
+                </div>
+              )}
             </div>
 
             <div className="flex flex-col justify-between gap-4 p-5 sm:p-7 lg:p-8">
@@ -119,7 +138,11 @@ export default function ThemeShow({ topic, study: initialStudy, origin, topics }
             </div>
           </section>
 
-          {error && <p className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">{error}</p>}
+          {generationError && (
+            <p className="mt-4 rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
+              {generationError} O estudo inicial continua disponível para leitura.
+            </p>
+          )}
 
           {study.historia_biblica && (
             <section className="mt-6 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-7 lg:p-8">
@@ -181,7 +204,7 @@ export default function ThemeShow({ topic, study: initialStudy, origin, topics }
             <h2 className="text-xl font-semibold">Outros temas bíblicos</h2>
             <div className="mt-4 flex flex-wrap gap-2">
               {topics.filter((item) => item.slug !== topic.slug).slice(0, 12).map((item) => (
-                <a key={item.slug} href={`/temas/${item.slug}`} className="rounded-full border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black">
+                <a key={item.slug} href={`/temas/${item.slug}?gerar=1`} className="rounded-full border border-border bg-background px-3 py-2 text-sm font-medium hover:bg-black hover:text-white dark:hover:bg-white dark:hover:text-black">
                   {item.label}
                 </a>
               ))}
