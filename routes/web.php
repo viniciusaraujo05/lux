@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\SeoController;
+use App\Http\Controllers\ThematicStudyController;
 use App\Services\BibleTextService;
 use App\Services\ExplanationQueryService;
 use App\Services\SlugService;
@@ -197,6 +198,11 @@ Route::get('/sitemap-novo-testamento.xml', [SeoController::class, 'sitemapNovoTe
 Route::get('/sitemap-amp.xml', [SeoController::class, 'sitemapAmp']);
 Route::get('/sitemap-principal.xml', [SeoController::class, 'sitemapPrincipal']);
 Route::get('/robots.txt', [SeoController::class, 'robots']);
+
+// Thematic SEO pages: "versículos sobre fé", "versículos sobre ansiedade", etc.
+Route::get('/temas', [ThematicStudyController::class, 'index'])->name('themes.index');
+Route::get('/temas/{slug}', [ThematicStudyController::class, 'show'])->name('themes.show');
+Route::post('/api/temas/{slug}/gerar', [ThematicStudyController::class, 'generate'])->name('themes.generate');
 
 // AMP Routes
 Route::get('/amp/explicacao/{testament}/{book}/{chapter}', [\App\Http\Controllers\AmpController::class, 'showExplanation']);

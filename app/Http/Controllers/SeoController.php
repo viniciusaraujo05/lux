@@ -106,6 +106,22 @@ class SeoController extends Controller
                 'lastmod' => now()->toIso8601String(),
             ];
 
+            $urls[] = [
+                'loc' => url('/temas'),
+                'priority' => '0.9',
+                'changefreq' => 'weekly',
+                'lastmod' => now()->toIso8601String(),
+            ];
+
+            foreach (app(\App\Services\ThematicStudyService::class)->allTopics() as $topic) {
+                $urls[] = [
+                    'loc' => url('/temas/'.$topic['slug']),
+                    'priority' => '0.86',
+                    'changefreq' => 'weekly',
+                    'lastmod' => now()->toIso8601String(),
+                ];
+            }
+
             // Testamentos e livros
             foreach ($livros as $testamento => $livrosTestamento) {
                 $bibleTestamento = $this->toBibleTestament($testamento);

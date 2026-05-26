@@ -163,6 +163,52 @@ interface FallbackExplanation {
 
 type ExplanationData = VerseExplanation | ChapterSummary | ErrorExplanation | FallbackExplanation;
 
+const BIBLICAL_THEME_LINKS = [
+  ['fe', 'Fé'],
+  ['confianca', 'Confiança'],
+  ['ofertas', 'Ofertas'],
+  ['amor', 'Amor'],
+  ['oracao', 'Oração'],
+  ['ansiedade', 'Ansiedade'],
+  ['perdao', 'Perdão'],
+  ['gratidao', 'Gratidão'],
+  ['familia', 'Família'],
+  ['casamento', 'Casamento'],
+  ['sabedoria', 'Sabedoria'],
+  ['forca', 'Força'],
+  ['esperanca', 'Esperança'],
+  ['paz', 'Paz'],
+  ['cura', 'Cura'],
+  ['prosperidade', 'Prosperidade'],
+  ['obediencia', 'Obediência'],
+  ['arrependimento', 'Arrependimento'],
+  ['salvacao', 'Salvação'],
+  ['louvor', 'Louvor'],
+] as const;
+
+const ThematicVerseLinks: FC = () => (
+  <section className="mt-6 rounded-2xl border border-border/70 bg-gradient-to-br from-zinc-50 via-card to-amber-50 p-4 shadow-sm dark:from-zinc-900 dark:via-card dark:to-amber-950/20 sm:p-5">
+    <div className="mb-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Estudos por tema</p>
+      <h2 className="mt-1 text-xl font-bold">Versículos sobre...</h2>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        Explore temas bíblicos com passagens selecionadas e explicações verso a verso.
+      </p>
+    </div>
+    <div className="flex flex-wrap gap-2">
+      {BIBLICAL_THEME_LINKS.map(([slug, label]) => (
+        <a
+          key={slug}
+          href={`/temas/${slug}`}
+          className="rounded-full border border-border bg-background px-3.5 py-2 text-sm font-semibold shadow-sm transition hover:border-foreground/30 hover:bg-muted"
+        >
+          {label}
+        </a>
+      ))}
+    </div>
+  </section>
+);
+
 // --- Reusable UI Components ---
 const Section: FC<{ title: string; children: ReactNode; icon?: ReactNode; defaultOpen?: boolean }> = ({ title, children, icon, defaultOpen = true }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -1031,6 +1077,14 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     setLoading(false);
   };
 
+  const closeChapterExplanation = () => {
+    setShouldGenerateExplanation(false);
+    setExplanationTarget('chapter');
+    setExplanation(null);
+    setExplanationId(null);
+    setLoading(false);
+  };
+
   const triggerExplanationGeneration = (target: ExplanationTarget) => {
     setExplanationTarget(target);
     if (target === 'chapter') {
@@ -1039,6 +1093,8 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     setShouldGenerateExplanation(true);
     setLoading(true);
   };
+
+  const shouldShowTopChapterExplanation = isInlineReadingMode && explanationTarget === 'chapter' && (shouldGenerateExplanation || Boolean(explanation));
 
   const renderExplanationPanelContent = () => {
     if (!verses) {
@@ -1247,6 +1303,33 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                 className="rounded-2xl border border-border/70 bg-card text-card-foreground p-3 shadow-sm sm:p-6"
                 style={!isMobile ? { flexBasis: `${readingWidthPercent}%` } : undefined}
               >
+                {shouldShowTopChapterExplanation && (
+                  <section className="mb-4 rounded-2xl border border-zinc-200 bg-background p-4 shadow-sm dark:border-zinc-800 sm:mb-6 sm:p-5">
+                    <div className="mb-4 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Explicação do capítulo</p>
+                        <h2 className="mt-1 text-xl font-bold text-foreground">{book} {chapter}</h2>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={fullExplanationUrl}
+                          aria-label="Abrir página completa da explicação"
+                          title="Abrir página completa"
+                          className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border hover:bg-muted transition-colors"
+                        >
+                          <ExternalLink size={16} />
+                        </a>
+                        <button
+                          onClick={closeChapterExplanation}
+                          className="rounded-full border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-muted"
+                        >
+                          Fechar
+                        </button>
+                      </div>
+                    </div>
+                    {renderExplanationPanelContent()}
+                  </section>
+                )}
                 <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">Capítulo completo</p>
@@ -1299,6 +1382,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                         </div>
                       );
                     })}
+                    <ThematicVerseLinks />
                   </div>
                 )}
               </div>
@@ -1316,7 +1400,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                 </button>
               )}
               <aside
-                className={`${isMobile && verses ? 'hidden' : ''} rounded-2xl border border-border/70 bg-card text-card-foreground p-4 shadow-sm sm:p-6`}
+                className={`${(isMobile && verses) || shouldShowTopChapterExplanation ? 'hidden' : ''} rounded-2xl border border-border/70 bg-card text-card-foreground p-4 shadow-sm sm:p-6`}
                 style={!isMobile ? { flexBasis: `${100 - readingWidthPercent}%` } : undefined}
               >
                 <div className="flex items-center justify-between gap-3 mb-4">
@@ -1396,6 +1480,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                           );
                         })}
                       </div>
+                      <ThematicVerseLinks />
                     </section>
                   )}
                 </div>

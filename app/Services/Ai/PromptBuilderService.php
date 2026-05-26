@@ -142,6 +142,46 @@ EOD;
     }
 
     /**
+     * Build prompt for "versiculos sobre..." thematic SEO pages.
+     *
+     * @param  array<int, array<string, mixed>>  $seedReferences
+     */
+    public function buildThematicVersesPrompt(string $term, string $title, array $seedReferences): string
+    {
+        $referencesJson = json_encode($seedReferences, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        return <<<EOD
+Crie uma página bíblica temática para a busca "{$title}".
+
+Use e complemente estas referências iniciais quando fizer sentido:
+{$referencesJson}
+
+Retorne APENAS JSON válido no formato:
+
+{
+  "titulo": "{$title}",
+  "subtitulo": "string curta e natural para SEO",
+  "introducao": "2 a 3 frases explicando por que este tema importa na vida cristã",
+  "significado_biblico": "2 a 4 frases explicando o que {$term} significa na Bíblia",
+  "aplicacao_pratica": "2 a 4 frases com aplicação pastoral e prática",
+  "versiculos": [
+    {
+      "referencia": "João 3:16",
+      "testamento": "antigo ou novo",
+      "livro_slug": "joao",
+      "capitulo": 3,
+      "versos": "16",
+      "texto": "texto do versículo em português",
+      "motivo": "1 frase explicando por que esta passagem conversa com o tema"
+    }
+  ]
+}
+
+Regras: Português BR, perspectiva evangélica, tom claro e pastoral. Traga 8 a 12 versículos relevantes. Use livro_slug sem acentos, em minúsculas, com hífen quando necessário (ex: 1-corintios, 2-cronicas, 1-joao). Não invente referências inexistentes.
+EOD;
+    }
+
+    /**
      * Build system message for JSON mode
      */
     public function getSystemMessage(): string
