@@ -4,8 +4,7 @@ import { Head } from '@inertiajs/react';
 import { motion, useReducedMotion } from 'framer-motion';
 import ThemeToggleButton from '@/components/ThemeToggleButton';
 import Footer from '@/components/footer';
-import DonateButton from '@/components/donate-button';
-import { Heart } from 'lucide-react';
+import { ArrowRight, BookOpen } from 'lucide-react';
 import AdSense from '@/components/AdSense';
 
 // Lazy-load the heavy grid to reduce initial bundle size
@@ -57,10 +56,26 @@ const CTA: React.FC = () => {
 };
 
 const DAILY_VERSES = [
-  'Lâmpada para os meus pés é a tua palavra. — Salmos 119:105',
-  'Confia no Senhor de todo o teu coração. — Provérbios 3:5',
-  'Vinde a mim, todos os que estais cansados. — Mateus 11:28',
-  'A alegria do Senhor é a nossa força. — Neemias 8:10',
+  {
+    text: 'Lâmpada para os meus pés é a tua palavra, e luz para o meu caminho.',
+    reference: 'Salmos 119:105',
+    href: '/explicacao/antigo/salmos/119/105-explicacao-biblica',
+  },
+  {
+    text: 'Confia no Senhor de todo o teu coração, e não te estribes no teu próprio entendimento.',
+    reference: 'Provérbios 3:5',
+    href: '/explicacao/antigo/proverbios/3/5-explicacao-biblica',
+  },
+  {
+    text: 'Vinde a mim, todos os que estais cansados e oprimidos, e eu vos aliviarei.',
+    reference: 'Mateus 11:28',
+    href: '/explicacao/novo/mateus/11/28-explicacao-biblica',
+  },
+  {
+    text: 'A alegria do Senhor é a vossa força.',
+    reference: 'Neemias 8:10',
+    href: '/explicacao/antigo/neemias/8/10-explicacao-biblica',
+  },
 ];
 
 interface WelcomeProps {
@@ -114,26 +129,31 @@ export default function Welcome(props: WelcomeProps) {
             </motion.p>
 
             <motion.div
-              className="mt-4 mx-auto max-w-2xl rounded-xl border border-blue-300/40 dark:border-blue-500/30 bg-blue-50/70 dark:bg-blue-950/30 px-3 sm:px-4 py-2.5 sm:py-3 text-center"
+              className="mt-5 mx-auto max-w-3xl overflow-hidden rounded-2xl border border-blue-300/40 dark:border-blue-500/30 bg-gradient-to-br from-blue-50 via-white to-amber-50 dark:from-blue-950/40 dark:via-slate-950/60 dark:to-amber-950/20 shadow-sm"
               initial={reduce ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.45, duration: 0.5 }}
             >
-              <p className="text-xs sm:text-[15px] text-blue-900 dark:text-blue-200 font-medium">{verseOfDay}</p>
-            </motion.div>
-            
-            <motion.div
-              className="flex justify-center mt-3 sm:mt-4"
-              initial={reduce ? false : { opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.9, duration: 0.6 }}
-            >
-              <div className="flex flex-col sm:flex-row items-center gap-2 bg-blue-100 dark:bg-blue-900/30 p-2.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-full border border-blue-300 dark:border-blue-500/40 shadow-sm w-full sm:w-auto">
-                <div className="flex items-center">
-                  <Heart className="h-4 w-4 text-blue-600 dark:text-blue-400 mr-2" />
-                  <span className="text-xs sm:text-sm text-blue-900 dark:text-blue-200">Oferte e nos ajude a continuar</span>
+              <div className="flex flex-col gap-4 p-4 sm:p-5 md:flex-row md:items-center md:justify-between">
+                <div className="flex gap-3 sm:gap-4">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-md shadow-blue-600/20 dark:bg-blue-500">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <div className="text-left">
+                    <span className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-700 dark:text-blue-300">Versículo do dia</span>
+                    <p className="mt-2 text-base font-semibold leading-relaxed text-slate-950 dark:text-white sm:text-lg">
+                      &ldquo;{verseOfDay.text}&rdquo;
+                    </p>
+                    <p className="mt-1 text-sm font-medium text-blue-800 dark:text-blue-200">{verseOfDay.reference}</p>
+                  </div>
                 </div>
-                <DonateButton size="sm" className="w-full sm:w-auto" />
+                <a
+                  href={verseOfDay.href}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-full bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:bg-blue-500 dark:hover:bg-blue-400 sm:w-auto"
+                >
+                  Ver explicação
+                  <ArrowRight className="h-4 w-4" />
+                </a>
               </div>
             </motion.div>
           </header>

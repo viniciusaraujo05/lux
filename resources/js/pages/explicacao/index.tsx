@@ -460,11 +460,6 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     }
     return props.versos || null;
   })();
-  const initialStandaloneVersePage = typeof window !== 'undefined'
-    ? window.location.pathname.split('/').filter(Boolean).length > 4
-    : Boolean(props.versos);
-  const shouldAutoLoadStandaloneVerse = initialStandaloneVersePage && Boolean(initialVerses) && !props.initialExplanation;
-
   const [loading, setLoading] = useState(!props.initialExplanation);
   const [explanation, setExplanation] = useState<ExplanationData | string | null>(normalizeExplanation(props.initialExplanation));
   const [source, setSource] = useState(props.initialSource || '');
@@ -480,7 +475,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   const [version, setVersion] = useState<string>(extractVersion());
   const [chapterVerses, setChapterVerses] = useState<ChapterVerseText[]>(props.initialChapterVerses || []);
   const [chapterTextLoading, setChapterTextLoading] = useState<boolean>(!props.initialChapterVerses?.length);
-  const [shouldGenerateExplanation, setShouldGenerateExplanation] = useState<boolean>(shouldAutoLoadStandaloneVerse);
+  const [shouldGenerateExplanation, setShouldGenerateExplanation] = useState<boolean>(false);
   const [explanationTarget, setExplanationTarget] = useState<ExplanationTarget>(initialVerses ? 'verse' : 'chapter');
   const [lookupLoading, setLookupLoading] = useState<boolean>(false);
   const [readingWidthPercent, setReadingWidthPercent] = useState<number>(66);
@@ -524,15 +519,33 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     ? window.location.pathname.split('/').filter(Boolean).length > 4
     : Boolean(props.versos);
   const isInlineReadingMode = !isStandaloneVersePage;
-  const shouldLoadExplanation = shouldGenerateExplanation || (isStandaloneVersePage && Boolean(verses) && !explanation);
+  const shouldLoadExplanation = shouldGenerateExplanation;
   const selectedVerseText = verses
     ? chapterVerses.find((verse) => verse.number === Number(verses))?.text
     : null;
-  const fullExplanationUrl = verses
-    ? `/explicacao/${testamento}/${bookSlug}/${chapter}/${verses}-explicacao-biblica?version=${version}`
-    : `/explicacao/${testamento}/${bookSlug}/${chapter}?version=${version}`;
 
   const maxVerses = chapterVerses.length || 50;
+
+  const withVersionParam = (path: string) => {
+    if (!version || version === 'nvi') return path;
+    return `${path}?version=${encodeURIComponent(version)}`;
+  };
+
+  const buildChapterUrl = () => withVersionParam(`/explicacao/${testamento}/${bookSlug}/${chapter}`);
+
+  const buildChapterVerseUrl = (verseNumber: number | string) => {
+    const params = new URLSearchParams();
+    params.set('verses', String(verseNumber));
+    if (version && version !== 'nvi') {
+      params.set('version', version);
+    }
+
+    return `/explicacao/${testamento}/${bookSlug}/${chapter}?${params.toString()}`;
+  };
+
+  const fullExplanationUrl = verses
+    ? withVersionParam(`/explicacao/${testamento}/${bookSlug}/${chapter}/${verses}-explicacao-biblica`)
+    : buildChapterUrl();
 
   useEffect(() => {
     if (!isResizingPanels) return;
@@ -908,16 +921,23 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     try {
       const slugifiedBook = bookSlug;
       const params = new URLSearchParams(window.location.search);
-      params.set('version', version);
+      params.delete('verses');
+      params.delete('versiculos');
+      if (version && version !== 'nvi') {
+        params.set('version', version);
+      } else {
+        params.delete('version');
+      }
+      const query = params.toString();
       if (verses && isStandaloneVersePage) {
         const slug = verses + '-explicacao-biblica';
-        const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}/${slug}?${params.toString()}`;
+        const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}/${slug}${query ? `?${query}` : ''}`;
         const current = `${window.location.pathname}${window.location.search}`;
         if (current !== expectedPath) {
           window.history.replaceState({}, '', expectedPath);
         }
       } else {
-        const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}?${params.toString()}`;
+        const expectedPath = `/explicacao/${testamento}/${slugifiedBook}/${chapter}${query ? `?${query}` : ''}`;
         const current = `${window.location.pathname}${window.location.search}`;
         if (current !== expectedPath) {
           window.history.replaceState({}, '', expectedPath);
@@ -983,7 +1003,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   const navigateToVerse = (verseNumber: number) => {
     if (verseNumber < 1 || verseNumber > maxVerses) return;
-    const url = `/explicacao/${testamento}/${bookSlug}/${chapter}?verses=${verseNumber}&version=${version}`;
+    const url = buildChapterVerseUrl(verseNumber);
     try {
       window.history.pushState({}, '', url);
     } catch { /* noop */ }
@@ -999,7 +1019,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   };
 
   const closeInlineVerse = () => {
-    const url = `/explicacao/${testamento}/${bookSlug}/${chapter}?version=${version}`;
+    const url = buildChapterUrl();
     try {
       window.history.pushState({}, '', url);
     } catch { /* noop */ }
@@ -1328,16 +1348,60 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                 </div>
               )}
               {!shouldLoadExplanation && !explanation ? (
-                <>
-                  <p className="text-sm text-muted-foreground mb-4">Versículo selecionado: {book} {chapter}:{verses}. A explicação só é gerada quando você pedir.</p>
-                  <button
-                    onClick={() => triggerExplanationGeneration('verse')}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
-                  >
-                    <BookOpen size={16} />
-                    Entender este verso
-                  </button>
-                </>
+                <div className="space-y-6">
+                  <section className="rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-card to-sky-50 p-4 shadow-sm dark:border-amber-800/40 dark:from-amber-950/20 dark:via-card dark:to-sky-950/20 sm:p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300">Estudo bíblico</p>
+                    <h2 className="mt-2 text-xl font-semibold text-foreground">
+                      {book} {chapter}:{verses} explicado
+                    </h2>
+                    <p className="mt-3 text-sm leading-7 text-muted-foreground">
+                      Esta página reúne o texto de {book} {chapter}:{verses} dentro do capítulo completo. A explicação detalhada ainda não foi aberta nesta visita; você pode ler o contexto, navegar pelos versículos e gerar uma análise verso a verso quando quiser.
+                    </p>
+                    <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+                      <button
+                        onClick={() => triggerExplanationGeneration('verse')}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                      >
+                        <BookOpen size={16} />
+                        Gerar explicação deste verso
+                      </button>
+                      <a
+                        href={buildChapterUrl()}
+                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md border border-border hover:bg-muted transition-colors text-sm font-medium"
+                      >
+                        Ler capítulo completo
+                        <ArrowRight size={16} />
+                      </a>
+                    </div>
+                  </section>
+
+                  {chapterVerses.length > 0 && (
+                    <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
+                      <div className="mb-4">
+                        <h2 className="text-lg font-semibold">Contexto de {book} {chapter}</h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                          Leia os versículos ao redor para entender melhor a passagem antes de gerar a explicação.
+                        </p>
+                      </div>
+                      <div className="space-y-2.5">
+                        {chapterVerses.map((verse) => {
+                          const isSelectedVerse = Number(verses) === verse.number;
+
+                          return (
+                            <a
+                              key={verse.number}
+                              href={buildChapterVerseUrl(verse.number)}
+                              className={`block rounded-lg border p-3 leading-7 transition-colors ${isSelectedVerse ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-primary/5'}`}
+                            >
+                              <span className="font-semibold mr-2">{verse.number}</span>
+                              <span>{verse.text}</span>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+                </div>
               ) : loading ? (
                 <DynamicLoading statusMessage={streamStatus} statusProgress={streamProgress} />
               ) : isFallbackExplanation(explanation) ? (

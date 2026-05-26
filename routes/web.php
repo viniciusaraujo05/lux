@@ -328,11 +328,14 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
     if ($verses) {
         $titleBase .= ':'.$verses;
     }
+    $hasExistingExplanation = (bool) $prefetch;
     $title = $verses
-        ? $titleBase.' - Versículo bíblico com explicação | Verso a verso'
+        ? $titleBase.' explicado - Significado e contexto | Verso a verso'
         : $titleBase.' - Bíblia comentada verso a verso | Verso a verso';
     $description = $verses
-        ? 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').'. Veja a explicação bíblica com contexto, sentido da passagem e aplicação prática.'
+        ? ($hasExistingExplanation
+            ? 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').'. Veja a explicação bíblica com contexto, sentido da passagem e aplicação prática.'
+            : 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').' no contexto do capítulo. Gere uma explicação bíblica verso a verso quando quiser estudar mais a fundo.')
         : 'Leia '.ucfirst($livroOriginal).' '.$capitulo.' completo na Bíblia, escolha a versão e abra explicações do capítulo ou de cada versículo quando quiser.';
     $keywords = implode(', ', [
         'bíblia online',
@@ -365,11 +368,13 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}', function (string $test
     $article = [
         '@context' => 'https://schema.org',
         '@type' => 'Article',
-        'headline' => $verses ? 'Explicação de '.$titleBase : 'Leitura e estudo de '.$titleBase,
+        'headline' => $verses ? $titleBase.' explicado' : 'Leitura e estudo de '.$titleBase,
         'description' => $description,
         'about' => $titleBase,
         'articleSection' => $verses ? 'Explicação de versículo bíblico' : 'Leitura bíblica comentada',
-        'articleBody' => $verseSnippet ?: ('Leia '.ucfirst($livroOriginal).' '.$capitulo.' completo com explicações bíblicas sob demanda.'),
+        'articleBody' => $verses
+            ? trim(($verseSnippet ? 'Texto bíblico: '.$verseSnippet.' ' : '').'Leia o versículo no contexto do capítulo e gere uma explicação bíblica com significado, contexto e aplicação prática.')
+            : ('Leia '.ucfirst($livroOriginal).' '.$capitulo.' completo com explicações bíblicas sob demanda.'),
         'mainEntityOfPage' => $canonicalUrl,
         'inLanguage' => 'pt-BR',
         'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
@@ -433,8 +438,11 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
         // SEO meta dinâmico (versículo)
         $titleBase = ucfirst($livroOriginal).' '.$capitulo.':'.$verses;
         $verseSnippet = $getVerseSnippet($chapterVerses, $verses);
-        $title = $titleBase.' - Explicação bíblica do versículo | Verso a verso';
-        $description = 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').'. Veja a explicação bíblica do versículo com contexto, sentido da passagem e aplicação prática.';
+        $hasExistingExplanation = (bool) $prefetch;
+        $title = $titleBase.' explicado - Significado e contexto | Verso a verso';
+        $description = $hasExistingExplanation
+            ? 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').'. Veja a explicação bíblica do versículo com contexto, sentido da passagem e aplicação prática.'
+            : 'Leia '.$titleBase.($verseSnippet ? ' — '.$verseSnippet : '').' no contexto do capítulo. Gere uma explicação bíblica verso a verso quando quiser estudar mais a fundo.';
         $keywords = implode(', ', [
             'explicação bíblica',
             $titleBase,
@@ -461,11 +469,11 @@ Route::get('/explicacao/{testamento}/{livro}/{capitulo}/{slug}', function (strin
         $article = [
             '@context' => 'https://schema.org',
             '@type' => 'Article',
-            'headline' => 'Explicação de '.$titleBase,
+            'headline' => $titleBase.' explicado',
             'description' => $description,
             'about' => $titleBase,
             'articleSection' => 'Explicação de versículo bíblico',
-            'articleBody' => $verseSnippet ?: 'Página de explicação bíblica do versículo com leitura, contexto e aplicação prática.',
+            'articleBody' => trim(($verseSnippet ? 'Texto bíblico: '.$verseSnippet.' ' : '').'Leia o versículo no contexto do capítulo e gere uma explicação bíblica com significado, contexto e aplicação prática.'),
             'mainEntityOfPage' => $canonicalUrl,
             'inLanguage' => 'pt-BR',
             'author' => ['@type' => 'Organization', 'name' => 'Verso a verso'],
