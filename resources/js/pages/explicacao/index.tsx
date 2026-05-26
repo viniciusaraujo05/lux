@@ -163,52 +163,6 @@ interface FallbackExplanation {
 
 type ExplanationData = VerseExplanation | ChapterSummary | ErrorExplanation | FallbackExplanation;
 
-const BIBLICAL_THEME_LINKS = [
-  ['fe', 'Fé'],
-  ['confianca', 'Confiança'],
-  ['ofertas', 'Ofertas'],
-  ['amor', 'Amor'],
-  ['oracao', 'Oração'],
-  ['ansiedade', 'Ansiedade'],
-  ['perdao', 'Perdão'],
-  ['gratidao', 'Gratidão'],
-  ['familia', 'Família'],
-  ['casamento', 'Casamento'],
-  ['sabedoria', 'Sabedoria'],
-  ['forca', 'Força'],
-  ['esperanca', 'Esperança'],
-  ['paz', 'Paz'],
-  ['cura', 'Cura'],
-  ['prosperidade', 'Prosperidade'],
-  ['obediencia', 'Obediência'],
-  ['arrependimento', 'Arrependimento'],
-  ['salvacao', 'Salvação'],
-  ['louvor', 'Louvor'],
-] as const;
-
-const ThematicVerseLinks: FC = () => (
-  <section className="mt-6 rounded-2xl border border-border/70 bg-gradient-to-br from-zinc-50 via-card to-amber-50 p-4 shadow-sm dark:from-zinc-900 dark:via-card dark:to-amber-950/20 sm:p-5">
-    <div className="mb-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">Estudos por tema</p>
-      <h2 className="mt-1 text-xl font-bold">Versículos sobre...</h2>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Explore temas bíblicos com passagens selecionadas e explicações verso a verso.
-      </p>
-    </div>
-    <div className="flex flex-wrap gap-2">
-      {BIBLICAL_THEME_LINKS.map(([slug, label]) => (
-        <a
-          key={slug}
-          href={`/temas/${slug}`}
-          className="rounded-full border border-border bg-background px-3.5 py-2 text-sm font-semibold shadow-sm transition hover:border-foreground/30 hover:bg-muted"
-        >
-          {label}
-        </a>
-      ))}
-    </div>
-  </section>
-);
-
 // --- Reusable UI Components ---
 const Section: FC<{ title: string; children: ReactNode; icon?: ReactNode; defaultOpen?: boolean }> = ({ title, children, icon, defaultOpen = true }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
@@ -1094,7 +1048,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     setLoading(true);
   };
 
-  const shouldShowTopChapterExplanation = isInlineReadingMode && explanationTarget === 'chapter' && (shouldGenerateExplanation || Boolean(explanation));
+  const shouldShowTopChapterExplanation = isMobile && isInlineReadingMode && explanationTarget === 'chapter' && (shouldGenerateExplanation || Boolean(explanation));
 
   const renderExplanationPanelContent = () => {
     if (!verses) {
@@ -1382,7 +1336,6 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                         </div>
                       );
                     })}
-                    <ThematicVerseLinks />
                   </div>
                 )}
               </div>
@@ -1480,7 +1433,6 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                           );
                         })}
                       </div>
-                      <ThematicVerseLinks />
                     </section>
                   )}
                 </div>

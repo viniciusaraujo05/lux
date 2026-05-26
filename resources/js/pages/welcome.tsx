@@ -6,6 +6,7 @@ import ThemeToggleButton from '@/components/ThemeToggleButton';
 import Footer from '@/components/footer';
 import { ArrowRight, BookOpen } from 'lucide-react';
 import AdSense from '@/components/AdSense';
+import ThematicVerseLinks from '@/components/thematic-verse-links';
 
 // Lazy-load the heavy grid to reduce initial bundle size
 const BibleBooksGrid = React.lazy(() => import('@/components/BibleBooksGrid'));
@@ -183,6 +184,14 @@ export default function Welcome(props: WelcomeProps) {
               />
             </Suspense>
           </motion.main>
+
+          <motion.div
+            initial={reduce ? false : { opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.1, duration: 0.6 }}
+          >
+            <ThematicVerseLinks />
+          </motion.div>
         </div>
         <Footer />
       </div>

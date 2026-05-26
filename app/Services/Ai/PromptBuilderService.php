@@ -162,8 +162,13 @@ Retorne APENAS JSON válido no formato:
   "titulo": "{$title}",
   "subtitulo": "string curta e natural para SEO",
   "introducao": "2 a 3 frases explicando por que este tema importa na vida cristã",
-  "significado_biblico": "2 a 4 frases explicando o que {$term} significa na Bíblia",
+  "significado_biblico": "3 a 5 frases explicando o que {$term} significa na Bíblia, citando o ensino das Escrituras e dialogando com teólogos cristãos reconhecidos quando apropriado",
   "aplicacao_pratica": "2 a 4 frases com aplicação pastoral e prática",
+  "historia_biblica": {
+    "titulo": "string",
+    "referencia": "string",
+    "texto": "3 a 5 frases contando uma história bíblica relacionada ao tema e explicando o que ela ensina"
+  },
   "versiculos": [
     {
       "referencia": "João 3:16",
@@ -177,7 +182,7 @@ Retorne APENAS JSON válido no formato:
   ]
 }
 
-Regras: Português BR, perspectiva evangélica, tom claro e pastoral. Traga 8 a 12 versículos relevantes. Use livro_slug sem acentos, em minúsculas, com hífen quando necessário (ex: 1-corintios, 2-cronicas, 1-joao). Não invente referências inexistentes.
+Regras: Português BR, perspectiva evangélica, tom claro e pastoral. Traga 8 a 12 versículos realmente centrais sobre o tema, não apenas tangenciais. Baseie a explicação na Bíblia e, quando citar teólogos, prefira nomes reconhecidos como Agostinho, Lutero, Calvino, John Stott, R.C. Sproul, D.A. Carson, N.T. Wright ou Craig Keener. Use livro_slug sem acentos, em minúsculas, com hífen quando necessário (ex: 1-corintios, 2-cronicas, 1-joao). Não invente referências inexistentes.
 EOD;
     }
 

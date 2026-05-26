@@ -121,9 +121,10 @@ class ThematicStudyService
         return [
             'titulo' => $topic['title'],
             'subtitulo' => 'Passagens bíblicas para estudar '.$term.' com contexto e explicação verso a verso.',
-            'introducao' => ucfirst($term).' na Bíblia aponta para uma vida orientada pela Palavra de Deus. Este tema pode ser estudado observando o contexto de cada passagem e como ela se conecta com a fé, a obediência e a esperança cristã.',
-            'significado_biblico' => 'Biblicamente, '.$term.' não é apenas uma ideia abstrata; é uma realidade vivida diante de Deus, revelada nas Escrituras e aplicada no relacionamento com o Senhor e com o próximo.',
+            'introducao' => $this->introFor($topic),
+            'significado_biblico' => $this->meaningFor($topic),
             'aplicacao_pratica' => 'Leia os textos abaixo com calma, observe o contexto do capítulo e abra a explicação de cada versículo para aprofundar seu estudo.',
+            'historia_biblica' => $this->themeStoryFor($topic['slug']),
             'versiculos' => $this->seedReferencesFor($topic['slug']),
         ];
     }
@@ -158,14 +159,64 @@ class ThematicStudyService
             'introducao' => (string) ($study['introducao'] ?? $fallback['introducao']),
             'significado_biblico' => (string) ($study['significado_biblico'] ?? $fallback['significado_biblico']),
             'aplicacao_pratica' => (string) ($study['aplicacao_pratica'] ?? $fallback['aplicacao_pratica']),
+            'historia_biblica' => is_array($study['historia_biblica'] ?? null) ? $study['historia_biblica'] : $fallback['historia_biblica'],
             'versiculos' => count($verses) > 0 ? array_slice($verses, 0, 12) : $fallback['versiculos'],
         ];
+    }
+
+
+    private function themeStoryFor(string $slug): array
+    {
+        if ($slug === 'fe') {
+            return [
+                'titulo' => 'Abraão: fé que descansa na promessa de Deus',
+                'referencia' => 'Gênesis 12; Gênesis 15; Romanos 4; Hebreus 11',
+                'texto' => 'A história de Abraão é uma das maiores narrativas bíblicas sobre fé. Deus o chamou para sair da sua terra e confiar em uma promessa que ainda não podia ver. Paulo interpreta essa história em Romanos 4 dizendo que Abraão creu em Deus, e isso lhe foi creditado como justiça. Hebreus 11 também apresenta Abraão como exemplo de obediência confiante: ele saiu sem saber exatamente para onde ia, porque sua segurança estava no caráter de Deus. Teólogos como João Calvino destacaram que a fé se apoia na promessa divina, enquanto John Stott enfatizou que a fé salvadora não é confiança em si mesmo, mas resposta à graça de Deus revelada em Cristo.',
+            ];
+        }
+
+        return [
+            'titulo' => 'Uma história bíblica para entender '.$slug,
+            'referencia' => 'Leia as passagens selecionadas abaixo',
+            'texto' => 'A Bíblia normalmente ensina seus temas por meio de histórias, promessas, mandamentos e exemplos de fé. Ao estudar este assunto, observe como Deus age, como seu povo responde e como cada passagem aponta para uma vida moldada pela Palavra.',
+        ];
+    }
+
+    private function introFor(array $topic): string
+    {
+        if ($topic['slug'] === 'fe') {
+            return 'A fé ocupa lugar central na Bíblia porque é a resposta confiante do ser humano à revelação e às promessas de Deus. De Gênesis a Apocalipse, a Escritura mostra que o povo de Deus vive não pela autossuficiência, mas pela confiança no caráter fiel do Senhor. No Novo Testamento, essa fé se concentra em Cristo: sua pessoa, sua obra, sua morte e ressurreição.';
+        }
+
+        return ucfirst($topic['term']).' na Bíblia aponta para uma vida orientada pela Palavra de Deus. Este tema deve ser estudado no contexto das passagens, observando como ele se conecta com a aliança, a obediência, a graça e a esperança cristã.';
+    }
+
+    private function meaningFor(array $topic): string
+    {
+        if ($topic['slug'] === 'fe') {
+            return 'Biblicamente, fé não é pensamento positivo nem salto irracional no escuro. Hebreus 11:1 fala da fé como certeza e convicção; Romanos 10:17 afirma que ela vem pela Palavra de Cristo; Efésios 2:8 ensina que a salvação é recebida pela fé como dom da graça. Na tradição cristã, Agostinho, Lutero, Calvino, John Stott e R.C. Sproul trataram a fé como confiança pessoal em Deus e apropriação das promessas do evangelho, sempre acompanhada de arrependimento, obediência e fruto.';
+        }
+
+        return 'Biblicamente, '.$topic['term'].' não é apenas uma ideia abstrata; é uma realidade revelada nas Escrituras e vivida diante de Deus. Para entender este tema com fidelidade, é importante observar o contexto bíblico, a relação com Cristo e a forma como a igreja cristã historicamente interpretou essas passagens.';
     }
 
     private function seedReferencesFor(string $slug): array
     {
         $map = [
-            'fe' => [['Hebreus 11:1','novo','hebreus',11,'1','Ora, a fé é a certeza daquilo que esperamos e a prova das coisas que não vemos.'], ['Romanos 10:17','novo','romanos',10,'17','Consequentemente, a fé vem por se ouvir a mensagem, e a mensagem é ouvida mediante a palavra de Cristo.'], ['Marcos 11:24','novo','marcos',11,'24','Tudo o que vocês pedirem em oração, creiam que já o receberam, e assim lhes sucederá.']],
+            'fe' => [
+                ['Hebreus 11:1','novo','hebreus',11,'1','Ora, a fé é a certeza daquilo que esperamos e a prova das coisas que não vemos.','Hebreus define fé como confiança firme nas promessas de Deus, mesmo quando aquilo que esperamos ainda não está visível.'],
+                ['Romanos 10:17','novo','romanos',10,'17','Consequentemente, a fé vem por se ouvir a mensagem, e a mensagem é ouvida mediante a palavra de Cristo.','Paulo mostra que a fé bíblica nasce da Palavra de Cristo, não de mero otimismo humano.'],
+                ['Efésios 2:8','novo','efesios',2,'8','Pois vocês são salvos pela graça, por meio da fé, e isto não vem de vocês, é dom de Deus.','Este texto liga fé à graça: a salvação é recebida pela confiança em Cristo, não conquistada por mérito.'],
+                ['2 Coríntios 5:7','novo','2-corintios',5,'7','Porque vivemos por fé, e não pelo que vemos.','A vida cristã caminha pela confiança na fidelidade de Deus acima das aparências imediatas.'],
+                ['Habacuque 2:4','antigo','habacuque',2,'4','Mas o justo viverá pela sua fidelidade.','A Escritura apresenta a fé como postura perseverante diante de Deus em tempos de crise.'],
+                ['Romanos 4:20','novo','romanos',4,'20','Mesmo assim não duvidou nem foi incrédulo em relação à promessa de Deus, mas foi fortalecido em sua fé e deu glória a Deus.','Abraão é exemplo de fé porque descansou na promessa de Deus apesar das impossibilidades humanas.'],
+                ['Gálatas 2:20','novo','galatas',2,'20','A vida que agora vivo no corpo, vivo-a pela fé no filho de Deus, que me amou e se entregou por mim.','Paulo descreve a fé como união pessoal com Cristo e dependência diária do seu amor redentor.'],
+                ['Tiago 2:17','novo','tiago',2,'17','Assim também a fé, por si só, se não for acompanhada de obras, está morta.','Tiago lembra que a fé verdadeira produz obediência visível e fruto prático.'],
+                ['Marcos 9:24','novo','marcos',9,'24','Creio, ajuda-me a vencer a minha incredulidade!','Este clamor mostra que a fé pode ser sincera mesmo quando luta contra fraqueza e dúvidas.'],
+                ['Mateus 17:20','novo','mateus',17,'20','Se vocês tiverem fé do tamanho de um grão de mostarda, poderão dizer a este monte: Vá daqui para lá, e ele irá.','Jesus ensina que o poder da fé está no Deus em quem confiamos, não no tamanho aparente da nossa força.'],
+                ['1 Pedro 1:7','novo','1-pedro',1,'7','Assim acontece para que fique comprovado que a fé que vocês têm, muito mais valiosa do que o ouro que perece, mesmo que refinado pelo fogo, é genuína.','Pedro mostra que provações refinam a fé e revelam sua autenticidade diante de Deus.'],
+                ['João 20:29','novo','joao',20,'29','Felizes os que não viram e creram.','Jesus abençoa aqueles que confiam no testemunho apostólico sem exigir ver para crer.'],
+            ],
             'confianca' => [['Provérbios 3:5','antigo','proverbios',3,'5','Confie no Senhor de todo o seu coração e não se apoie em seu próprio entendimento.'], ['Salmos 56:3','antigo','salmos',56,'3','Mas eu, quando estiver com medo, confiarei em ti.'], ['Jeremias 17:7','antigo','jeremias',17,'7','Bendito é o homem cuja confiança está no Senhor.']],
             'ofertas' => [['2 Coríntios 9:7','novo','2-corintios',9,'7','Cada um dê conforme determinou em seu coração, não com pesar ou por obrigação, pois Deus ama quem dá com alegria.'], ['Provérbios 3:9','antigo','proverbios',3,'9','Honre o Senhor com todos os seus recursos e com os primeiros frutos de todas as suas plantações.'], ['Lucas 6:38','novo','lucas',6,'38','Deem, e será dado a vocês.']],
             'amor' => [['1 Coríntios 13:4','novo','1-corintios',13,'4','O amor é paciente, o amor é bondoso.'], ['1 João 4:8','novo','1-joao',4,'8','Quem não ama não conhece a Deus, porque Deus é amor.'], ['João 3:16','novo','joao',3,'16','Porque Deus tanto amou o mundo que deu o seu Filho unigênito.']],
@@ -194,7 +245,7 @@ class ThematicStudyService
             'capitulo' => $item[3],
             'versos' => $item[4],
             'texto' => $item[5],
-            'motivo' => 'Uma passagem importante para estudar este tema com contexto bíblico.',
+            'motivo' => $item[6] ?? 'Uma passagem importante para estudar este tema com contexto bíblico.',
         ], $map[$slug] ?? $map['fe']);
     }
 
