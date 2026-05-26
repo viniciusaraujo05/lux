@@ -1168,8 +1168,8 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   return (
     <>
       <AppLayout>
-        <div className="container max-w-7xl mx-auto px-2 py-2 sm:p-4">
-          <header className="mb-2 sm:mb-5 grid grid-cols-[auto_1fr_auto] items-center gap-2 bg-gradient-to-r from-card via-card to-primary/5 text-card-foreground shadow-sm rounded-xl p-2 sm:p-4 sticky top-1 sm:top-2 z-10 border border-border/70 backdrop-blur">
+        <div className="container max-w-7xl mx-auto px-3 py-3 sm:p-4">
+          <header className="mb-3 sm:mb-5 grid grid-cols-[auto_1fr] items-center gap-3 rounded-2xl border border-border/70 bg-card/95 p-3 text-card-foreground shadow-lg shadow-black/5 backdrop-blur sm:grid-cols-[auto_1fr_auto] sm:p-4 sticky top-2 z-10">
               <button onClick={() => {
                 try {
                   // Sempre voltar para a visão de versículos do capítulo atual
@@ -1190,71 +1190,68 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                   const currentBookSlug = bookSlug;
                   window.location.href = `/biblia/${gridTestament}/${currentBookSlug}`;
                 }
-              }} className="inline-flex h-9 w-9 sm:w-auto items-center justify-center gap-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary hover:text-primary/80 transition-colors font-medium sm:px-3" aria-label="Voltar para capítulos">
+              }} className="inline-flex h-10 w-10 sm:w-auto items-center justify-center gap-2 rounded-full border border-border bg-background text-foreground shadow-sm transition-colors hover:bg-muted font-medium sm:h-9 sm:rounded-lg sm:px-3" aria-label="Voltar para capítulos">
                 <ChevronLeft size={isMobile ? 18 : 22} />
                 <span className="hidden sm:inline">Capítulos</span>
               </button>
-              <div className="min-w-0 text-center sm:text-left">
-                <h1 className="truncate text-base sm:text-xl font-bold text-gray-800 dark:text-gray-200">
+              <div className="min-w-0 text-left">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">Leitura bíblica</p>
+                <h1 className="truncate text-lg font-bold leading-tight text-foreground sm:text-xl">
                   {book} {chapter}{verses && <span className="ml-1 text-xs sm:text-sm text-gray-600 dark:text-gray-400">:{verses}</span>}
                 </h1>
                 <p className="hidden sm:block text-xs text-muted-foreground">{isInlineReadingMode ? 'Leia o capítulo e toque em um verso para estudar.' : 'Página completa da explicação.'}</p>
               </div>
-            <div className="flex items-center justify-end gap-1.5 sm:gap-3">
+            <div className="col-span-2 grid grid-cols-[1fr_auto] items-center gap-2 sm:col-span-1 sm:flex sm:justify-end sm:gap-3">
               <button
                 onClick={() => triggerExplanationGeneration('chapter')}
-                className="hidden sm:inline-flex h-9 items-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 text-sm font-medium text-primary hover:bg-primary/15 transition-colors"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black px-4 text-sm font-semibold text-white shadow-sm shadow-black/20 transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 sm:h-9 sm:rounded-md sm:text-sm"
               >
-                <BookOpen size={16} />
+                <BookOpen size={isMobile ? 15 : 16} />
                 Entender capítulo
               </button>
-              <select
-                className="h-9 rounded-md border border-border bg-background px-2 text-xs sm:text-sm shadow-sm"
-                value={version}
-                onChange={(event) => {
-                  const nextVersion = event.target.value;
-                  setVersion(nextVersion);
-                  setShouldGenerateExplanation(false);
-                  setExplanation(null);
-                  setExplanationId(null);
-                }}
-              >
-                <option value="acf">ACF</option>
-                <option value="nvi">NVI</option>
-                <option value="aa">AA</option>
-              </select>
-              {verses && (
-              <div className="flex items-center gap-1">
-                <button onClick={navigateToPreviousVerse} className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700" aria-label="Versículo anterior">
-                  <ArrowLeft size={isMobile ? 16 : 18} />
-                </button>
-                <button onClick={navigateToNextVerse} className="inline-flex h-9 w-9 items-center justify-center rounded-md bg-indigo-50 dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-slate-700" aria-label="Próximo versículo">
-                  <ArrowRight size={isMobile ? 16 : 18} />
-                </button>
+              <div className="flex items-center justify-end gap-1.5 sm:gap-3">
+                <select
+                  className="h-11 rounded-full border border-border bg-background px-3 text-xs shadow-sm sm:h-9 sm:rounded-md sm:px-2 sm:text-sm"
+                  value={version}
+                  onChange={(event) => {
+                    const nextVersion = event.target.value;
+                    setVersion(nextVersion);
+                    setShouldGenerateExplanation(false);
+                    setExplanation(null);
+                    setExplanationId(null);
+                  }}
+                >
+                  <option value="acf">ACF</option>
+                  <option value="nvi">NVI</option>
+                  <option value="aa">AA</option>
+                </select>
+                {verses && (
+                <div className="flex items-center gap-1">
+                  <button onClick={navigateToPreviousVerse} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-muted sm:h-9 sm:w-9 sm:rounded-md" aria-label="Versículo anterior">
+                    <ArrowLeft size={isMobile ? 16 : 18} />
+                  </button>
+                  <button onClick={navigateToNextVerse} className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-background text-foreground shadow-sm hover:bg-muted sm:h-9 sm:w-9 sm:rounded-md" aria-label="Próximo versículo">
+                    <ArrowRight size={isMobile ? 16 : 18} />
+                  </button>
+                </div>
+                )}
               </div>
-              )}
-            </div>
-            <div className="col-span-3 flex sm:hidden">
-              <button
-                onClick={() => triggerExplanationGeneration('chapter')}
-                className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md border border-primary/30 bg-primary/10 px-3 text-xs font-medium text-primary hover:bg-primary/15 transition-colors"
-              >
-                <BookOpen size={15} />
-                Entender capítulo
-              </button>
             </div>
           </header>
           {isInlineReadingMode ? (
             <div
               ref={splitPaneRef}
-              className="flex flex-col lg:flex-row gap-3 sm:gap-4 mt-2 sm:mt-4"
+              className="flex flex-col gap-3 sm:gap-4 sm:mt-4 lg:flex-row"
             >
               <div
-                className="bg-card text-card-foreground rounded-xl p-3 sm:p-6 shadow-sm border border-border/80"
+                className="rounded-2xl border border-border/70 bg-card text-card-foreground p-3 shadow-sm sm:p-6"
                 style={!isMobile ? { flexBasis: `${readingWidthPercent}%` } : undefined}
               >
-                <div className="mb-3 sm:mb-4 flex items-center justify-between gap-3">
-                  <h2 className="text-base sm:text-lg font-semibold">Texto bíblico ({version.toUpperCase()})</h2>
+                <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground sm:hidden">Capítulo completo</p>
+                    <h2 className="text-lg font-semibold leading-tight sm:text-lg">Texto bíblico ({version.toUpperCase()})</h2>
+                  </div>
                   {chapterTextLoading && chapterVerses.length > 0 && (
                     <span className="text-xs text-muted-foreground">Atualizando...</span>
                   )}
@@ -1269,28 +1266,28 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                       return (
                         <div key={verse.number} className="space-y-2">
                           <button
-                            className={`w-full text-left rounded-lg p-3 sm:p-3.5 border transition-colors leading-7 text-[15px] sm:text-base ${isSelectedVerse ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-primary/5'}`}
+                            className={`w-full text-left rounded-2xl border p-3.5 leading-7 text-[15px] shadow-sm transition-colors sm:rounded-lg sm:p-3.5 sm:text-base ${isSelectedVerse ? 'border-black bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-black' : 'border-border bg-background hover:border-foreground/30 hover:bg-muted/60'}`}
                             onClick={() => navigateToVerse(verse.number)}
                           >
-                            <span className="font-semibold mr-2">{verse.number}</span>
+                            <span className={`mr-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold ${isSelectedVerse ? 'bg-white text-black dark:bg-black dark:text-white' : 'bg-muted text-foreground'}`}>{verse.number}</span>
                             <span>{verse.text}</span>
                           </button>
                           {isMobile && isSelectedVerse && (
-                            <div className="rounded-lg border border-primary/20 bg-background p-3 shadow-sm">
+                            <div className="rounded-2xl border border-border bg-background p-4 shadow-sm">
                               <div className="mb-3 flex items-center justify-between gap-3">
-                                <h3 className="text-sm font-semibold">Explicação do verso</h3>
+                                <h3 className="text-base font-semibold">Explicação do verso</h3>
                                 <div className="flex items-center gap-2">
                                   <a
                                     href={fullExplanationUrl}
                                     aria-label="Abrir página completa da explicação"
                                     title="Abrir página completa"
-                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border hover:bg-muted transition-colors"
+                                    className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border hover:bg-muted transition-colors"
                                   >
                                     <ExternalLink size={15} />
                                   </a>
                                   <button
                                     onClick={closeInlineVerse}
-                                    className="text-xs px-3 py-1.5 rounded-md border border-border hover:bg-muted transition-colors"
+                                    className="rounded-full border border-border px-3 py-2 text-xs font-medium transition-colors hover:bg-muted"
                                   >
                                     Fechar
                                   </button>
@@ -1319,7 +1316,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                 </button>
               )}
               <aside
-                className={`${isMobile && verses ? 'hidden' : ''} bg-card text-card-foreground rounded-xl p-3 sm:p-6 shadow-sm border border-border/80`}
+                className={`${isMobile && verses ? 'hidden' : ''} rounded-2xl border border-border/70 bg-card text-card-foreground p-4 shadow-sm sm:p-6`}
                 style={!isMobile ? { flexBasis: `${100 - readingWidthPercent}%` } : undefined}
               >
                 <div className="flex items-center justify-between gap-3 mb-4">
@@ -1330,7 +1327,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                     href={fullExplanationUrl}
                     aria-label="Abrir página completa da explicação"
                     title="Abrir página completa"
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border hover:bg-muted transition-colors"
+                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border hover:bg-muted transition-colors sm:h-9 sm:w-9 sm:rounded-md"
                   >
                     <ExternalLink size={16} />
                   </a>
@@ -1339,17 +1336,17 @@ function BibleExplanationContent(props: BibleExplanationProps) {
               </aside>
             </div>
           ) : (
-            <div className="bg-card text-card-foreground rounded-xl p-3 sm:p-6 mt-2 sm:mt-4 shadow-sm border border-border/80 sm:text-[16.5px] leading-8">
+            <div className="rounded-2xl border border-border/70 bg-card p-4 text-card-foreground shadow-sm sm:mt-4 sm:p-6 sm:text-[16.5px] leading-8">
               {verses && selectedVerseText && (
-                <div className="mb-6 rounded-lg border border-primary/15 bg-primary/5 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-primary mb-2">Texto bíblico</p>
-                  <h2 className="text-lg font-semibold mb-2">{book} {chapter}:{verses}</h2>
-                  <p className="text-base leading-8 text-foreground">{selectedVerseText}</p>
+                <div className="mb-5 rounded-2xl border border-zinc-200 bg-zinc-950 p-4 text-white shadow-sm dark:border-zinc-700 dark:bg-zinc-900 sm:mb-6">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-zinc-300">Texto bíblico</p>
+                  <h2 className="mb-2 text-xl font-semibold">{book} {chapter}:{verses}</h2>
+                  <p className="text-base leading-8 text-zinc-100">{selectedVerseText}</p>
                 </div>
               )}
               {!shouldLoadExplanation && !explanation ? (
                 <div className="space-y-6">
-                  <section className="rounded-xl border border-amber-200/70 bg-gradient-to-br from-amber-50 via-card to-sky-50 p-4 shadow-sm dark:border-amber-800/40 dark:from-amber-950/20 dark:via-card dark:to-sky-950/20 sm:p-5">
+                  <section className="rounded-2xl border border-border/70 bg-gradient-to-br from-zinc-50 via-card to-amber-50 p-4 shadow-sm dark:from-zinc-900 dark:via-card dark:to-amber-950/20 sm:p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-amber-700 dark:text-amber-300">Estudo bíblico</p>
                     <h2 className="mt-2 text-xl font-semibold text-foreground">
                       {book} {chapter}:{verses} explicado
@@ -1360,14 +1357,14 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                     <div className="mt-4 flex flex-col gap-2 sm:flex-row">
                       <button
                         onClick={() => triggerExplanationGeneration('verse')}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                        className="inline-flex items-center justify-center gap-2 rounded-full bg-black px-4 py-3 text-sm font-semibold text-white shadow-sm shadow-black/20 transition-colors hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 sm:rounded-md sm:py-2"
                       >
                         <BookOpen size={16} />
                         Gerar explicação deste verso
                       </button>
                       <a
                         href={buildChapterUrl()}
-                        className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md border border-border hover:bg-muted transition-colors text-sm font-medium"
+                        className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-background px-4 py-3 text-sm font-semibold transition-colors hover:bg-muted sm:rounded-md sm:py-2"
                       >
                         Ler capítulo completo
                         <ArrowRight size={16} />
@@ -1376,7 +1373,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                   </section>
 
                   {chapterVerses.length > 0 && (
-                    <section className="rounded-xl border border-border/80 bg-card p-4 sm:p-5">
+                    <section className="rounded-2xl border border-border/70 bg-card p-4 shadow-sm sm:p-5">
                       <div className="mb-4">
                         <h2 className="text-lg font-semibold">Contexto de {book} {chapter}</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
@@ -1391,9 +1388,9 @@ function BibleExplanationContent(props: BibleExplanationProps) {
                             <a
                               key={verse.number}
                               href={buildChapterVerseUrl(verse.number)}
-                              className={`block rounded-lg border p-3 leading-7 transition-colors ${isSelectedVerse ? 'border-primary bg-primary/10' : 'border-border hover:border-primary/50 hover:bg-primary/5'}`}
+                              className={`block rounded-2xl border p-3.5 leading-7 shadow-sm transition-colors ${isSelectedVerse ? 'border-black bg-zinc-950 text-white dark:border-white dark:bg-white dark:text-black' : 'border-border bg-background hover:border-foreground/30 hover:bg-muted/60'}`}
                             >
-                              <span className="font-semibold mr-2">{verse.number}</span>
+                              <span className={`mr-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-bold ${isSelectedVerse ? 'bg-white text-black dark:bg-black dark:text-white' : 'bg-muted text-foreground'}`}>{verse.number}</span>
                               <span>{verse.text}</span>
                             </a>
                           );
