@@ -248,20 +248,20 @@
              <div class="section">
                  <h2>Explicação Bíblica</h2>
                  
-                 @if(!empty($intro))
+                 <?php if (! empty($intro)): ?>
                     <p>{!! $intro !!}</p>
-                 @endif
+                 <?php endif; ?>
 
-                 @if(isset($sections) && is_array($sections))
-                    @php $ampSectionCount = 0; @endphp
-                    @foreach($sections as $section)
-                        @php $ampSectionCount++; @endphp
+                 <?php if (isset($sections) && is_array($sections) && count($sections) > 0): ?>
+                    <?php $ampSectionCount = 0; ?>
+                    <?php foreach ($sections as $section): ?>
+                        <?php $ampSectionCount++; ?>
                         <div class="subsection">
-                            <h3>{{ $section['title'] }}</h3>
-                            <p>{!! $section['content'] !!}</p>
+                            <h3>{{ $section['title'] ?? '' }}</h3>
+                            <p>{!! $section['content'] ?? '' !!}</p>
                         </div>
 
-                        @if($ampSectionCount === 2)
+                        <?php if ($ampSectionCount === 2): ?>
                             <!-- AMP Ad Middle -->
                             <div style="margin: 20px 0; display: flex; justify-content: center;">
                                 <amp-ad width="100vw" height="320"
@@ -273,26 +273,26 @@
                                    <div overflow=""></div>
                                 </amp-ad>
                             </div>
-                        @endif
-                    @endforeach
-                 @elseif(isset($content))
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                 <?php elseif (isset($content)): ?>
                     <div>{!! $content !!}</div>
-                 @endif
+                 <?php endif; ?>
              </div>
             
             <!-- Seção de links relacionados -->
-            @if(count($relatedLinks) > 0)
+            <?php if (count($relatedLinks) > 0): ?>
             <div class="related-content">
                 <h3>Leituras Relacionadas</h3>
                 <ul class="related-links">
-                    @foreach($relatedLinks as $link)
+                    <?php foreach ($relatedLinks as $link): ?>
                         <li>
-                            <a href="{{ $link['url'] }}">{{ $link['title'] }}</a>
+                            <a href="{{ $link['url'] ?? '#' }}">{{ $link['title'] ?? 'Leitura relacionada' }}</a>
                         </li>
-                    @endforeach
+                    <?php endforeach; ?>
                 </ul>
             </div>
-            @endif
+            <?php endif; ?>
             
             <div class="non-amp-link">
                 <a href="{{ $canonicalUrl }}">Ver versão completa deste conteúdo</a>

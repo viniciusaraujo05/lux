@@ -29,7 +29,7 @@ class ThematicStudyService
             ['slug' => 'esperanca', 'label' => 'Esperança', 'title' => 'Versículos sobre Esperança', 'term' => 'esperança', 'description' => 'Passagens bíblicas sobre esperança, promessa, consolo e futuro nas mãos de Deus.'],
             ['slug' => 'paz', 'label' => 'Paz', 'title' => 'Versículos sobre Paz', 'term' => 'paz', 'description' => 'Versículos sobre a paz de Deus, reconciliação e descanso para o coração.'],
             ['slug' => 'cura', 'label' => 'Cura', 'title' => 'Versículos sobre Cura', 'term' => 'cura', 'description' => 'Textos bíblicos sobre cura, restauração, consolo e cuidado de Deus.'],
-            ['slug' => 'prosperidade', 'label' => 'Prosperidade', 'title' => 'Versículos sobre Prosperidade', 'term' => 'prosperidade', 'description' => 'Versículos sobre prosperidade bíblica, contentamento, trabalho e fidelidade a Deus.'],
+            ['slug' => 'provisao', 'label' => 'Provisão', 'title' => 'Versículos sobre Provisão de Deus', 'term' => 'provisão de Deus', 'description' => 'Versículos sobre provisão de Deus, contentamento, trabalho fiel e confiança no cuidado do Senhor.'],
             ['slug' => 'obediencia', 'label' => 'Obediência', 'title' => 'Versículos sobre Obediência', 'term' => 'obediência', 'description' => 'Passagens sobre obedecer a Deus, guardar sua Palavra e viver em fidelidade.'],
             ['slug' => 'arrependimento', 'label' => 'Arrependimento', 'title' => 'Versículos sobre Arrependimento', 'term' => 'arrependimento', 'description' => 'Versículos sobre arrependimento, conversão, confissão e retorno ao Senhor.'],
             ['slug' => 'salvacao', 'label' => 'Salvação', 'title' => 'Versículos sobre Salvação', 'term' => 'salvação', 'description' => 'Textos bíblicos sobre salvação pela graça, fé em Cristo e vida eterna.'],
@@ -40,6 +40,8 @@ class ThematicStudyService
     public function findTopic(string $slug): ?array
     {
         $normalized = Str::slug($slug);
+        $normalized = $normalized === 'prosperidade' ? 'provisao' : $normalized;
+
         foreach ($this->allTopics() as $topic) {
             if ($topic['slug'] === $normalized) {
                 return $topic + ['keywords' => $this->keywordsFor($topic['term'])];
@@ -217,6 +219,14 @@ class ThematicStudyService
             ];
         }
 
+        if ($slug === 'provisao') {
+            return [
+                'titulo' => 'O maná no deserto: Deus sustenta seu povo dia após dia',
+                'referencia' => 'Êxodo 16; Deuteronômio 8:1-18; Mateus 6:25-34',
+                'texto' => 'Depois da saída do Egito, Israel enfrentou fome no deserto e murmurou contra Moisés e contra o Senhor. Deus respondeu enviando maná diariamente, ensinando o povo a recolher o suficiente para cada dia e a descansar na fidelidade divina. A provisão não era licença para ganância, mas escola de dependência, gratidão e obediência. Deuteronômio 8 interpreta esse período como disciplina espiritual: Deus sustentou Israel para mostrar que a vida não depende apenas de pão, mas da Palavra do Senhor. Jesus retoma essa lógica ao ensinar seus discípulos a buscarem primeiro o Reino de Deus, confiando que o Pai conhece suas necessidades. Assim, a provisão bíblica aponta para o cuidado real de Deus sem transformar fé em busca de riqueza.',
+            ];
+        }
+
         return [
             'titulo' => 'Uma história bíblica para entender '.$slug,
             'referencia' => 'Leia as passagens selecionadas abaixo',
@@ -273,7 +283,20 @@ class ThematicStudyService
             'esperanca' => [['Romanos 15:13','novo','romanos',15,'13','Que o Deus da esperança os encha de toda alegria e paz.'], ['Jeremias 29:11','antigo','jeremias',29,'11','Porque sou eu que conheço os planos que tenho para vocês.'], ['Hebreus 10:23','novo','hebreus',10,'23','Apeguemo-nos com firmeza à esperança que professamos.']],
             'paz' => [['João 14:27','novo','joao',14,'27','Deixo-lhes a paz; a minha paz lhes dou.'], ['Filipenses 4:7','novo','filipenses',4,'7','E a paz de Deus, que excede todo o entendimento, guardará os seus corações.'], ['Números 6:26','antigo','numeros',6,'26','O Senhor volte para você o seu rosto e lhe dê paz.']],
             'cura' => [['Isaías 53:5','antigo','isaias',53,'5','O castigo que nos trouxe paz estava sobre ele, e pelas suas feridas fomos curados.'], ['Tiago 5:15','novo','tiago',5,'15','A oração feita com fé curará o doente.'], ['Salmos 147:3','antigo','salmos',147,'3','Só ele cura os de coração quebrantado.']],
-            'prosperidade' => [['3 João 1:2','novo','3-joao',1,'2','Oro para que você tenha boa saúde e tudo corra bem.'], ['Josué 1:8','antigo','josue',1,'8','Medite nele dia e noite, para que tenha cuidado de fazer tudo o que nele está escrito.'], ['Salmos 1:3','antigo','salmos',1,'3','É como árvore plantada à beira de águas correntes.']],
+            'provisao' => [
+                ['Mateus 6:33','novo','mateus',6,'33','Busquem, pois, em primeiro lugar o Reino de Deus e a sua justiça, e todas essas coisas serão acrescentadas a vocês.','Jesus ensina que a confiança na provisão começa colocando o Reino acima da ansiedade por necessidades materiais.'],
+                ['Filipenses 4:19','novo','filipenses',4,'19','O meu Deus suprirá todas as necessidades de vocês, de acordo com as suas gloriosas riquezas em Cristo Jesus.','Paulo fala de suprimento para necessidades reais, dentro da comunhão com Cristo e da generosidade da igreja.'],
+                ['Salmos 23:1','antigo','salmos',23,'1','O Senhor é o meu pastor; de nada terei falta.','Davi descreve Deus como pastor que guia, sustenta e cuida do seu povo.'],
+                ['Êxodo 16:4','antigo','exodo',16,'4','Disse, porém, o Senhor a Moisés: Eu lhes farei chover pão do céu.','O maná mostra que Deus sustenta seu povo no caminho, ensinando dependência diária.'],
+                ['Deuteronômio 8:3','antigo','deuteronomio',8,'3','Ele os humilhou e os deixou passar fome, mas depois os sustentou com maná.','A provisão no deserto ensinou que a vida depende da Palavra e da fidelidade de Deus.'],
+                ['Provérbios 30:8','antigo','proverbios',30,'8','Não me dês nem pobreza nem riqueza; dá-me apenas o alimento necessário.','A sabedoria bíblica busca contentamento e dependência, não acúmulo sem limites.'],
+                ['1 Timóteo 6:6','novo','1-timoteo',6,'6','De fato, a piedade com contentamento é grande fonte de lucro.','Paulo corrige a ganância e apresenta o contentamento como riqueza espiritual verdadeira.'],
+                ['1 Timóteo 6:8','novo','1-timoteo',6,'8','Por isso, tendo o que comer e com que vestir-nos, estejamos com isso satisfeitos.','A vida cristã aprende satisfação nas necessidades supridas, sem idolatrar posses.'],
+                ['2 Coríntios 9:8','novo','2-corintios',9,'8','Deus é poderoso para fazer que lhes seja acrescentada toda a graça.','Deus supre para que seu povo pratique boas obras e generosidade, não para alimentar egoísmo.'],
+                ['Salmos 37:25','antigo','salmos',37,'25','Já fui jovem e agora sou velho, mas nunca vi o justo desamparado.','O salmista testemunha o cuidado fiel de Deus ao longo da vida.'],
+                ['Hebreus 13:5','novo','hebreus',13,'5','Conservem-se livres do amor ao dinheiro e contentem-se com o que vocês têm.','A segurança cristã não está no dinheiro, mas na promessa de que Deus não abandona seus filhos.'],
+                ['Tiago 1:17','novo','tiago',1,'17','Toda boa dádiva e todo dom perfeito vêm do alto.','Toda provisão deve ser recebida como dom do Pai, com gratidão e humildade.'],
+            ],
             'obediencia' => [['João 14:15','novo','joao',14,'15','Se vocês me amam, obedecerão aos meus mandamentos.'], ['Deuteronômio 5:33','antigo','deuteronomio',5,'33','Andem sempre pelo caminho que o Senhor, o seu Deus, lhes ordenou.'], ['Tiago 1:22','novo','tiago',1,'22','Sejam praticantes da palavra, e não apenas ouvintes.']],
             'arrependimento' => [['Atos 3:19','novo','atos',3,'19','Arrependam-se, pois, e voltem-se para Deus.'], ['1 João 1:9','novo','1-joao',1,'9','Se confessarmos os nossos pecados, ele é fiel e justo para perdoar.'], ['2 Crônicas 7:14','antigo','2-cronicas',7,'14','Se o meu povo se humilhar, orar e me buscar, eu ouvirei dos céus.']],
             'salvacao' => [['João 3:16','novo','joao',3,'16','Porque Deus tanto amou o mundo que deu o seu Filho unigênito.'], ['Efésios 2:8','novo','efesios',2,'8','Pois vocês são salvos pela graça, por meio da fé.'], ['Romanos 10:9','novo','romanos',10,'9','Se você confessar com a sua boca que Jesus é Senhor, será salvo.']],

@@ -14,7 +14,7 @@ const BIBLICAL_THEME_LINKS = [
   ['esperanca', 'Esperança'],
   ['paz', 'Paz'],
   ['cura', 'Cura'],
-  ['prosperidade', 'Prosperidade'],
+  ['provisao', 'Provisão'],
   ['obediencia', 'Obediência'],
   ['arrependimento', 'Arrependimento'],
   ['salvacao', 'Salvação'],

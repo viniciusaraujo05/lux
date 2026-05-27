@@ -433,6 +433,11 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     return (params.get('version') || props.version || 'nvi').toLowerCase();
   }
 
+  function hasGenerateParam() {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('gerar') === '1';
+  }
+
   // Normalize possible stringified JSON or legacy HTML
   const normalizeExplanation = (value: any): ExplanationData | string | null => {
     if (!value) return null;
@@ -460,7 +465,8 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     }
     return props.versos || null;
   })();
-  const [loading, setLoading] = useState(!props.initialExplanation);
+  const forceInitialGeneration = hasGenerateParam();
+  const [loading, setLoading] = useState(!props.initialExplanation || forceInitialGeneration);
   const [explanation, setExplanation] = useState<ExplanationData | string | null>(normalizeExplanation(props.initialExplanation));
   const [source, setSource] = useState(props.initialSource || '');
   const [explanationId, setExplanationId] = useState<number | null>(props.initialExplanationId || null);
@@ -475,7 +481,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
   const [version, setVersion] = useState<string>(extractVersion());
   const [chapterVerses, setChapterVerses] = useState<ChapterVerseText[]>(props.initialChapterVerses || []);
   const [chapterTextLoading, setChapterTextLoading] = useState<boolean>(!props.initialChapterVerses?.length);
-  const [shouldGenerateExplanation, setShouldGenerateExplanation] = useState<boolean>(false);
+  const [shouldGenerateExplanation, setShouldGenerateExplanation] = useState<boolean>(forceInitialGeneration);
   const [explanationTarget, setExplanationTarget] = useState<ExplanationTarget>(initialVerses ? 'verse' : 'chapter');
   const [lookupLoading, setLookupLoading] = useState<boolean>(false);
   const [readingWidthPercent, setReadingWidthPercent] = useState<number>(66);
@@ -549,17 +555,17 @@ function BibleExplanationContent(props: BibleExplanationProps) {
     : buildChapterUrl();
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !isStandaloneVersePage || !verses || explanation) return;
+    if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('gerar') !== '1') return;
 
     params.delete('gerar');
     const nextQuery = params.toString();
     window.history.replaceState({}, '', `${window.location.pathname}${nextQuery ? `?${nextQuery}` : ''}`);
-    setExplanationTarget('verse');
+    setExplanationTarget(verses ? 'verse' : 'chapter');
     setShouldGenerateExplanation(true);
     setLoading(true);
-  }, [isStandaloneVersePage, verses, explanation]);
+  }, [verses]);
 
   useEffect(() => {
     if (!isResizingPanels) return;
@@ -635,6 +641,8 @@ function BibleExplanationContent(props: BibleExplanationProps) {
 
   // Sync verses state when server provides initial props (SSR or Inertia navigation)
   useEffect(() => {
+    if (shouldGenerateExplanation) return;
+
     if (props.initialExplanation !== undefined) {
       setExplanation(normalizeExplanation(props.initialExplanation));
       setSource(props.initialSource || 'unknown');
@@ -642,18 +650,18 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       if (props.initialExplanationId) fetchFeedbackStats(props.initialExplanationId);
       setLoading(!props.initialExplanation);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.initialExplanation, props.initialSource, props.initialExplanationId]);
+  }, [props.initialExplanation, props.initialSource, props.initialExplanationId, shouldGenerateExplanation]);
 
   useEffect(() => {
     // Keep verses in sync when SSR prop changes
     if (props.versos !== undefined) {
       setVersesState(props.versos || null);
-      setShouldGenerateExplanation(false);
       setExplanationTarget(props.versos ? 'verse' : 'chapter');
+      if (!shouldGenerateExplanation) {
+        setShouldGenerateExplanation(false);
+      }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.versos]);
+  }, [props.versos, shouldGenerateExplanation]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -888,7 +896,7 @@ function BibleExplanationContent(props: BibleExplanationProps) {
       };
     }
 
-    if (!didUseSSR.current && props.initialExplanation) {
+    if (!shouldGenerateExplanation && !didUseSSR.current && props.initialExplanation) {
       // First render with SSR data: use it and skip fetching
       setLoading(false);
       didUseSSR.current = true;
