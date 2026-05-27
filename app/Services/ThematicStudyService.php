@@ -60,10 +60,32 @@ class ThematicStudyService
         if ($existing) {
             $existing->increment('access_count');
             $decoded = json_decode($existing->content, true);
+            $study = is_array($decoded) ? $this->normalizeStudy($decoded, $topic) : $this->fallbackStudy($topic);
+
+            if ($generate && $this->isWeakStudy($study)) {
+                $study = $this->generateStudy($topic);
+                $existing->update([
+                    'title' => $topic['title'],
+                    'term' => $topic['term'],
+                    'content' => json_encode($study, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
+                    'source' => 'ai',
+                ]);
+
+                return [
+                    'topic' => $topic,
+                    'study' => $study,
+                    'origin' => 'regenerated',
+                    'id' => $existing->id,
+                ];
+            }
+
+            if ($this->isWeakStudy($study) && count($this->fallbackStudy($topic)['versiculos']) > count($study['versiculos'] ?? [])) {
+                $study = $this->fallbackStudy($topic);
+            }
 
             return [
                 'topic' => $topic,
-                'study' => is_array($decoded) ? $decoded : $this->fallbackStudy($topic),
+                'study' => $study,
                 'origin' => 'database',
                 'id' => $existing->id,
             ];
@@ -103,7 +125,7 @@ class ThematicStudyService
             ['role' => 'system', 'content' => $this->promptBuilder->getSystemMessage()],
             ['role' => 'user', 'content' => $prompt],
         ];
-        $content = $client->chat($messages, 3200);
+        $content = $client->chat($messages, 6500);
         $json = $this->extractJson($content);
         $decoded = json_decode($json, true);
 
@@ -160,10 +182,22 @@ class ThematicStudyService
             'significado_biblico' => (string) ($study['significado_biblico'] ?? $fallback['significado_biblico']),
             'aplicacao_pratica' => (string) ($study['aplicacao_pratica'] ?? $fallback['aplicacao_pratica']),
             'historia_biblica' => is_array($study['historia_biblica'] ?? null) ? $study['historia_biblica'] : $fallback['historia_biblica'],
-            'versiculos' => count($verses) > 0 ? array_slice($verses, 0, 12) : $fallback['versiculos'],
+            'versiculos' => count($verses) > 0 ? array_slice($verses, 0, 30) : $fallback['versiculos'],
         ];
     }
 
+    private function isWeakStudy(array $study): bool
+    {
+        $verses = $study['versiculos'] ?? [];
+        $story = $study['historia_biblica'] ?? [];
+        $storyText = Str::lower((string) ($story['texto'] ?? ''));
+        $storyReference = Str::lower((string) ($story['referencia'] ?? ''));
+
+        return count($verses) < 12
+            || str_contains($storyText, 'passagens selecionadas abaixo')
+            || str_contains($storyReference, 'passagens selecionadas abaixo')
+            || str_contains($storyText, 'a bíblia normalmente ensina seus temas');
+    }
 
     private function themeStoryFor(string $slug): array
     {
@@ -172,6 +206,14 @@ class ThematicStudyService
                 'titulo' => 'Abraão: fé que descansa na promessa de Deus',
                 'referencia' => 'Gênesis 12; Gênesis 15; Romanos 4; Hebreus 11',
                 'texto' => 'A história de Abraão é uma das maiores narrativas bíblicas sobre fé. Deus o chamou para sair da sua terra e confiar em uma promessa que ainda não podia ver. Paulo interpreta essa história em Romanos 4 dizendo que Abraão creu em Deus, e isso lhe foi creditado como justiça. Hebreus 11 também apresenta Abraão como exemplo de obediência confiante: ele saiu sem saber exatamente para onde ia, porque sua segurança estava no caráter de Deus. Teólogos como João Calvino destacaram que a fé se apoia na promessa divina, enquanto John Stott enfatizou que a fé salvadora não é confiança em si mesmo, mas resposta à graça de Deus revelada em Cristo.',
+            ];
+        }
+
+        if ($slug === 'louvor') {
+            return [
+                'titulo' => 'Josafá: louvor antes da vitória',
+                'referencia' => '2 Crônicas 20:1-30',
+                'texto' => 'Quando uma grande multidão veio contra Judá, o rei Josafá teve medo, mas buscou ao Senhor e convocou o povo para jejum e oração. A resposta de Deus veio por meio de Jaaziel: a batalha pertencia ao Senhor, e o povo deveria permanecer firme e ver o livramento. No dia seguinte, Josafá colocou cantores à frente do exército para louvarem a santidade de Deus e confessarem sua misericórdia. A narrativa diz que, quando começaram a cantar e louvar, o Senhor agiu contra os inimigos. Essa história mostra que louvor bíblico não é fuga da realidade, mas confiança adoradora no caráter de Deus em meio à crise. O louvor nasce da fé, recorda quem Deus é e forma uma comunidade que responde à Palavra antes mesmo de ver o desfecho.',
             ];
         }
 
@@ -235,7 +277,37 @@ class ThematicStudyService
             'obediencia' => [['João 14:15','novo','joao',14,'15','Se vocês me amam, obedecerão aos meus mandamentos.'], ['Deuteronômio 5:33','antigo','deuteronomio',5,'33','Andem sempre pelo caminho que o Senhor, o seu Deus, lhes ordenou.'], ['Tiago 1:22','novo','tiago',1,'22','Sejam praticantes da palavra, e não apenas ouvintes.']],
             'arrependimento' => [['Atos 3:19','novo','atos',3,'19','Arrependam-se, pois, e voltem-se para Deus.'], ['1 João 1:9','novo','1-joao',1,'9','Se confessarmos os nossos pecados, ele é fiel e justo para perdoar.'], ['2 Crônicas 7:14','antigo','2-cronicas',7,'14','Se o meu povo se humilhar, orar e me buscar, eu ouvirei dos céus.']],
             'salvacao' => [['João 3:16','novo','joao',3,'16','Porque Deus tanto amou o mundo que deu o seu Filho unigênito.'], ['Efésios 2:8','novo','efesios',2,'8','Pois vocês são salvos pela graça, por meio da fé.'], ['Romanos 10:9','novo','romanos',10,'9','Se você confessar com a sua boca que Jesus é Senhor, será salvo.']],
-            'louvor' => [['Salmos 150:6','antigo','salmos',150,'6','Tudo o que tem vida louve o Senhor.'], ['Salmos 100:2','antigo','salmos',100,'2','Prestem culto ao Senhor com alegria.'], ['Hebreus 13:15','novo','hebreus',13,'15','Ofereçamos continuamente a Deus um sacrifício de louvor.']],
+            'louvor' => [
+                ['Salmos 150:6', 'antigo', 'salmos', 150, '6', 'Tudo quanto tem fôlego louve ao Senhor.', 'O salmo encerra o Saltério convocando toda criatura viva a louvar o Senhor.'],
+                ['Salmos 100:2', 'antigo', 'salmos', 100, '2', 'Servi ao Senhor com alegria; apresentai-vos diante dele com cântico.', 'Louvor envolve serviço alegre e aproximação reverente diante de Deus.'],
+                ['Salmos 100:4', 'antigo', 'salmos', 100, '4', 'Entrai pelas portas dele com gratidão, e em seus átrios com louvor.', 'A adoração comunitária é marcada por gratidão, bênção e reconhecimento do nome do Senhor.'],
+                ['Salmos 95:1', 'antigo', 'salmos', 95, '1', 'Vinde, cantemos ao Senhor; jubilemos à rocha da nossa salvação.', 'O louvor responde à salvação de Deus com cântico, alegria e confissão pública.'],
+                ['Salmos 96:1', 'antigo', 'salmos', 96, '1', 'Cantai ao Senhor um cântico novo; cantai ao Senhor, toda a terra.', 'A glória de Deus merece um louvor renovado e anunciado a todos os povos.'],
+                ['Salmos 96:4', 'antigo', 'salmos', 96, '4', 'Porque grande é o Senhor, e digno de louvor, mais temível do que todos os deuses.', 'A razão do louvor está na grandeza incomparável do Senhor.'],
+                ['Salmos 103:1', 'antigo', 'salmos', 103, '1', 'Bendize, ó minha alma, ao Senhor, e tudo o que há em mim bendiga o seu santo nome.', 'Davi mostra que o louvor envolve a pessoa inteira, não apenas palavras externas.'],
+                ['Salmos 103:2', 'antigo', 'salmos', 103, '2', 'Bendize, ó minha alma, ao Senhor, e não te esqueças de nenhum de seus benefícios.', 'Louvar também é lembrar as misericórdias de Deus para não viver na ingratidão.'],
+                ['Salmos 113:3', 'antigo', 'salmos', 113, '3', 'Desde o nascimento do sol até ao ocaso, seja louvado o nome do Senhor.', 'O nome do Senhor deve ser bendito em todo tempo e lugar.'],
+                ['Salmos 117:1', 'antigo', 'salmos', 117, '1', 'Louvai ao Senhor, todas as nações; louvai-o, todos os povos.', 'O louvor bíblico tem alcance missionário e chama as nações para Deus.'],
+                ['Salmos 145:3', 'antigo', 'salmos', 145, '3', 'Grande é o Senhor, e mui digno de ser louvado; a sua grandeza é insondável.', 'A grandeza infinita de Deus sustenta um louvor que nunca se esgota.'],
+                ['Salmos 146:2', 'antigo', 'salmos', 146, '2', 'Louvarei ao Senhor durante a minha vida; cantarei louvores ao meu Deus enquanto eu viver.', 'O louvor não é apenas um momento litúrgico, mas vocação de toda a vida.'],
+                ['Salmos 147:1', 'antigo', 'salmos', 147, '1', 'Louvai ao Senhor, porque é bom cantar louvores ao nosso Deus; isto é agradável e decoroso.', 'A Escritura descreve o louvor como bom, belo e apropriado ao povo de Deus.'],
+                ['Salmos 149:1', 'antigo', 'salmos', 149, '1', 'Louvai ao Senhor. Cantai ao Senhor um cântico novo, e o seu louvor na congregação dos santos.', 'O louvor tem dimensão congregacional e fortalece a identidade do povo santo.'],
+                ['Isaías 25:1', 'antigo', 'isaias', 25, '1', 'Ó Senhor, tu és o meu Deus; exaltar-te-ei e louvarei o teu nome.', 'Isaías liga louvor à confiança nas obras fiéis e maravilhosas de Deus.'],
+                ['Isaías 43:21', 'antigo', 'isaias', 43, '21', 'Esse povo que formei para mim, para que publicasse o meu louvor.', 'Deus forma seu povo para anunciar sua glória e viver para seu louvor.'],
+                ['2 Crônicas 20:21', 'antigo', '2-cronicas', 20, '21', 'Louvai ao Senhor, porque a sua benignidade dura para sempre.', 'Judá louva antes da batalha, confessando a misericórdia permanente de Deus.'],
+                ['Lucas 2:13-14', 'novo', 'lucas', 2, '13-14', 'Glória a Deus nas maiores alturas, paz na terra entre os homens a quem ele quer bem.', 'No nascimento de Cristo, o louvor angelical anuncia a glória de Deus e a paz messiânica.'],
+                ['Lucas 19:37', 'novo', 'lucas', 19, '37', 'Toda a multidão dos discípulos passou a louvar a Deus em alta voz por todos os milagres que tinham visto.', 'Os discípulos louvam a Deus ao reconhecerem as obras de Cristo.'],
+                ['Atos 16:25', 'novo', 'atos', 16, '25', 'Perto da meia-noite, Paulo e Silas oravam e cantavam hinos a Deus.', 'Mesmo presos, Paulo e Silas mostram que o louvor pode florescer no sofrimento.'],
+                ['Romanos 11:36', 'novo', 'romanos', 11, '36', 'Porque dele, e por meio dele, e para ele são todas as coisas. A ele seja a glória para sempre.', 'A teologia de Paulo desemboca em doxologia: tudo existe para a glória de Deus.'],
+                ['Efésios 1:6', 'novo', 'efesios', 1, '6', 'Para louvor da glória da sua graça, que ele nos concedeu gratuitamente no Amado.', 'A salvação em Cristo tem como finalidade o louvor da graça de Deus.'],
+                ['Efésios 5:19', 'novo', 'efesios', 5, '19', 'Falando entre vós com salmos, hinos e cânticos espirituais, cantando e salmodiando ao Senhor no coração.', 'A vida cheia do Espírito se expressa em cânticos que edificam a igreja e honram o Senhor.'],
+                ['Colossenses 3:16', 'novo', 'colossenses', 3, '16', 'Habite ricamente em vós a palavra de Cristo; instruí-vos e aconselhai-vos com salmos, hinos e cânticos espirituais.', 'Louvor cristão deve ser moldado pela Palavra de Cristo e servir à edificação mútua.'],
+                ['Hebreus 13:15', 'novo', 'hebreus', 13, '15', 'Ofereçamos sempre, por meio dele, a Deus sacrifício de louvor.', 'O louvor cristão é oferecido a Deus por meio de Cristo como fruto de lábios confessos.'],
+                ['Tiago 5:13', 'novo', 'tiago', 5, '13', 'Está alguém alegre? Cante louvores.', 'Tiago apresenta o louvor como resposta adequada à alegria recebida de Deus.'],
+                ['1 Pedro 2:9', 'novo', '1-pedro', 2, '9', 'Vós sois raça eleita, sacerdócio real, nação santa, povo de propriedade exclusiva de Deus.', 'A identidade da igreja inclui proclamar as virtudes daquele que nos chamou das trevas para a luz.'],
+                ['Apocalipse 5:12', 'novo', 'apocalipse', 5, '12', 'Digno é o Cordeiro que foi morto de receber poder, riqueza, sabedoria, força, honra, glória e louvor.', 'O louvor celestial se concentra no Cordeiro morto e vitorioso.'],
+                ['Apocalipse 19:5', 'novo', 'apocalipse', 19, '5', 'Louvai o nosso Deus, todos vós, os seus servos, os que o temeis, pequenos e grandes.', 'No fim da história, todos os servos de Deus são chamados ao louvor.'],
+            ],
         ];
 
         return array_map(fn ($item) => [

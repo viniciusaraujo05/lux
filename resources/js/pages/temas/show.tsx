@@ -43,6 +43,15 @@ interface Props {
 }
 
 const explanationUrl = (verse: ThemeVerse) => `/explicacao/${verse.testamento}/${verse.livro_slug}/${verse.capitulo}/${verse.versos}-explicacao-biblica?gerar=1`;
+const isThinStudy = (study: ThemeStudy) => {
+  const storyText = `${study.historia_biblica?.texto || ''} ${study.historia_biblica?.referencia || ''}`.toLowerCase();
+
+  return (
+    (study.versiculos?.length || 0) < 12 ||
+    storyText.includes('passagens selecionadas abaixo') ||
+    storyText.includes('a bíblia normalmente ensina seus temas')
+  );
+};
 
 export default function ThemeShow({ topic, study: initialStudy, origin, topics }: Props) {
   const [study, setStudy] = useState(initialStudy);
@@ -53,7 +62,8 @@ export default function ThemeShow({ topic, study: initialStudy, origin, topics }
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get('gerar') !== '1' || currentOrigin === 'database') return;
+    if (params.get('gerar') !== '1') return;
+    if (currentOrigin === 'database' && !isThinStudy(study)) return;
 
     const controller = new AbortController();
 
@@ -92,7 +102,7 @@ export default function ThemeShow({ topic, study: initialStudy, origin, topics }
     generateStudy();
 
     return () => controller.abort();
-  }, [topic.slug, currentOrigin]);
+  }, [topic.slug, currentOrigin, study]);
 
   return (
     <AppLayout>

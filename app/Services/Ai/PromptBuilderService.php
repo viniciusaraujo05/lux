@@ -161,13 +161,13 @@ Retorne APENAS JSON válido no formato:
 {
   "titulo": "{$title}",
   "subtitulo": "string curta e natural para SEO",
-  "introducao": "2 a 3 frases explicando por que este tema importa na vida cristã",
-  "significado_biblico": "3 a 5 frases explicando o que {$term} significa na Bíblia, citando o ensino das Escrituras e dialogando com teólogos cristãos reconhecidos quando apropriado",
-  "aplicacao_pratica": "2 a 4 frases com aplicação pastoral e prática",
+  "introducao": "3 a 5 frases explicando por que este tema importa na vida cristã",
+  "significado_biblico": "5 a 8 frases explicando o que {$term} significa na Bíblia, citando o ensino das Escrituras e dialogando com teólogos cristãos reconhecidos quando apropriado",
+  "aplicacao_pratica": "4 a 6 frases com aplicação pastoral e prática",
   "historia_biblica": {
     "titulo": "string",
     "referencia": "string",
-    "texto": "3 a 5 frases contando uma história bíblica relacionada ao tema e explicando o que ela ensina"
+    "texto": "5 a 8 frases contando uma história bíblica real relacionada ao tema, com começo, conflito, resposta de fé e ensino espiritual"
   },
   "versiculos": [
     {
@@ -182,7 +182,7 @@ Retorne APENAS JSON válido no formato:
   ]
 }
 
-Regras: Português BR, perspectiva evangélica, tom claro e pastoral. Traga 8 a 12 versículos realmente centrais sobre o tema, não apenas tangenciais. Baseie a explicação na Bíblia e, quando citar teólogos, prefira nomes reconhecidos como Agostinho, Lutero, Calvino, John Stott, R.C. Sproul, D.A. Carson, N.T. Wright ou Craig Keener. Use livro_slug sem acentos, em minúsculas, com hífen quando necessário (ex: 1-corintios, 2-cronicas, 1-joao). Não invente referências inexistentes.
+Regras: Português BR, perspectiva evangélica, tom claro e pastoral. Traga de 18 a 30 versículos realmente centrais sobre o tema, cobrindo Antigo e Novo Testamento quando houver base bíblica. Priorize passagens diretamente ligadas ao tema; use textos tangenciais apenas se explicarem uma conexão clara. A história bíblica deve ser uma narrativa concreta, como um episódio de um personagem, rei, profeta, igreja ou salmo em seu contexto; não use texto genérico dizendo apenas para ler as passagens abaixo. Baseie a explicação na Bíblia e, quando citar teólogos, prefira nomes reconhecidos como Agostinho, Lutero, Calvino, John Stott, R.C. Sproul, D.A. Carson, N.T. Wright ou Craig Keener. Use livro_slug sem acentos, em minúsculas, com hífen quando necessário (ex: 1-corintios, 2-cronicas, 1-joao). Não invente referências inexistentes.
 EOD;
     }
 
